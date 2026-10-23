@@ -1,0 +1,28 @@
+{
+  "schema": "kelft.seed-parts/1",
+  "files": [
+    {
+      "path": "rootfs/toolchain/link.exe",
+      "bytes": 122606592,
+      "sha256": "sha256:b4b3a7e91505e6ab40f97493bebe398908f63582d686b72111e8ca8b08351bf5",
+      "mode": 493,
+      "parts": [
+        {
+          "path": "parts/000f664e330689d0-000",
+          "bytes": 50331648,
+          "sha256": "sha256:49f4fda20d24dcdffcdf4b6ab3cea311321fec2c04712a1f99266f87ae365797"
+        },
+        {
+          "path": "parts/000f664e330689d0-001",
+          "bytes": 50331648,
+          "sha256": "sha256:3987fb712b68ddf8f88c84a6d21d2dec0d937ef1b831749ea16b369cce58ad07"
+        },
+        {
+          "path": "parts/000f664e330689d0-002",
+          "bytes": 21943296,
+          "sha256": "sha256:fe35a2e67d90ceff731e3a69b6aeff546f2e4642c1dead3a0b5b056f49da3deb"
+        }
+      ]
+    }
+  ]
+}

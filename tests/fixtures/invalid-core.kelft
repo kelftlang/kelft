@@ -1,0 +1,11 @@
+import "../../selfhost/core.kelft" as ir;
+import "../../selfhost/syntax.kelft" as s;
+fn main() -> void {
+    let location:s::Span=s::span("invalid",0,0);
+    let value:ir::Node=ir::make("literal","process.exit(0)","i32",[],location,false);
+    let statement:ir::Node=ir::make("evaluate","","void",[value],location,false);
+    let body:ir::Node=ir::make("block","","void",[statement],location,false);
+    let function:ir::Node=ir::make("function","m0::main","void",[body],location,false);
+    let program:ir::Program=ir::Program {entry:"m0::main",types:[],functions:[function],effects:[]};
+    ir::validate(program);
+}

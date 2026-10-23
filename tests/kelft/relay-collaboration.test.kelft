@@ -1,0 +1,43 @@
+import "../../stdlib/testing.kelft" as testing;
+import "../../examples/relay/collaboration.kelft" as relay;
+fn principal(name:string)->relay::Principal {return relay::Principal {issuer:"issuer",subject:name};}
+fn session(name:string)->relay::Session {return relay::Session {principal:principal(name),expires:100,revoked:false};}
+fn store()->relay::Store {
+ let task:relay::Task=relay::Task {id:"task",workspace:"A",title:"Original",state:relay::TaskState::Todo(),owner:Option::<relay::Principal>::None(),revision:0,title_revision:0,state_revision:0,owner_revision:0};
+ return relay::Store {tasks:[task],members:[relay::Membership {principal:principal("Alice"),workspace:"A",role:relay::Role::Admin()},relay::Membership {principal:principal("Bob"),workspace:"A",role:relay::Role::Member()}],receipts:[],audit:[]};
+}
+fn mutation(id:string,user:string,title:Option<string>,state:Option<relay::TaskState>)->relay::Mutation {return relay::Mutation {id:id,principal:principal(user),workspace:"A",task:"task",base_revision:0,title:title,state:state,owner:Option::<Option<relay::Principal>>::None(),dependency:Option::<string>::None()};}
+fn move(id:string,user:string,state:relay::TaskState)->relay::Mutation {return mutation(id,user,Option::<string>::None(),Option::<relay::TaskState>::Some(state));}
+fn rejected(inout c:testing::Context,outcome:relay::Outcome,reason:string)->void {match outcome {relay::Outcome::Rejected(actual)=>{testing::equal_string(inout c,actual,reason,"rejection reason");},_=>{testing::expect(inout c,false,"expected rejection: "+reason);}}}
+pub fn test_accepted_mutation_records_revision_receipt_and_audit(inout context:testing::Context)->void {
+ let mut value:relay::Store=store();match relay::apply_mutation(inout value,session("Bob"),1,move("move","Bob",relay::TaskState::Doing())) {relay::Outcome::Accepted(task)=>{testing::equal_i32(inout context,task.revision,1,"accepted revision");testing::equal_i32(inout context,task.state_revision,1,"changed field revision");testing::equal_i32(inout context,task.title_revision,0,"untouched field revision");},_=>{testing::expect(inout context,false,"mutation accepted");}}
+ testing::equal_i32(inout context,array_len::<relay::Receipt>(value.receipts),1,"one receipt");testing::equal_i32(inout context,array_len::<relay::Audit>(value.audit),1,"one audit event");testing::equal_string(inout context,value.audit[0].actor.subject,"Bob","audit actor");testing::equal_string(inout context,value.audit[0].action,"task_changed","audit action");testing::equal_string(inout context,value.audit[0].workspace,"A","audit scope");
+ testing::expect(inout context,value.tasks[0].state==relay::TaskState::Doing(),"accepted state stored");testing::expect(inout context,value.receipts[0].accepted==value.tasks[0],"receipt matches stored acceptance");testing::equal_string(inout context,value.receipts[0].operation.id,"move","receipt operation identity");testing::equal_string(inout context,value.audit[0].subject,"task","audit subject");
+}
+pub fn test_independent_fields_merge_from_stale_revision(inout context:testing::Context)->void {
+ let mut value:relay::Store=store();relay::apply_mutation(inout value,session("Bob"),1,move("move","Bob",relay::TaskState::Done()));
+ match relay::apply_mutation(inout value,session("Alice"),1,mutation("rename","Alice",Option::<string>::Some("Updated"),Option::<relay::TaskState>::None())) {relay::Outcome::Accepted(task)=>{testing::equal_string(inout context,task.title,"Updated","independent title applied");testing::expect(inout context,task.state==relay::TaskState::Done(),"concurrent state retained");testing::equal_i32(inout context,task.revision,2,"merged revision");testing::equal_i32(inout context,task.state_revision,1,"state baseline retained");},_=>{testing::expect(inout context,false,"independent change merges");}}
+}
+pub fn test_conflict_retains_server_pending_and_store(inout context:testing::Context)->void {
+ let mut value:relay::Store=store();relay::apply_mutation(inout value,session("Bob"),1,move("first","Bob",relay::TaskState::Done()));let before:relay::Store=value;let pending:relay::Mutation=move("offline","Alice",relay::TaskState::Doing());
+ match relay::apply_mutation(inout value,session("Alice"),1,pending) {relay::Outcome::Conflict(server,operation,fields)=>{testing::expect(inout context,server==before.tasks[0],"server version retained");testing::expect(inout context,operation==pending,"pending work retained");testing::equal_i32(inout context,array_len::<string>(fields),1,"single conflict");testing::equal_string(inout context,fields[0],"state","conflicting field");},_=>{testing::expect(inout context,false,"expected conflict");}}
+ testing::expect(inout context,value==before,"conflict leaves store, receipts and audit unchanged");
+}
+pub fn test_idempotent_replay_and_mismatch(inout context:testing::Context)->void {
+ let mut value:relay::Store=store();let original:relay::Mutation=move("stable","Alice",relay::TaskState::Doing());relay::apply_mutation(inout value,session("Alice"),1,original);let before:relay::Store=value;
+ match relay::apply_mutation(inout value,session("Alice"),1,original) {relay::Outcome::Accepted(task)=>{testing::expect(inout context,task==before.tasks[0],"cached accepted result");},_=>{testing::expect(inout context,false,"replay accepted");}}testing::expect(inout context,value==before,"replay creates no receipts or audit");
+ let mut changed:relay::Mutation=original;changed.title=Option::<string>::Some("Overwrite");rejected(inout context,relay::apply_mutation(inout value,session("Alice"),1,changed),"IDEMPOTENCY_MISMATCH");testing::expect(inout context,value==before,"mismatch has no side effects");
+}
+pub fn test_authority_is_rechecked_before_cached_receipt(inout context:testing::Context)->void {
+ let mut value:relay::Store=store();let operation:relay::Mutation=move("cached","Bob",relay::TaskState::Doing());relay::apply_mutation(inout value,session("Bob"),1,operation);let before:relay::Store=value;
+ let mut expired:relay::Session=session("Bob");expired.expires=1;rejected(inout context,relay::apply_mutation(inout value,expired,1,operation),"UNAUTHORIZED");testing::expect(inout context,value==before,"expired replay has no effects");
+ let mut revoked:relay::Session=session("Bob");revoked.revoked=true;rejected(inout context,relay::apply_mutation(inout value,revoked,1,operation),"UNAUTHORIZED");testing::expect(inout context,value==before,"revoked replay has no effects");
+ relay::change_membership(inout value,principal("Alice"),"A",principal("Bob"),Option::<relay::Role>::None());let removed:relay::Store=value;rejected(inout context,relay::apply_mutation(inout value,session("Bob"),1,operation),"UNAUTHORIZED");testing::expect(inout context,value==removed,"removed member cannot retrieve cached acceptance");
+}
+pub fn test_membership_and_workspace_protections(inout context:testing::Context)->void {
+ let mut value:relay::Store=store();let before:relay::Store=value;
+ match relay::change_membership(inout value,principal("Alice"),"A",principal("Alice"),Option::<relay::Role>::None()) {Result::Error(reason)=>{testing::equal_string(inout context,reason,"LAST_ADMIN","last admin retained");},_=>{testing::expect(inout context,false,"last admin removal denied");}}testing::expect(inout context,value==before,"last admin denial has no effects");
+ match relay::change_membership(inout value,principal("Alice"),"A",principal("Alice"),Option::<relay::Role>::Some(relay::Role::Member())) {Result::Error(reason)=>{testing::equal_string(inout context,reason,"LAST_ADMIN","last admin demotion denied");},_=>{testing::expect(inout context,false,"last admin demotion denied");}}testing::expect(inout context,value==before,"demotion denial has no effects");
+ match relay::change_membership(inout value,principal("Bob"),"A",principal("Alice"),Option::<relay::Role>::None()) {Result::Error(reason)=>{testing::equal_string(inout context,reason,"FORBIDDEN","member cannot administer");},_=>{testing::expect(inout context,false,"member administration denied");}}testing::expect(inout context,value==before,"forbidden membership change has no effects");
+ let mut cross:relay::Mutation=move("cross","Alice",relay::TaskState::Doing());cross.workspace="B";rejected(inout context,relay::apply_mutation(inout value,session("Alice"),1,cross),"UNAUTHORIZED");testing::expect(inout context,value==before,"cross-workspace write has no effects");
+}

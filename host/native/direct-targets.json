@@ -1,0 +1,12 @@
+{
+  "schema": "kelft-direct-targets/1",
+  "runtimeABI": "kelft-native/1",
+  "profiles": [
+    {"id":"linux-x86_64","platform":"linux","architecture":"x86_64","format":"elf64","abi":"sysv-amd64","baseline":"Ubuntu 24.04 / glibc 2.39","linker":"GNU ld","nativeRunner":null,"toolchainManifest":null},
+    {"id":"windows-x86_64","platform":"windows","architecture":"x86_64","format":"coff","abi":"microsoft-x64","baseline":"Windows Server 2025","linker":"link.exe","nativeRunner":null,"toolchainManifest":null},
+    {"id":"macos-x86_64","platform":"macos","architecture":"x86_64","format":"macho64","abi":"darwin-amd64","baseline":"macOS 15","linker":"Apple ld","nativeRunner":null,"toolchainManifest":null},
+    {"id":"linux-arm64","platform":"linux","architecture":"arm64","format":"elf64","abi":"aapcs64","baseline":"Ubuntu 24.04 / glibc 2.39","linker":"GNU ld","nativeRunner":null,"toolchainManifest":null},
+    {"id":"macos-arm64","platform":"macos","architecture":"arm64","format":"macho64","abi":"apple-arm64","baseline":"macOS 14","linker":"Apple ld","nativeRunner":null,"toolchainManifest":null},
+    {"id":"windows-arm64","platform":"windows","architecture":"arm64","format":"coff","abi":"windows-classic-arm64","baseline":"Windows 11","linker":"link.exe","nativeRunner":null,"toolchainManifest":null}
+  ]
+}

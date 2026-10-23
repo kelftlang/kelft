@@ -1,0 +1,1 @@
+fn main()->void { let a:Option<bool>=Option::<bool>::None();match a {_=>{} Option::None=>{}} }

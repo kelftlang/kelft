@@ -1,0 +1,203 @@
+import "./opcodes.kelft" as opcodes;
+// Backend-private machine IR. Public Core and Kelft have no pointer operations.
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./elf.kelft" as elf;
+pub struct Instruction {op:string,out:i32,value:i32,index:i32,kind:string,left:i32,right:i32,symbol:string,addend:i32,base:i32,offset:i32,slot:i32,args:Array<i32>,locations:Array<i32>}
+pub struct End {op:string,value:i32,label:string,condition:i32,yes:string,no:string}
+pub struct Block {label:string,instructions:Array<Instruction>,end:End}
+pub struct Signature {name:string,params:Array<string>,locations:i32,result:string}
+pub struct Function {name:string,params:Array<string>,locations:i32,result:string,slots:Array<string>,entry:string,blocks:Array<Block>}
+pub struct Program {schema:string,target:string,platform:string,abi:string,functions:Array<Function>,imports:Array<Signature>,data:Array<elf::Data>}
+pub fn instruction(op:string,out:i32)->Instruction {return Instruction {op:op,out:out,value:-1,index:-1,kind:"",left:-1,right:-1,symbol:"",addend:0,base:-1,offset:0,slot:-1,args:[],locations:[]};}
+fn need(ok:bool,message:string)->void {if !ok {b::error("invalid native IR: "+message);}}
+fn width(value:string)->bool {return value=="i32"||value=="u8"||value=="ptr";}
+fn slot(f:Function,n:i32)->string {need(n>=0&&n<array_len::<string>(f.slots),"slot");return f.slots[n];}
+fn successors(end:End)->Array<string> {if end.op=="goto" {return [end.label];}if end.op=="branch" {return [end.yes,end.no];}return [];}
+fn has(values:Array<string>,value:string)->bool {for item in values {if item==value {return true;}}return false;}
+fn reads(i:Instruction)->Array<i32> {if i.op=="copy"||i.op=="convert" {return [i.value];}if i.op=="slot_address" {return [i.slot];}if i.op=="binary"||i.op=="ptr_eq" {return [i.left,i.right];}if i.op=="ptr_add" {return [i.base,i.offset];}if i.op=="load" {return [i.base];}if i.op=="store" {return [i.base,i.value];}if i.op=="call" {let mut values:Array<i32>=i.args;for n in i.locations {array_push::<i32>(inout values,n);}return values;}return [];}
+fn writes(i:Instruction)->bool {return i.op!="store"&&!(i.op=="call"&&i.out<0);}
+// One bit per slot bounds dataflow state size while preserving intersection.
+fn bits(f:Function,value:bool)->Array<i32> {let mut out:Array<i32>=[];let words:i32=(array_len::<string>(f.slots)+31)/32;let mut word:i32=0;if value {word=-1;}let mut n:i32=0;while n<words {array_push::<i32>(inout out,word);n=n+1;}return out;}
+fn assigned(values:Array<i32>,index:i32)->bool {return (values[index>>>5]&(1<<(index&31)))!=0;}
+fn mark(inout values:Array<i32>,index:i32)->void {let word:i32=index>>>5;values[word]=values[word]|(1<<(index&31));}
+fn incoming(f:Function,label:string,states:Array<Array<i32>>)->Array<i32> {if label==f.entry {return bits(f,false);}let mut out:Array<i32>=bits(f,true);let mut j:i32=0;for block in f.blocks {if has(successors(block.end),label) {let mut n:i32=0;while n<array_len::<i32>(out) {out[n]=out[n]&states[j][n];n=n+1;}}j=j+1;}return out;}
+
+pub struct Environment {signatures:Array<Signature>,symbols:Map<string,i32>,signature_ids:Map<string,i32>}
+fn present(values:Map<string,i32>,name:string)->bool {match map_get::<string,i32>(values,name) {Option::Some(value)=>{return true;},Option::None=>{return false;}}}
+pub fn verification(signatures:Array<Signature>,data:Array<elf::Data>)->Environment {
+ let mut symbols:Map<string,i32>=map_new::<string,i32>();let mut signature_ids:Map<string,i32>=map_new::<string,i32>();let mut index:i32=0;
+ for s in signatures {need(b::symbol(s.name),"symbol");match map_get::<string,i32>(symbols,s.name) {Option::Some(value)=>{need(false,"duplicate symbol");},Option::None=>{}}map_set::<string,i32>(inout symbols,s.name,1);map_set::<string,i32>(inout signature_ids,s.name,index);index=index+1;need(array_len::<string>(s.params)<=256,"parameters");for w in s.params {need(width(w),"parameters");}need(s.locations>=0&&s.locations<=256,"locations");need(s.result=="void"||width(s.result),"result");}
+ for d in data {need(b::symbol(d.name)&&array_len::<u8>(d.bytes)<=268435456,"data");match map_get::<string,i32>(symbols,d.name) {Option::Some(value)=>{need(false,"duplicate symbol");},Option::None=>{}}map_set::<string,i32>(inout symbols,d.name,1);}
+ return Environment {signatures:signatures,symbols:symbols,signature_ids:signature_ids};
+}
+pub fn verify_part(f:Function,environment:Environment,data:Array<elf::Data>)->void {
+ // Reuse immutable opcode/diagnostic strings across the instruction loop.
+ let text_function_signature_mismatch:string="function signature mismatch";
+ let text_data:string="data";
+ let text_duplicate_symbol:string="duplicate symbol";
+ let text_slot_widths:string="slot widths";
+ let text_block_label:string="block label";
+ let text_duplicate_block_label:string="duplicate block label";
+ let text_goto:string="goto";
+ let text_branch:string="branch";
+ let text_return:string="return";
+ let text_trap:string="trap";
+ let text_terminator:string="terminator";
+ let text_i32:string="i32";
+ let text_branch_width:string="branch width";
+ let text_void:string="void";
+ let text_return_width:string="return width";
+ let text_const:string="const";
+ let text_u8:string="u8";
+ let text_ptr:string="ptr";
+ let text_constant_width_range:string="constant width/range";
+ let text_copy:string="copy";
+ let text_slot_width_mismatch:string="slot width mismatch";
+ let text_argument:string="argument";
+ let text_argument_width:string="argument width";
+ let text_location:string="location";
+ let text_context:string="context";
+ let text_slot_address:string="slot_address";
+ let text_slot_address_26:string="slot address";
+ let text_convert:string="convert";
+ let text_scalar_conversion:string="scalar conversion";
+ let text_binary:string="binary";
+ let text_add:string="add";
+ let text_sub:string="sub";
+ let text_mul:string="mul";
+ let text_and:string="and";
+ let text_or:string="or";
+ let text_xor:string="xor";
+ let text_shl:string="shl";
+ let text_shr_s:string="shr_s";
+ let text_shr_u:string="shr_u";
+ let text_div_s:string="div_s";
+ let text_rem_s:string="rem_s";
+ let text_eq:string="eq";
+ let text_ne:string="ne";
+ let text_lt_s:string="lt_s";
+ let text_le_s:string="le_s";
+ let text_gt_s:string="gt_s";
+ let text_ge_s:string="ge_s";
+ let text_ptr_eq:string="ptr_eq";
+ let text_pointer_comparison:string="pointer comparison";
+ let text_address:string="address";
+ let text_address_width:string="address width";
+ let text_ptr_add:string="ptr_add";
+ let text_pointer_addition:string="pointer addition";
+ let text_load:string="load";
+ let text_store:string="store";
+ let text_memory_address:string="memory address";
+ let text_call:string="call";
+ let text_call_arguments:string="call arguments";
+ let text_call_argument_width:string="call argument width";
+ let text_call_locations:string="call locations";
+ let text_call_location_width:string="call location width";
+ let text_call_result:string="call result";
+ let text_unknown_instruction:string="unknown instruction";
+ let text_unreachable_block:string="unreachable block";
+ let text_read_before_initialization:string="read before initialization";
+ let text_uninitialized_branch:string="uninitialized branch";
+ let text_uninitialized_return:string="uninitialized return";
+
+ let signatures:Array<Signature>=environment.signatures;let symbols:Map<string,i32>=environment.symbols;let signature_ids:Map<string,i32>=environment.signature_ids;let mut index:i32=0;
+ let signature:Signature=signatures[b::get(signature_ids,f.name)];need(signature.params==f.params&&signature.locations==f.locations&&signature.result==f.result,text_function_signature_mismatch);
+ let mut local_symbols:Map<string,i32>=map_new::<string,i32>();for d in data {need(b::symbol(d.name)&&array_len::<u8>(d.bytes)<=268435456,text_data);need(!present(symbols,d.name)&&!present(local_symbols,d.name),text_duplicate_symbol);map_set::<string,i32>(inout local_symbols,d.name,1);}
+  need(array_len::<string>(f.slots)<=4096,text_slot_widths);for w in f.slots {need(width(w),text_slot_widths);}
+  let mut labels:Map<string,i32>=map_new::<string,i32>();index=0;for block in f.blocks {need(b::symbol(block.label),text_block_label);match map_get::<string,i32>(labels,block.label) {Option::Some(value)=>{need(false,text_duplicate_block_label);},Option::None=>{}}map_set::<string,i32>(inout labels,block.label,index);index=index+1;}
+  let entry:i32=b::get(labels,f.entry);
+  for block in f.blocks {
+   let end:End=block.end;need(end.op==text_goto||end.op==text_branch||end.op==text_return||end.op==text_trap,text_terminator);for label in successors(end) {b::get(labels,label);}
+   if end.op==text_branch {need(slot(f,end.condition)==text_i32,text_branch_width);}
+   if end.op==text_return {if f.result==text_void {need(end.value<0,text_return_width);}else {need(slot(f,end.value)==f.result,text_return_width);}}
+   for i in block.instructions {
+    for n in reads(i) {slot(f,n);}if writes(i) {slot(f,i.out);}
+    if i.op==text_const {let w:string=slot(f,i.out);need(w==text_i32||w==text_u8&&i.value>=0&&i.value<=255||w==text_ptr&&i.value==0,text_constant_width_range);}
+    else if i.op==text_copy {need(slot(f,i.out)==slot(f,i.value),text_slot_width_mismatch);}
+    else if i.op==text_argument {need(i.index>=0&&i.index<array_len::<string>(f.params),text_argument);need(slot(f,i.out)==f.params[i.index],text_argument_width);}
+    else if i.op==text_location {need(i.index>=0&&i.index<f.locations&&slot(f,i.out)==text_ptr,text_location);}
+    else if i.op==text_context {need(slot(f,i.out)==text_ptr,text_context);}
+    else if i.op==text_slot_address {need(slot(f,i.out)==text_ptr,text_slot_address_26);slot(f,i.slot);}
+    else if i.op==text_convert {need(has([text_u8,text_i32],slot(f,i.out))&&has([text_u8,text_i32],slot(f,i.value)),text_scalar_conversion);}
+    else if i.op==text_binary {need(has([text_add,text_sub,text_mul,text_and,text_or,text_xor,text_shl,text_shr_s,text_shr_u,text_div_s,text_rem_s,text_eq,text_ne,text_lt_s,text_le_s,text_gt_s,text_ge_s],i.kind)&&slot(f,i.out)==text_i32&&slot(f,i.left)==text_i32&&slot(f,i.right)==text_i32,text_binary);}
+    else if i.op==text_ptr_eq {need(slot(f,i.out)==text_i32&&slot(f,i.left)==text_ptr&&slot(f,i.right)==text_ptr,text_pointer_comparison);}
+    else if i.op==text_address {need(slot(f,i.out)==text_ptr,text_address_width);if !present(symbols,i.symbol)&&!present(local_symbols,i.symbol) {b::get(symbols,i.symbol);}}
+    else if i.op==text_ptr_add {need(slot(f,i.out)==text_ptr&&slot(f,i.base)==text_ptr&&slot(f,i.offset)==text_i32,text_pointer_addition);}
+    else if i.op==text_load||i.op==text_store {need(slot(f,i.base)==text_ptr,text_memory_address);}
+    else if i.op==text_call {let callee:Signature=signatures[b::get(signature_ids,i.symbol)];need(array_len::<i32>(i.args)==array_len::<string>(callee.params),text_call_arguments);index=0;for n in i.args {need(slot(f,n)==callee.params[index],text_call_argument_width);index=index+1;}need(array_len::<i32>(i.locations)==callee.locations,text_call_locations);for n in i.locations {need(slot(f,n)==text_ptr,text_call_location_width);}if callee.result==text_void {need(i.out<0,text_call_result);}else {need(slot(f,i.out)==callee.result,text_call_result);}}
+    else {need(false,text_unknown_instruction);}
+   }
+  }
+  let mut reached:Array<bool>=[];for block in f.blocks {array_push::<bool>(inout reached,false);}let mut pending:Array<i32>=[entry];while array_len::<i32>(pending)>0 {let n:i32=pending[array_len::<i32>(pending)-1];array_pop::<i32>(inout pending);if reached[n] {continue;}reached[n]=true;for label in successors(f.blocks[n].end) {array_push::<i32>(inout pending,b::get(labels,label));}}for value in reached {need(value,text_unreachable_block);}
+  let mut states:Array<Array<i32>>=[];for block in f.blocks {array_push::<Array<i32>>(inout states,bits(f,true));}
+  let mut changed:bool=true;while changed {changed=false;index=0;for block in f.blocks {let mut next:Array<i32>=incoming(f,block.label,states);for i in block.instructions {if writes(i) {mark(inout next,i.out);}}if next!=states[index] {changed=true;states[index]=next;}index=index+1;}}
+  for block in f.blocks {let mut live:Array<i32>=incoming(f,block.label,states);for i in block.instructions {for n in reads(i) {need(assigned(live,n),text_read_before_initialization);}if writes(i) {mark(inout live,i.out);}}if block.end.op==text_branch {need(assigned(live,block.end.condition),text_uninitialized_branch);}if block.end.op==text_return&&block.end.value>=0 {need(assigned(live,block.end.value),text_uninitialized_return);}}
+ }
+pub fn verify(p:Program)->void {
+ need(p.schema=="kelft-native-ir/1"&&p.abi=="kelft-native/1","schema or runtime ABI");need(p.target=="x86_64"&&p.platform=="linux","unimplemented target/profile");need(array_len::<Function>(p.functions)>0,"no functions");
+ let mut signatures:Array<Signature>=p.imports;for f in p.functions {array_push::<Signature>(inout signatures,Signature {name:f.name,params:f.params,locations:f.locations,result:f.result});}
+ let environment:Environment=verification(signatures,p.data);for f in p.functions {verify_part(f,environment,[]);}
+}
+fn push(inout code:Array<x::Machine>,op:string,a:i32,second:i32,symbol:string)->void {array_push::<x::Machine>(inout code,x::make(op,a,second,symbol));}
+fn offset(n:i32)->i32 {return -40-n*8;}
+fn bytes(f:Function,n:i32)->i32 {if f.slots[n]=="ptr" {return 8;}if f.slots[n]=="u8" {return 1;}return 4;}
+pub fn lower(f:Function,imports:Array<string>)->Array<x::Machine> {
+ // Reuse immutable opcode/diagnostic strings across the instruction loop.
+ let text_call:string="call";
+ let text_prologue:string="prologue";
+ let text_empty:string="";
+ let text_goto:string="goto";
+ let text_label:string="label";
+ let text_const:string="const";
+ let text_imm:string="imm";
+ let text_copy:string="copy";
+ let text_load:string="load";
+ let text_argument:string="argument";
+ let text_location:string="location";
+ let text_read:string="read";
+ let text_context:string="context";
+ let text_slot_address:string="slot_address";
+ let text_convert:string="convert";
+ let text_u8:string="u8";
+ let text_mask_u8:string="mask_u8";
+ let text_binary:string="binary";
+ let text_second:string="second";
+ let text_ptr_eq:string="ptr_eq";
+ let text_address:string="address";
+ let text_ptr_add:string="ptr_add";
+ let text_store:string="store";
+ let text_write:string="write";
+ let text_save:string="save";
+ let text_arg_address:string="arg_address";
+ let text_loc_address:string="loc_address";
+ let text_out_address:string="out_address";
+ let text_branch:string="branch";
+ let text_nonzero:string="nonzero";
+ let text_return:string="return";
+ let text_trap:string="trap";
+
+ let mut code:Array<x::Machine>=[];let mut arguments:i32=0;let mut locations:i32=0;for block in f.blocks {for i in block.instructions {if i.op==text_call {if array_len::<i32>(i.args)>arguments {arguments=array_len::<i32>(i.args);}if array_len::<i32>(i.locations)>locations {locations=array_len::<i32>(i.locations);}}}}
+ let frame:i32=((32+array_len::<string>(f.slots)*8+(arguments+locations+1)*8+15)/16)*16;let base:i32=-frame;let location_base:i32=base+arguments*8;let result:i32=location_base+locations*8;
+ push(inout code,text_prologue,frame,0,text_empty);push(inout code,text_goto,0,0,f.entry);
+ let mut names:Array<string>=[];for block in f.blocks {array_push::<string>(inout names,block.label);}let mut index:i32=0;
+ for ordered in b::name_order(names) {let block:Block=f.blocks[ordered];push(inout code,text_label,0,0,block.label);for i in block.instructions {
+  if i.op==text_const {push(inout code,text_imm,i.value,0,text_empty);}
+  else if i.op==text_copy {push(inout code,text_load,offset(i.value),0,text_empty);}
+  else if i.op==text_argument||i.op==text_location {let mut pointer:i32=-16;let mut size:i32=bytes(f,i.out);if i.op==text_location {pointer=-24;size=8;}push(inout code,text_load,pointer,0,text_empty);push(inout code,text_read,size,i.index*8,text_empty);}
+  else if i.op==text_context {push(inout code,text_load,-8,0,text_empty);}
+  else if i.op==text_slot_address {push(inout code,text_slot_address,offset(i.slot),0,text_empty);}
+  else if i.op==text_convert {push(inout code,text_load,offset(i.value),0,text_empty);if f.slots[i.out]==text_u8 {push(inout code,text_mask_u8,0,0,text_empty);}}
+  else if i.op==text_binary {push(inout code,text_load,offset(i.left),0,text_empty);push(inout code,text_second,offset(i.right),0,text_empty);push(inout code,i.kind,0,0,text_empty);}
+  else if i.op==text_ptr_eq {push(inout code,text_load,offset(i.left),0,text_empty);push(inout code,text_second,offset(i.right),0,text_empty);push(inout code,text_ptr_eq,0,0,text_empty);}
+  else if i.op==text_address {push(inout code,text_address,i.addend,0,i.symbol);}
+  else if i.op==text_ptr_add {push(inout code,text_load,offset(i.base),0,text_empty);push(inout code,text_second,offset(i.offset),0,text_empty);push(inout code,text_ptr_add,0,0,text_empty);}
+  else if i.op==text_load {push(inout code,text_load,offset(i.base),0,text_empty);push(inout code,text_read,bytes(f,i.out),i.offset,text_empty);}
+  else if i.op==text_store {push(inout code,text_load,offset(i.value),0,text_empty);push(inout code,text_second,offset(i.base),0,text_empty);push(inout code,text_write,bytes(f,i.value),i.offset,text_empty);}
+  else if i.op==text_call {index=0;for n in i.args {push(inout code,text_load,offset(n),0,text_empty);push(inout code,text_save,base+index*8,0,text_empty);index=index+1;}index=0;for n in i.locations {push(inout code,text_load,offset(n),0,text_empty);push(inout code,text_save,location_base+index*8,0,text_empty);index=index+1;}push(inout code,text_imm,0,0,text_empty);push(inout code,text_save,result,0,text_empty);push(inout code,text_context,0,0,text_empty);push(inout code,text_arg_address,base,0,text_empty);push(inout code,text_loc_address,location_base,0,text_empty);push(inout code,text_out_address,result,0,text_empty);let mut external:i32=0;if has(imports,i.symbol) {external=1;}push(inout code,text_call,external,0,i.symbol);if i.out>=0 {push(inout code,text_load,result,0,text_empty);}}
+  if writes(i) {push(inout code,text_save,offset(i.out),0,text_empty);}
+ }
+ let end:End=block.end;if end.op==text_goto {push(inout code,text_goto,0,0,end.label);}else if end.op==text_branch {push(inout code,text_load,offset(end.condition),0,text_empty);push(inout code,text_nonzero,0,0,end.yes);push(inout code,text_goto,0,0,end.no);}else if end.op==text_return {let mut size:i32=0;if end.value>=0 {push(inout code,text_load,offset(end.value),0,text_empty);size=bytes(f,end.value);}push(inout code,text_return,size,0,text_empty);}else {push(inout code,text_trap,0,0,text_empty);}
+ }return code;
+}
+pub fn emit(p:Program,metadata:string)->Bytes {verify(p);let mut imports:Array<string>=[];for s in p.imports {array_push::<string>(inout imports,s.name);}let opcode_registry:Map<string,i32>=opcodes::registry();let mut code:Array<x::Code>=[];for f in p.functions {array_push::<x::Code>(inout code,x::encode_registered(f.name,lower(f,imports),opcode_registry));}return elf::write(code,p.data,imports,metadata);}

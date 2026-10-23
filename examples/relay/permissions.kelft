@@ -1,0 +1,5 @@
+// Protected operator-owned policy. Regeneration may call this, but cannot edit it.
+pub fn permits(role:string,permission:string)->bool {
+    if role=="admin" {return true;}
+    return role=="member"&&(permission=="tasks.read"||permission=="tasks.write"||permission=="workspace.leave");
+}

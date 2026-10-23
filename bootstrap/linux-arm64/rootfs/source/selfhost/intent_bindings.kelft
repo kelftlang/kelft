@@ -1,0 +1,25 @@
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+fn bad(message:string)->void {s::error("K0713",message,s::span("<intent-bindings>",0,0));}
+fn first(b:i32)->bool {return b>=65&&b<=90||b>=97&&b<=122||b==95;}
+fn identifier(value:string)->bool {if value==""||!first(s::byte(value,0)) {return false;}let mut i:i32=1;while i<string_len(value) {let b:i32=s::byte(value,i);if !first(b)&&(b<48||b>57) {return false;}i=i+1;}return true;}
+pub fn resolve(graph:j::Value,value:j::Value,intent_file:string)->j::Value {
+    if !j::is_array(value) {bad("implementation bindings must be an array");}let mut nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));let mut seen:Array<string>=[];
+    for binding in j::array(value) {
+        if !j::is_object(binding)||map_len::<string,j::Value>(j::object(binding))!=4 {bad("invalid implementation binding");}
+        let keys:Array<string>=["scope","path","symbol","ownership"];for key in keys {if !j::is_string(j::field(binding,key)) {bad("invalid implementation binding");}}
+        let scope:string=text(binding,"scope");let mut parent:j::Value=j::Value::Null();let mut declared:j::Value=j::Value::Null();
+        for n in nodes {if text(n,"id")==scope&&(text(n,"kind")=="behavior"||text(n,"kind")=="endpoint") {parent=n;}if text(n,"scope")==scope {if text(n,"kind")=="implementation" {bad("binding requires an unbound behavior or endpoint");}if text(n,"kind")=="ownership" {declared=n;}}}
+        if !j::is_object(parent) {bad("binding requires an unbound behavior or endpoint");}for old in seen {if old==scope {bad("binding requires an unbound behavior or endpoint");}}array_push::<string>(inout seen,scope);
+        let ownership:string=text(binding,"ownership");if !identifier(text(binding,"symbol"))||ownership!="human"&&ownership!="ai"&&ownership!="shared" {bad("invalid implementation symbol or ownership");}
+        let path:string=text(binding,"path");if string_len(path)<6||s::slice(path,string_len(path)-6,string_len(path))!=".kelft"||s::starts(path,"/") {bad("binding path must be project-relative Core source");}
+        let mut i:i32=0;while i<string_len(path) {let b:i32=s::byte(path,i);if b<32||b==92||b==58||b==60||b==62||b==34||b==124||b==63||b==42 {bad("binding path must be project-relative Core source");}i=i+1;}let parts:Array<string>=string_split(path,"/");for p in parts {if p==""||p=="."||p==".." {bad("binding path must be project-relative Core source");}}
+        if j::is_object(declared)&&text(declared,"value")!=ownership {bad("binding cannot change declared ownership");}
+        let mut directory:Array<string>=string_split(intent_file,"/");array_pop::<string>(inout directory);let mut common:i32=0;while common<array_len::<string>(directory)&&common<array_len::<string>(parts)&&directory[common]==parts[common] {common=common+1;}
+        let mut relative:string="";let mut k:i32=common;while k<array_len::<string>(directory) {relative=relative+"../";k=k+1;}relative=relative+s::join(array_slice::<string>(parts,common,array_len::<string>(parts)),"/");if !s::starts(relative,"../") {relative="./"+relative;}
+        let mut implementation:j::Value=j::parse("{\"name\":\"\",\"kind\":\"implementation\",\"form\":\"string\"}");implementation=j::set(implementation,"id",j::Value::Text(scope+".__resolved_implementation"));implementation=j::set(implementation,"scope",j::Value::Text(scope));implementation=j::set(implementation,"value",j::Value::Text(relative+"::"+text(binding,"symbol")));implementation=j::set(implementation,"span",j::field(parent,"span"));array_push::<j::Value>(inout nodes,implementation);
+        if !j::is_object(declared) {let mut owner:j::Value=j::parse("{\"name\":\"\",\"kind\":\"ownership\",\"form\":\"prose\"}");owner=j::set(owner,"id",j::Value::Text(scope+".__resolved_ownership"));owner=j::set(owner,"scope",j::Value::Text(scope));owner=j::set(owner,"value",j::Value::Text(ownership));owner=j::set(owner,"span",j::field(parent,"span"));array_push::<j::Value>(inout nodes,owner);}
+    }
+    return j::set(graph,"nodes",j::Value::Array(nodes));
+}

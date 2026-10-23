@@ -1,0 +1,128 @@
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+import "./parser.kelft" as parser;
+import "./semantic.kelft" as semantic;
+import "./modules.kelft" as modules;
+import "./core.kelft" as core;
+import "./intrinsics.kelft" as builtins;
+
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+fn number(v:j::Value)->i32 {match v {j::Value::Number(value)=>{return s::number(value);},_=>{return 0;}}}
+fn bad(n:j::Value,message:string)->void {let span:j::Value=j::field(n,"span");s::error("K0705",message,s::span(text(span,"file"),number(j::field(span,"start")),number(j::field(span,"end"))));}
+fn clean(value:string)->string {return string_replace(string_replace(value," ",""),"\t","");}
+fn strip(value:string)->string {
+    let mut a:i32=0;let mut b:i32=string_len(value);while a<b&&(s::byte(value,a)==32||s::byte(value,a)==9) {a=a+1;}while b>a&&(s::byte(value,b-1)==32||s::byte(value,b-1)==9) {b=b-1;}return s::slice(value,a,b);
+}
+pub struct Signature {parameters:string,result:string,typed:bool}
+fn validation(ty:string,value:string,names:Array<string>,depth:i32)->string {
+    if depth>64 {s::error("K0705","domain validation nesting limit exceeded",s::span("<intent-domain>",0,0));}
+    if ty=="UUID" {return "if !__valid_uuid("+value+") {return false;}";}
+    for name in names {if name==ty {return "if !validate_"+ty+"("+value+") {return false;}";}}
+    let parts:(string,Array<string>)=s::type_parts(ty);let base:string=parts.0;let args:Array<string>=parts.1;let count:i32=array_len::<string>(args);let item:string="__item_"+i32_to_string(depth);
+    if base=="tuple" {let mut out:string="";let mut i:i32=0;for arg in args {out=out+validation(arg,value+"."+i32_to_string(i),names,depth+1);i=i+1;}return out;}
+    if base=="Array"&&count==1 {let body:string=validation(args[0],item,names,depth+1);if body!="" {return "for "+item+" in "+value+" {"+body+"}";}return "";}
+    if base=="Map"&&count==2 {let body:string=validation(args[0],item+".0",names,depth+1)+validation(args[1],item+".1",names,depth+1);if body!="" {return "for "+item+" in "+value+" {"+body+"}";}return "";}
+    if base=="Option"&&count==1 {let body:string=validation(args[0],item,names,depth+1);if body!="" {return "match "+value+" {Option::Some("+item+")=>{"+body+"},Option::None=>{}}";}return "";}
+    if base=="Result"&&count==2 {let ok:string=validation(args[0],item,names,depth+1);let error:string=validation(args[1],item,names,depth+1);if ok!=""||error!="" {return "match "+value+" {Result::Ok("+item+")=>{"+ok+"},Result::Error("+item+")=>{"+error+"}}";}return "";}
+    return "";
+}
+pub fn signature(behavior:j::Value)->Signature {
+    let value:string=text(behavior,"value");let mut depth:i32=0;let mut end:i32=-1;let mut i:i32=0;
+    while i<string_len(value) {let c:string=s::slice(value,i,i+1);if c=="(" {depth=depth+1;}if c==")" {depth=depth-1;if depth==0 {end=i;break;}}i=i+1;}
+    if !s::starts(value,"(")||end<0 {bad(behavior,"behavior signature must be a parameter list");}
+    let tail:string=s::slice(value,end+1,string_len(value));let mut result:string="";if s::starts(tail,"->") {result=s::slice(tail,2,string_len(tail));}
+    if tail!=""&&result=="" {bad(behavior,"invalid behavior return type");}
+    let parameters:string=s::slice(value,0,end+1);let mut typed:bool=true;let mut syntax:Array<string>=[];
+    for param in s::split_types(s::slice(parameters,1,string_len(parameters)-1),",") {if strip(param)!="" {if !s::has(param,":") {typed=false;array_push::<string>(inout syntax,param+":i32");}else {array_push::<string>(inout syntax,param);}}}
+    let mut return_type:string=result;if return_type=="" {return_type="void";}parser::parse("fn __signature("+s::join(syntax,",")+")->"+return_type+" {}","<intent-domain>");
+    return Signature {parameters:parameters,result:result,typed:typed};
+}
+struct ExpressionFrame {node:j::Value,index:i32,entered:bool,waiting:bool,children:Array<j::Value>,values:Array<string>}
+fn expression_frame(n:j::Value)->ExpressionFrame {return ExpressionFrame {node:n,index:0,entered:false,waiting:false,children:[],values:[]};}
+fn expr(n:j::Value)->string {
+ let mut pending:Array<ExpressionFrame>=[expression_frame(n)];let mut result:string="";
+ while array_len::<ExpressionFrame>(pending)>0 {let mut f:ExpressionFrame=expression_frame(n);match array_pop::<ExpressionFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:j::Value=f.node;let kind:string=text(node,"kind");let value:string=text(node,"text");let args:Array<j::Value>=j::array(j::field(node,"children"));
+  if !f.entered {f.entered=true;f.children=args;if kind=="call" {let n:j::Value=node;let name:string=text(args[0],"text");let builtin:builtins::Signature=builtins::signature(name);if builtin.name!=""&&(builtin.effect!=""||array_len::<i32>(builtin.modes)>0||name=="print"||name=="println"||name=="eprint"||name=="exit"||name=="args"||name=="current_dir") {let location:j::Value=j::field(n,"span");s::error("K0705","formal contract expressions must be pure",s::span(text(location,"file"),number(j::field(location,"start")),number(j::field(location,"end"))));}// Match the independent reference: render the callee before its arguments.
+}else if kind=="construct" {f.children=[];for field in args {array_push::<j::Value>(inout f.children,j::array(j::field(field,"children"))[0]);}}}
+  if f.waiting {array_push::<string>(inout f.values,result);f.waiting=false;}
+  if f.index<array_len::<j::Value>(f.children) {let child:j::Value=f.children[f.index];f.index=f.index+1;f.waiting=true;array_push::<ExpressionFrame>(inout pending,f);array_push::<ExpressionFrame>(inout pending,expression_frame(child));}
+  else {result=expression_result(node,f.values);}
+ }return result;
+}
+fn expression_result(n:j::Value,values:Array<string>)->string {
+ let kind:string=text(n,"kind");let value:string=text(n,"text");let args:Array<j::Value>=j::array(j::field(n,"children"));
+ if kind=="name" {let ty:string=text(n,"type");if ty!="" {return value+"::<"+string_replace(ty,"|",",")+">";}return value;}
+ if kind=="int"||kind=="bool" {return value;}if kind=="string" {return s::core_quote(value);}if kind=="access" {return values[0]+"."+value;}
+ if kind=="binary" {return "("+values[0]+value+values[1]+")";}if kind=="unary" {return "("+value+values[0]+")";}if kind=="index" {return values[0]+"["+values[1]+"]";}
+ if kind=="call" {let count:i32=array_len::<string>(values);return values[0]+"("+s::join(array_slice::<string>(values,1,count),",")+")";}
+ if kind=="array" {return "["+s::join(values,",")+"]";}if kind=="tuple" {let mut suffix:string="";if array_len::<string>(values)==1 {suffix=",";}return "("+s::join(values,",")+suffix+")";}
+ if kind=="construct" {let mut fields:Array<string>=[];let mut i:i32=0;for field in args {array_push::<string>(inout fields,text(field,"text")+":"+values[i]);i=i+1;}let mut name:string=value;if text(n,"type")!="" {name=name+"::<"+string_replace(text(n,"type"),"|",",")+">";}return name+"{"+s::join(fields,",")+"}";}
+ s::error("K0705","unsupported formal contract expression",s::span("<intent-domain>",0,0));return "";
+}
+pub fn source(graph:j::Value)->string {
+    let nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));let mut names:Array<string>=[];let mut entities:Array<j::Value>=[];
+    for n in nodes {if text(n,"kind")=="entity" {for name in names {if name==text(n,"name") {bad(n,"entity names must be unique across the application");}}array_push::<string>(inout names,text(n,"name"));array_push::<j::Value>(inout entities,n);}}
+    let mut out:string="type Text = string;\ntype UUID = string;\nfn __valid_uuid(value:string)->bool { if string_len(value)!=36 { return false; } let mut i:i32=0; while i<36 { let b:i32=i32_from_u8(string_byte(value,i)); if i==8||i==13||i==18||i==23 { if b!=45 {return false;} } else { if !(b>=48&&b<=57||b>=65&&b<=70||b>=97&&b<=102) {return false;} } i=i+1; } return true; }\n";
+    for entity in entities {
+        let mut fields:string="";let mut validation:string="";
+        for field in nodes {
+            if text(field,"scope")!=text(entity,"id")||text(field,"kind")!="field" {continue;}
+            let parts:Array<string>=string_split(text(field,"value")," where ");let mut ty:string=clean(parts[0]);let optional:bool=string_len(ty)>0&&s::slice(ty,string_len(ty)-1,string_len(ty))=="?";
+            if optional {ty=s::slice(ty,0,string_len(ty)-1);}
+            if s::has(ty,"|") {
+                let variants:Array<string>=string_split(ty,"|");let mut seen:Array<string>=[];
+                for variant in variants {if variant=="" {bad(field,"invalid entity alternatives");}for old in seen {if old==variant {bad(field,"invalid entity alternatives");}}array_push::<string>(inout seen,variant);}
+                ty=text(entity,"name")+"_"+text(field,"name");out=out+"pub enum "+ty+" {"+s::join(variants,",")+"}\n";
+            }
+            let reference:string="value."+text(field,"name");let mut local:string=reference;if optional {local="item";}let mut checks:string="";
+            checks=checks+validation(ty,local,names,0);
+            if array_len::<string>(parts)>1 {
+                let range:Array<string>=string_split(parts[1]," ");
+                if array_len::<string>(parts)!=2||array_len::<string>(range)!=2||range[0]!="length"||ty!="Text"&&ty!="string" {bad(field,"unsupported or invalid entity refinement");}
+                let bounds:Array<string>=string_split(range[1],"..");if array_len::<string>(bounds)!=2 {bad(field,"unsupported or invalid entity refinement");}
+                let mut low:i32=-1;let mut high:i32=-1;
+                match string_to_i32(bounds[0]) {Result::Ok(value)=>{low=value;},Result::Error(message)=>{}}
+                match string_to_i32(bounds[1]) {Result::Ok(value)=>{high=value;},Result::Error(message)=>{}}
+                if low<0||high<low||i32_to_string(low)!=bounds[0]||i32_to_string(high)!=bounds[1] {bad(field,"unsupported or invalid entity refinement");}
+                checks=checks+"if string_len("+local+")<"+bounds[0]+"||string_len("+local+")>"+bounds[1]+" {return false;}";
+            }
+            if optional {ty="Option<"+ty+">";if checks!="" {checks="match "+reference+" {Option::Some(item)=>{"+checks+"},Option::None=>{}}";}}
+            let shape:s::Node=parser::parse("struct __Field {field:"+ty+"}","<intent-domain>");if array_len::<s::Node>(shape.children)!=1||array_len::<s::Node>(shape.children[0].children)!=1 {bad(field,"invalid entity field type");}
+            fields=fields+text(field,"name")+":"+ty+",";validation=validation+checks;
+        }
+        out=out+"pub struct "+text(entity,"name")+" {"+fields+"}\npub fn validate_"+text(entity,"name")+"(value:"+text(entity,"name")+")->bool {"+validation+"return true;}\n";
+    }
+    let mut index:i32=0;
+    for behavior in nodes {
+        if text(behavior,"kind")!="behavior"||text(behavior,"value")=="" {continue;}
+        let sig:Signature=signature(behavior);if !sig.typed {continue;}
+        let syntax:s::Node=parser::parse("fn __signature"+sig.parameters+"->void {}","<intent-domain>");let mut count:i32=0;
+        for p in syntax.children[0].children {if p.kind=="param" {count=count+1;if sig.result!=""&&p.text=="result" {bad(behavior,"result is reserved for behavior postconditions");}}}
+        let mut inputs:string="";for p in syntax.children[0].children {if p.kind=="param" {inputs=inputs+validation(p.ty,p.text,names,0);}}
+        let mut pre:string="";let mut post:string="";let mut pi:i32=0;let mut ri:i32=0;
+        for n in nodes {if text(n,"scope")==text(behavior,"id")&&text(n,"form")=="expression" {if text(n,"kind")=="ensures" {post=post+"let __requirement_"+i32_to_string(ri)+":bool="+expr(j::field(n,"expression"))+";if !__requirement_"+i32_to_string(ri)+" {return false;}";ri=ri+1;}else {let predicate:string="let __requirement_"+i32_to_string(pi)+":bool="+expr(j::field(n,"expression"))+";";if text(n,"kind")=="must"||text(n,"kind")=="require" {pre=pre+predicate+"if !__requirement_"+i32_to_string(pi)+" {return false;}";}else {pre=pre+"if false {"+predicate+"}";}pi=pi+1;}}}
+        let mut parameters:string=sig.parameters;if sig.result!=""&&sig.result!="void" {let mut comma:string="";if count>0 {comma=",";}parameters=s::slice(parameters,0,string_len(parameters)-1)+comma+"result:"+sig.result+")";}
+        let mut returns:string="";if sig.result!=""&&sig.result!="void" {returns=validation(sig.result,"result",names,0);}
+        out=out+"pub fn __pre_"+i32_to_string(index)+sig.parameters+"->bool {"+inputs+pre+"return true;}\npub fn __contract_"+i32_to_string(index)+parameters+"->bool {"+inputs+returns+post+"return true;}\n";index=index+1;
+    }
+    return out+"fn main()->void {}\n";
+}
+pub fn check(graph:j::Value)->string {
+    let code:string=source(graph);let file:string="<intent-domain>";let mod:modules::Module=modules::Module {id:"m0",file:file,full:file,source:code,tree:parser::parse(code,file),imports:map_new::<string,string>()};semantic::analyze([mod]);return code;
+}
+pub fn signatures(graph:j::Value)->j::Value {
+    let code:string=source(graph);let file:string="<intent-domain>";let mod:modules::Module=modules::Module {id:"m0",file:file,full:file,source:code,tree:parser::parse(code,file),imports:map_new::<string,string>()};let program:core::Program=semantic::analyze([mod]);
+    let mut bindings:Array<j::Value>=[];let mut index:i32=0;
+    for n in j::array(j::field(graph,"nodes")) {
+        if text(n,"kind")!="behavior"||text(n,"value")=="" {continue;}
+        let sig:Signature=signature(n);let mut parameters:Array<j::Value>=[];let mut result:string="";
+        if sig.typed {
+            for f in program.functions {if f.name=="m0::__pre_"+i32_to_string(index) {for p in f.args {if p.op=="param" {let mut value:j::Value=j::parse("{}");value=j::set(value,"type",j::Value::Text(p.ty));value=j::set(value,"inout",j::Value::Bool(p.flag));array_push::<j::Value>(inout parameters,value);}}}if f.name=="m0::__contract_"+i32_to_string(index)&&sig.result!=""&&sig.result!="void" {for p in f.args {if p.op=="param" {result=p.ty;}}}}
+            if sig.result=="void" {result="void";}index=index+1;
+        }
+        let mut binding:j::Value=j::parse("{}");binding=j::set(binding,"scope",j::Value::Text(text(n,"id")));binding=j::set(binding,"complete",j::Value::Bool(sig.typed&&sig.result!=""));binding=j::set(binding,"parameters",j::Value::Array(parameters));binding=j::set(binding,"result",j::Value::Text(result));array_push::<j::Value>(inout bindings,binding);
+    }
+    // Only declarations belong to this result; do not reparse deep function bodies.
+    let mut types:Array<string>=[];for definition in program.types {array_push::<string>(inout types,core::node_json(definition));}
+    let mut out:j::Value=j::parse("{}");out=j::set(out,"types",j::parse("["+s::join(types,",")+"]"));return j::set(out,"bindings",j::Value::Array(bindings));
+}

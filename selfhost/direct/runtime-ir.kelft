@@ -1,0 +1,16 @@
+// Decode fixed native runtime descriptions.
+import "../json.kelft" as j;
+import "./binary.kelft" as b;
+import "./ir.kelft" as ir;
+fn number(value:j::Value)->i32 {match value {j::Value::Number(text)=>{match string_to_i32(text) {Result::Ok(n)=>{return n;},Result::Error(message)=>{b::error("invalid trusted IR integer");}}},_=>{b::error("missing trusted IR integer");}}return 0;}
+fn text(value:j::Value,name:string)->string {let field:j::Value=j::field(value,name);if !j::is_string(field) {b::error("missing trusted IR text");}return j::string(field);}
+fn array(value:j::Value,name:string)->Array<j::Value> {let field:j::Value=j::field(value,name);if !j::is_array(field) {b::error("missing trusted IR array");}return j::array(field);}
+fn integer(value:j::Value,name:string)->i32 {let field:j::Value=j::field(value,name);match field {j::Value::Null=>{return -1;},_=>{return number(field);}}}
+fn string_field(value:j::Value,name:string)->string {return j::string(j::field(value,name));}
+fn numbers(value:j::Value)->Array<i32> {let mut out:Array<i32>=[];for n in j::array(value) {array_push::<i32>(inout out,number(n));}return out;}
+fn strings(value:j::Value)->Array<string> {let mut out:Array<string>=[];for n in j::array(value) {if !j::is_string(n) {b::error("invalid trusted IR width");}array_push::<string>(inout out,j::string(n));}return out;}
+pub fn read_function(f:j::Value)->ir::Function {
+ let mut blocks:Array<ir::Block>=[];
+ for block in array(f,"blocks") {let mut instructions:Array<ir::Instruction>=[];for i in array(block,"instructions") {array_push::<ir::Instruction>(inout instructions,ir::Instruction {op:text(i,"op"),out:integer(i,"out"),value:integer(i,"value"),index:integer(i,"index"),kind:string_field(i,"kind"),left:integer(i,"left"),right:integer(i,"right"),symbol:string_field(i,"symbol"),addend:integer(i,"addend"),base:integer(i,"base"),offset:integer(i,"offset"),slot:integer(i,"slot"),args:numbers(j::field(i,"args")),locations:numbers(j::field(i,"locations"))});}let end:j::Value=j::field(block,"end");array_push::<ir::Block>(inout blocks,ir::Block {label:text(block,"label"),instructions:instructions,end:ir::End {op:text(end,"op"),value:integer(end,"value"),label:string_field(end,"label"),condition:integer(end,"condition"),yes:string_field(end,"yes"),no:string_field(end,"no")}});}
+ return ir::Function {name:text(f,"name"),params:strings(j::field(f,"params")),locations:integer(f,"locations"),result:text(f,"result"),slots:strings(j::field(f,"slots")),entry:text(f,"entry"),blocks:blocks};
+}

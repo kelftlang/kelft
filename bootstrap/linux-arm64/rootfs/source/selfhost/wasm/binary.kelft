@@ -1,0 +1,59 @@
+import "../syntax.kelft" as s;
+pub struct Function { name:string, params:Array<string>, locals:Array<string>, result:string, code:string }
+pub struct Import { name:string, module:string, field:string, params:Array<string>, result:string }
+pub struct Data { hex:string, address:i32 }
+fn append(inout bytes:Bytes, values:Bytes)->void {for value in values {array_push::<u8>(inout bytes,value);}}
+pub fn uleb(value:i32)->Bytes {let mut n:i32=value;let mut out:Bytes=[];while true {let mut b:i32=n&127;n=n>>>7;if n!=0 {b=b|128;}array_push::<u8>(inout out,u8_from_i32(b));if n==0 {break;}}return out;}
+pub fn sleb(value:i32)->Bytes {let mut n:i32=value;let mut out:Bytes=[];while true {let b:i32=n&127;n=n>>7;let end:bool=n==0&&(b&64)==0||n==-1&&(b&64)!=0;let mut next:i32=b;if !end {next=next|128;}array_push::<u8>(inout out,u8_from_i32(next));if end {break;}}return out;}
+fn name(value:string)->Bytes {let raw:Bytes=string_to_bytes(value);let mut out:Bytes=uleb(array_len::<u8>(raw));append(inout out,raw);return out;}
+fn section(inout out:Bytes,id:i32,body:Bytes)->void {array_push::<u8>(inout out,u8_from_i32(id));append(inout out,uleb(array_len::<u8>(body)));append(inout out,body);}
+pub fn custom(binary:Bytes,label:string,payload:string)->Bytes {let mut out:Bytes=binary;let mut body:Bytes=name(label);append(inout body,string_to_bytes(payload));section(inout out,0,body);return out;}
+fn word(inout out:Bytes,value:i32)->void {let mut i:i32=0;while i<4 {array_push::<u8>(inout out,u8_from_i32((value>>>(i*8))&255));i=i+1;}}
+fn get(values:Map<string,i32>,key:string)->i32 {match map_get::<string,i32>(values,key) {Option::Some(value)=>{return value;},Option::None=>{panic("missing Wasm symbol "+key);}}return 0;}
+fn panic(message:string)->void {s::error("K0403",message,s::span("<wasm>",0,0));}
+fn numeric(value:string)->i32 {match string_to_i32(value) {Result::Ok(number)=>{return number;},Result::Error(message)=>{panic("invalid Wasm immediate "+value);}}return 0;}
+fn ty(value:string)->u8 {if value=="i32" {return 127;}if value=="i64" {return 126;}panic("invalid Wasm value type");return 0;}
+fn sig(params:Array<string>,result:string)->string {return s::join(params,",")+"->"+result;}
+fn hex_bytes(value:string)->Bytes {let mut out:Bytes=[];let digits:string="0123456789abcdef";let mut i:i32=0;while i<string_len(value) {let a:i32=string_find(digits,s::slice(value,i,i+1),0);let b:i32=string_find(digits,s::slice(value,i+1,i+2),0);if a<0||b<0 {panic("invalid Wasm constant");}array_push::<u8>(inout out,u8_from_i32(a*16+b));i=i+2;}return out;}
+fn opcode(name:string)->i32 {
+ let names:Array<string>=["unreachable","nop","else","end","return","drop","select","i32.eqz","i32.eq","i32.ne","i32.lt_s","i32.lt_u","i32.gt_s","i32.gt_u","i32.le_s","i32.le_u","i32.ge_s","i32.ge_u","i64.eqz","i64.eq","i64.ne","i64.lt_s","i64.lt_u","i64.gt_s","i64.gt_u","i32.add","i32.sub","i32.mul","i32.div_s","i32.div_u","i32.rem_s","i32.rem_u","i32.and","i32.or","i32.xor","i32.shl","i32.shr_s","i32.shr_u","i64.add","i64.sub","i64.mul","i64.and","i64.or","i64.xor","i64.shl","i64.shr_u","i32.wrap_i64","i64.extend_i32_s","i64.extend_i32_u"];
+ let values:Array<i32>=[0,1,5,11,15,26,27,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,106,107,108,109,110,111,112,113,114,115,116,117,118,124,125,126,131,132,133,134,136,167,172,173];
+ let mut i:i32=0;for candidate in names {if candidate==name {return values[i];}i=i+1;}return -1;
+}
+fn instruction(code:string,ids:Map<string,i32>,inout constants:Array<Data>,inout data_end:i32,inout segments:Array<Bytes>)->Bytes {
+ let mut out:Bytes=[];let mut labels:Array<string>=[];
+ for line in string_split(code,"\n") {
+  if line==""||s::starts(line,"#") {continue;}let words:Array<string>=string_split(line," ");let operation:string=words[0];let mut arg:string="";if array_len::<string>(words)>1 {arg=words[1];}
+  let plain:i32=opcode(operation);if plain>=0 {array_push::<u8>(inout out,u8_from_i32(plain));if operation=="end" {array_pop::<string>(inout labels);}continue;}
+  let mut immediate:i32=-1;if operation=="br" {immediate=12;}if operation=="br_if" {immediate=13;}if operation=="local.get" {immediate=32;}if operation=="local.set" {immediate=33;}if operation=="local.tee" {immediate=34;}if operation=="global.get" {immediate=35;}if operation=="global.set" {immediate=36;}
+  if immediate>=0 {let mut n:i32=0;if s::starts(arg,"@") {n=-1;let mut i:i32=0;for label in labels {if label==arg {n=array_len::<string>(labels)-1-i;}i=i+1;}if n<0 {panic("unknown Wasm label");}}else {n=numeric(arg);}array_push::<u8>(inout out,u8_from_i32(immediate));append(inout out,uleb(n));continue;}
+  if operation=="i32.const"||operation=="i64.const" {let mut tag:u8=65;if operation=="i64.const" {tag=66;}array_push::<u8>(inout out,tag);append(inout out,sleb(numeric(arg)));continue;}
+  if operation=="block"||operation=="loop"||operation=="if" {let mut tag:u8=2;if operation=="loop" {tag=3;}if operation=="if" {tag=4;}array_push::<u8>(inout out,tag);let mut label:string="";let mut value_type:u8=64;if s::starts(arg,"@") {label=arg;}else if arg!="" {value_type=ty(arg);}array_push::<string>(inout labels,label);array_push::<u8>(inout out,value_type);continue;}
+  if operation=="call" {array_push::<u8>(inout out,16);append(inout out,uleb(get(ids,arg)));continue;}
+  if operation=="str" {
+   let mut address:i32=-1;for constant in constants {if constant.hex==arg {address=constant.address;}}
+   if address<0 {address=data_end;let raw:Bytes=hex_bytes(arg);let mut bytes:Bytes=[];word(inout bytes,-1);word(inout bytes,1);word(inout bytes,32);word(inout bytes,array_len::<u8>(raw));word(inout bytes,address+32);word(inout bytes,0);word(inout bytes,0);word(inout bytes,0);word(inout bytes,-1);word(inout bytes,8);word(inout bytes,16+array_len::<u8>(raw));word(inout bytes,array_len::<u8>(raw));append(inout bytes,raw);data_end=(data_end+array_len::<u8>(bytes)+7)&~7;array_push::<Data>(inout constants,Data {hex:arg,address:address});let mut segment:Bytes=[0,65];append(inout segment,sleb(address));array_push::<u8>(inout segment,11);append(inout segment,uleb(array_len::<u8>(bytes)));append(inout segment,bytes);array_push::<Bytes>(inout segments,segment);}
+   array_push::<u8>(inout out,65);append(inout out,sleb(address));array_push::<u8>(inout out,173);continue;
+  }
+  let mut memory:i32=-1;let mut align:i32=0;if operation=="i32.load" {memory=40;align=2;}if operation=="i64.load" {memory=41;align=3;}if operation=="i32.load8_u" {memory=45;}if operation=="i32.store" {memory=54;align=2;}if operation=="i64.store" {memory=55;align=3;}if operation=="i32.store8" {memory=58;}
+  if memory>=0 {array_push::<u8>(inout out,u8_from_i32(memory));append(inout out,uleb(align));append(inout out,uleb(numeric(arg)));continue;}
+  if operation=="memory.size"||operation=="memory.grow" {let mut tag:u8=63;if operation=="memory.grow" {tag=64;}array_push::<u8>(inout out,tag);array_push::<u8>(inout out,0);continue;}panic("unknown Wasm instruction "+line);
+ }return out;
+}
+pub fn assemble(imports:Array<Import>,functions:Array<Function>,entry:string)->Bytes {
+ return assemble_named(imports,functions,entry,"_start");
+}
+pub fn assemble_named(imports:Array<Import>,functions:Array<Function>,entry:string,export_name:string)->Bytes {
+ let mut ids:Map<string,i32>=map_new::<string,i32>();let mut signature_ids:Map<string,i32>=map_new::<string,i32>();let mut signatures:Array<(Array<string>,string)>=[];let mut import_types:Array<i32>=[];let mut function_types:Array<i32>=[];let mut index:i32=0;
+ for f in imports {map_set::<string,i32>(inout ids,f.name,index);index=index+1;let key:string=sig(f.params,f.result);let mut id:i32=0;match map_get::<string,i32>(signature_ids,key) {Option::Some(old)=>{id=old;},Option::None=>{id=array_len::<(Array<string>,string)>(signatures);array_push::<(Array<string>,string)>(inout signatures,(f.params,f.result));map_set::<string,i32>(inout signature_ids,key,id);}}array_push::<i32>(inout import_types,id);}
+ for f in functions {map_set::<string,i32>(inout ids,f.name,index);index=index+1;let key:string=sig(f.params,f.result);let mut id:i32=0;match map_get::<string,i32>(signature_ids,key) {Option::Some(old)=>{id=old;},Option::None=>{id=array_len::<(Array<string>,string)>(signatures);array_push::<(Array<string>,string)>(inout signatures,(f.params,f.result));map_set::<string,i32>(inout signature_ids,key,id);}}array_push::<i32>(inout function_types,id);}
+ let mut constants:Array<Data>=[];let mut segments:Array<Bytes>=[];let mut data_end:i32=1024;let mut bodies:Bytes=uleb(array_len::<Function>(functions));
+ for f in functions {let mut body:Bytes=uleb(array_len::<string>(f.locals));for local in f.locals {array_push::<u8>(inout body,1);array_push::<u8>(inout body,ty(local));}append(inout body,instruction(f.code,ids,inout constants,inout data_end,inout segments));array_push::<u8>(inout body,11);append(inout bodies,uleb(array_len::<u8>(body)));append(inout bodies,body);}
+ let mut out:Bytes=[0,97,115,109,1,0,0,0];let mut body:Bytes=uleb(array_len::<(Array<string>,string)>(signatures));for signature in signatures {array_push::<u8>(inout body,96);append(inout body,uleb(array_len::<string>(signature.0)));for p in signature.0 {array_push::<u8>(inout body,ty(p));}if signature.1=="" {array_push::<u8>(inout body,0);}else {array_push::<u8>(inout body,1);array_push::<u8>(inout body,ty(signature.1));}}section(inout out,1,body);
+ body=uleb(array_len::<Import>(imports));index=0;for f in imports {append(inout body,name(f.module));append(inout body,name(f.field));array_push::<u8>(inout body,0);append(inout body,uleb(import_types[index]));index=index+1;}if array_len::<Import>(imports)>0 {section(inout out,2,body);}
+ body=uleb(array_len::<Function>(functions));for id in function_types {append(inout body,uleb(id));}section(inout out,3,body);
+ body=[1,1];append(inout body,uleb(256));append(inout body,uleb(16384));section(inout out,5,body);
+ body=[4,127,1,65];append(inout body,sleb((data_end+7)&~7));append(inout body,[11,127,1,65,0,11,126,1,66,0,11,126,1,66,0,11]);section(inout out,6,body);
+ body=[2];append(inout body,name("memory"));append(inout body,[2,0]);append(inout body,name(export_name));array_push::<u8>(inout body,0);append(inout body,uleb(get(ids,entry)));section(inout out,7,body);section(inout out,10,bodies);
+ if array_len::<Bytes>(segments)>0 {body=uleb(array_len::<Bytes>(segments));for segment in segments {append(inout body,segment);}section(inout out,11,body);}return out;
+}

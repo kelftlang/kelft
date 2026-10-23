@@ -1,0 +1,29 @@
+import "../../stdlib/testing.kelft" as testing;
+fn identity<T>(value:T)->T {return value;}
+fn factorial(value:i32)->i32 {if value<=1 {return 1;}return value*factorial(value-1);}
+fn step(inout count:i32)->i32 {count=count+1;return count;}
+pub fn test_arithmetic(inout context:testing::Context)->void {
+ testing::equal_i32(inout context,2147483647+1,-2147483648,"i32 overflow wraps");testing::equal_i32(inout context,100000*100000,1410065408,"multiplication wraps");
+ testing::equal_i32(inout context,-7/3,-2,"division truncates");testing::equal_i32(inout context,-7%3,-1,"signed remainder");testing::equal_i32(inout context,-2147483648%-1,0,"minimum remainder");testing::equal_i32(inout context,-1>>>1,2147483647,"unsigned shift");testing::equal_i32(inout context,1<<33,2,"shift count masked");testing::expect(inout context,!(false&&1/0==1),"short circuit avoids trap");
+}
+pub fn test_persistent_arrays(inout context:testing::Context)->void {
+ let mut values:Array<i32>=[];let mut i:i32=0;while i<1100 {array_push::<i32>(inout values,i);i=i+1;}let snapshot:Array<i32>=values;values[1024]=999;
+ testing::equal_i32(inout context,snapshot[1024],1024,"snapshot survives radix boundary update");testing::equal_i32(inout context,values[1024],999,"updated array value");
+ let mut small:Array<i32>=[1,2];let mut visited:i32=0;for value in small {visited=visited+value;array_push::<i32>(inout small,3);}testing::equal_i32(inout context,visited,3,"iteration uses snapshot");testing::equal_i32(inout context,array_len::<i32>(small),4,"iteration mutation retained");
+}
+pub fn test_persistent_maps(inout context:testing::Context)->void {
+ let mut values:Map<string,i32>=map_new::<string,i32>();map_set::<string,i32>(inout values,"z",1);map_set::<string,i32>(inout values,"a",2);let snapshot:Map<string,i32>=values;map_set::<string,i32>(inout values,"a",9);
+ let mut text:string="";for (key,value) in snapshot {text=text+key+i32_to_string(value);}testing::equal_string(inout context,text,"a2z1","map byte order and snapshot");
+ match map_get::<string,i32>(values,"a") {Option::Some(value)=>{testing::equal_i32(inout context,value,9,"map update");},Option::None=>{testing::expect(inout context,false,"updated key exists");}}
+}
+pub fn test_unicode(inout context:testing::Context)->void {
+ let value:string="a\u{e9}\u{1f600}";testing::equal_i32(inout context,string_len(value),7,"UTF-8 byte length");testing::equal_string(inout context,string_slice(value,1,3),"\u{e9}","UTF-8 slice");testing::equal_i32(inout context,i32_from_u8(string_byte(value,1)),195,"UTF-8 first byte");testing::equal_bytes(inout context,string_to_bytes("\u{e9}"),[195,169],"UTF-8 encoding");
+ match utf8_decode([255]) {Result::Error(message)=>{testing::expect(inout context,true,"invalid UTF-8 rejected");},Result::Ok(value)=>{testing::expect(inout context,false,"invalid UTF-8 must fail");}}
+}
+pub fn test_generics_patterns_recursion(inout context:testing::Context)->void {
+ testing::equal_i32(inout context,identity::<i32>(42),42,"generic integer");testing::equal_string(inout context,identity::<string>("generic"),"generic","generic string");testing::equal_i32(inout context,factorial(6),720,"recursive calls");
+ let values:Array<Option<bool>>=[Option::<bool>::Some(true),Option::<bool>::Some(false),Option::<bool>::None()];let mut text:string="";for value in values {match value {Option::Some(true)=>{text=text+"yes";},Option::Some(false)=>{text=text+"no";},Option::None=>{text=text+"none";}}}testing::equal_string(inout context,text,"yesnonone","exhaustive patterns");
+}
+pub fn test_evaluation_order(inout context:testing::Context)->void {
+ let mut count:i32=0;let pair:(i32,i32)=(step(inout count),step(inout count));testing::equal_i32(inout context,pair.0,1,"left operand first");testing::equal_i32(inout context,pair.1,2,"right operand second");testing::equal_i32(inout context,count,2,"effects occur once");
+}

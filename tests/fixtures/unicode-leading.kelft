@@ -1,0 +1,2 @@
+/* 😀 Unicode comment */
+fn main()->void {println("é😀");println("😀");}

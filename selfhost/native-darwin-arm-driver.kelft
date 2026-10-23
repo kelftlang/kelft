@@ -1,0 +1,25 @@
+// Private macOS compiler and measured linker entry.
+import "./native-darwin-arm-object.kelft" as compiler;
+import "./direct/darwin-link-driver.kelft" as linker;
+import "./json.kelft" as j;
+fn fail(message:string)->void {eprint("error[K0403]: "+message+"\n");exit(1);}
+fn read(file:string)->string {match read_text(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return "";}
+fn prepare(entry:string,root:string,declarations:string,bindings:string,maximum:string,configuration:string,object_output:string)->linker::Prepared {
+ let value:j::Value=linker::configuration(configuration);let object:Bytes=compiler::guest_object(entry,root,declarations,bindings,maximum,j::string(j::field(value,"sdkVersion")));
+ if object_output!="" {match create_dir(path_dirname(object_output)) {Result::Ok(ok)=>{},Result::Error(message)=>{fail(message);}}match write_file(object_output,object) {Result::Ok(ok)=>{},Result::Error(message)=>{fail(message);}}}
+ return linker::prepare(object,value,"macos-arm64");
+}
+fn main()->void {command(args());}
+pub fn command(arguments:Array<string>)->void {
+ if array_len::<string>(arguments)==0||arguments[0]!="native-build" {compiler::command(arguments);return;}
+ if array_len::<string>(arguments)<2 {fail("native-build requires an entry");}
+ let entry:string=arguments[1];let mut root:string=current_dir();let mut output:string="";let mut configuration:string="";let mut object_output:string="";let mut maximum:string="{\"execute\":false,\"read\":[],\"write\":[]}";let mut declarations:string="";let mut bindings:string="";let mut at:i32=2;
+ while at<array_len::<string>(arguments) {
+  let flag:string=arguments[at];if flag!="--project-root"&&flag!="-o"&&flag!="--toolchain"&&flag!="--capabilities"&&flag!="--intent"&&flag!="--bindings"&&flag!="--object-output" {fail("unknown native-build option: "+flag);}
+  at=at+1;if at>=array_len::<string>(arguments) {fail("missing native-build option value");}let value:string=arguments[at];
+  if flag=="--project-root" {root=value;}else if flag=="-o" {output=value;}else if flag=="--toolchain" {configuration=value;}else if flag=="--capabilities" {maximum=j::canonical(j::parse(read(value)));}else if flag=="--object-output" {object_output=value;}else if flag=="--intent" {declarations=value;}else {bindings=value;}at=at+1;
+ }
+ if output==""||configuration=="" {fail("native-build requires -o and an explicit --toolchain configuration");}
+ let prepared:linker::Prepared=prepare(entry,root,declarations,bindings,maximum,configuration,object_output);let mut report:j::Value=linker::execute(prepared,output,maximum);
+ if object_output!="" {report=j::set(report,"objectOutput",j::Value::Text(canonical_path(object_output)));}println(j::canonical(report));
+}

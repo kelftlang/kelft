@@ -1,0 +1,1 @@
+fn main()->void { let a:Array<(bool,i32)>=[(false,1)];for (true,x) in a {println(i32_to_string(x));} }

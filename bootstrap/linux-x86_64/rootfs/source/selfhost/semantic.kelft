@@ -1,0 +1,328 @@
+import "./syntax.kelft" as s;
+import "./core.kelft" as ir;
+import "./modules.kelft" as modules;
+import "./intrinsics.kelft" as builtins;
+struct Definition { module: i32, declaration: s::Node, id: string }
+struct Binding { source: string, name: string, ty: string, mutable: bool, depth: i32 }
+struct Instance { id: string, definition: i32, substitution: Map<string,string>, params: Array<ir::Node>, result: string }
+struct Context {
+    modules: Array<modules::Module>, definitions: Array<Definition>, instances: Array<Instance>,
+    bindings: Array<Binding>, substitution: Map<string,string>, module: i32,
+    counter: i32, depth: i32, loops: i32, result: string, effects: Array<string>, types: Array<ir::Node>
+}
+fn only(n: s::Node, kind: string) -> Array<s::Node> { let mut out: Array<s::Node> = []; for child in n.children { if child.kind == kind { array_push::<s::Node>(inout out, child); } } return out; }
+fn contains(values: Array<string>, value: string) -> bool { for x in values { if x == value { return true; } } return false; }
+fn get(m: Map<string,string>, key: string, fallback: string) -> string { match map_get::<string,string>(m, key) { Option::Some(value) => { return value; }, Option::None => { return fallback; } } }
+fn definition_index(c: Context, name: string, module: i32) -> i32 {
+    let parts: Array<string> = string_split(name, "::"); let mut id: string = c.modules[module].id + "::" + name;
+    if array_len::<string>(parts) > 1 {
+        let prefix: string = get(c.modules[module].imports, parts[0], "");
+        if prefix != "" { id = prefix + "::" + s::join(array_slice::<string>(parts, 1, array_len::<string>(parts)), "::"); }
+    }
+    let mut i: i32 = 0; for d in c.definitions { if d.id == id || d.id == name { return i; } i = i + 1; } return -1;
+}
+fn lookup(c: Context, name: string, module: i32, location: s::Span) -> i32 {
+    let index: i32 = definition_index(c, name, module);
+    if index < 0 { s::error("K0202", "unresolved declaration: " + name, location); }
+    let d: Definition = c.definitions[index];
+    if d.module != module && !d.declaration.flag { s::error("K0202", "declaration is not exported", location); }
+    return index;
+}
+fn resolve_type(c: Context, text: string, substitution: Map<string,string>, module: i32, location: s::Span, depth: i32) -> string {
+    if depth > 64 { s::error("K0203", "recursive type alias", location); }
+    let mapped: string = get(substitution, text, ""); if mapped != "" { return mapped; }
+    let parts: (string,Array<string>) = s::type_parts(text); let base: string = parts.0; let mut arguments: Array<string> = [];
+    for arg in parts.1 { array_push::<string>(inout arguments, resolve_type(c, arg, substitution, module, location, depth + 1)); }
+    if base == "tuple" { return "(" + s::join(arguments, ",") + ")"; }
+    let size: i32 = array_len::<string>(arguments);
+    if base == "i32" || base == "u8" || base == "bool" || base == "string" || base == "void" {
+        if size != 0 { s::error("K0203", "primitive type arguments", location); } return base;
+    }
+    if base == "String" { if size != 0 { s::error("K0203", "String takes no arguments", location); } return "string"; }
+    if base == "Bytes" { if size != 0 { s::error("K0203", "Bytes takes no arguments", location); } return "Array<u8>"; }
+    if base == "Array" || base == "Vec" || base == "Option" || base == "Result" || base == "Map" {
+        let mut expected: i32 = 1; if base == "Result" || base == "Map" { expected = 2; }
+        if size != expected { s::error("K0203", "incorrect type argument count", location); }
+        if base == "Map" && arguments[0] != "string" && arguments[0] != "i32" && arguments[0] != "u8" && arguments[0] != "bool" && get(substitution, arguments[0], "") == "" { s::error("K0203", "unsupported map key", location); }
+        let mut name: string = base; if base == "Vec" { name = "Array"; } return name + "<" + s::join(arguments, ",") + ">";
+    }
+    let d: Definition = c.definitions[lookup(c, base, module, location)]; let n: s::Node = d.declaration;
+    if n.kind != "struct" && n.kind != "enum" && n.kind != "type" { s::error("K0203", "expected type", location); }
+    let gs: Array<s::Node> = only(n, "generic");
+    if array_len::<s::Node>(gs) != size { s::error("K0203", "incorrect type argument count", location); }
+    if n.kind == "type" {
+        let mut sub: Map<string,string> = map_new::<string,string>(); let mut i: i32 = 0;
+        for g in gs { map_set::<string,string>(inout sub, g.text, arguments[i]); i = i + 1; }
+        return resolve_type(c, n.ty, sub, d.module, location, depth + 1);
+    }
+    if size == 0 { return d.id; } return d.id + "<" + s::join(arguments, ",") + ">";
+}
+fn ty(c: Context, text: string, location: s::Span) -> string { return resolve_type(c, text, c.substitution, c.module, location, 0); }
+fn expect(actual: string, expected: string, location: s::Span) -> void { if actual != expected { s::error("K0206", "incompatible type: expected " + expected + ", found " + actual, location); } }
+fn instantiate(inout c: Context, name: string, types: Array<string>, location: s::Span) -> i32 {
+    let index: i32 = lookup(c, name, c.module, location); let d: Definition = c.definitions[index]; let n: s::Node = d.declaration;
+    if n.kind != "fn" { s::error("K0204", "expected function", location); }
+    let gs: Array<s::Node> = only(n, "generic");
+    if array_len::<s::Node>(gs) != array_len::<string>(types) { s::error("K0203", "explicit generic arguments required", location); }
+    let mut id: string = d.id; if array_len::<string>(types) > 0 { id = id + "<" + s::join(types, ",") + ">"; }
+    let mut i: i32 = 0; for instance in c.instances { if instance.id == id { return i; } i = i + 1; }
+    if i > 4096 || string_len(id) > 8192 { s::error("K0203", "unbounded generic specialization", location); }
+    let mut sub: Map<string,string> = map_new::<string,string>(); let mut j: i32 = 0;
+    for g in gs { map_set::<string,string>(inout sub, g.text, types[j]); j = j + 1; }
+    let mut params: Array<ir::Node> = []; j = 0;
+    for p in only(n, "param") {
+        array_push::<ir::Node>(inout params, ir::make("param", "v" + i32_to_string(j), resolve_type(c, p.ty, sub, d.module, p.span, 0), [], p.span, p.flag)); j = j + 1;
+    }
+    let result: string = resolve_type(c, n.ty, sub, d.module, n.span, 0);
+    array_push::<Instance>(inout c.instances, Instance { id: id, definition: index, substitution: sub, params: params, result: result }); return i;
+}
+fn variable(c: Context, name: string, location: s::Span) -> Binding {
+    let mut i: i32 = array_len::<Binding>(c.bindings) - 1;
+    while i >= 0 { if c.bindings[i].source == name { return c.bindings[i]; } i = i - 1; }
+    s::error("K0202", "unresolved local: " + name, location); return Binding { source: "", name: "", ty: "", mutable: false, depth: 0 };
+}
+fn bind(inout c: Context, name: string, value_type: string, mutable: bool, location: s::Span) -> Binding {
+    for b in c.bindings { if b.depth == c.depth && b.source == name { s::error("K0201", "duplicate local", location); } }
+    let result: Binding = Binding { source: name, name: "v" + i32_to_string(c.counter), ty: value_type, mutable: mutable, depth: c.depth };
+    c.counter = c.counter + 1; array_push::<Binding>(inout c.bindings, result); return result;
+}
+fn root(n:s::Node)->string {let mut cursor:s::Node=n;while cursor.kind=="access"||cursor.kind=="index"||cursor.kind=="inout" {cursor=cursor.children[0];}if cursor.kind=="name" {return cursor.text;}return "";}
+fn references(n:s::Node,name:string)->bool {let mut pending:Array<s::Node>=[n];while array_len::<s::Node>(pending)>0 {let node:s::Node=pending[array_len::<s::Node>(pending)-1];array_pop::<s::Node>(inout pending);if node.kind=="name"&&node.text==name {return true;}let mut i:i32=array_len::<s::Node>(node.children);while i>0 {i=i-1;array_push::<s::Node>(inout pending,node.children[i]);}}return false;}
+fn place(inout c: Context, n: s::Node) -> ir::Node {
+    if n.kind != "name" && n.kind != "access" && n.kind != "index" { s::error("K0207", "expected assignable place", n.span); }
+    if !variable(c, root(n), n.span).mutable { s::error("K0207", "mutation of immutable binding", n.span); }
+    return expression(inout c, n, "");
+}
+fn aggregate(c: Context, value_type: string, location: s::Span) -> (i32,Map<string,string>) {
+    let parts: (string,Array<string>) = s::type_parts(value_type); let index: i32 = definition_index(c, parts.0, c.module);
+    if index < 0 { s::error("K0203", "expected aggregate", location); }
+    let gs: Array<s::Node> = only(c.definitions[index].declaration, "generic"); let mut sub: Map<string,string> = map_new::<string,string>(); let mut i: i32 = 0;
+    for g in gs { map_set::<string,string>(inout sub, g.text, parts.1[i]); i = i + 1; } return (index, sub);
+}
+fn variant(c: Context, value_type: string, name: string, location: s::Span) -> Array<string> {
+    let parts: (string,Array<string>) = s::type_parts(value_type);
+    if parts.0 == "Option" { if name == "Some" { return [parts.1[0]]; } if name == "None" { return []; } }
+    if parts.0 == "Result" { if name == "Ok" { return [parts.1[0]]; } if name == "Error" { return [parts.1[1]]; } }
+    if parts.0 == "Option" || parts.0 == "Result" { s::error("K0203", "unknown variant", location); }
+    let info: (i32,Map<string,string>) = aggregate(c, value_type, location); let d: Definition = c.definitions[info.0];
+    for v in only(d.declaration, "variant") {
+        if v.text == name { let mut out: Array<string> = []; for t in v.children { array_push::<string>(inout out, resolve_type(c, t.ty, info.1, d.module, t.span, 0)); } return out; }
+    }
+    s::error("K0203", "unknown variant", location); return [];
+}
+struct ExpressionFrame {node:s::Node,expected:string,step:i32,args:Array<ir::Node>,types:Array<string>,params:Array<string>,modes:Array<i32>,name:string,op:string,value_type:string,fields:Array<s::Node>,seen:Array<string>,sub:Map<string,string>,module:i32,index:i32,first:ir::Node,child_type:string}
+fn expression_frame(n:s::Node,expected:string)->ExpressionFrame {return ExpressionFrame {node:n,expected:expected,step:0,args:[],types:[],params:[],modes:[],name:"",op:"",value_type:"",fields:[],seen:[],sub:map_new::<string,string>(),module:0,index:0,first:ir::make("","","",[],n.span,false),child_type:""};}
+fn expression_wait(inout pending:Array<ExpressionFrame>,f:ExpressionFrame,n:s::Node,hint:string)->void {array_push::<ExpressionFrame>(inout pending,f);let child:ExpressionFrame=expression_frame(n,hint);array_push::<ExpressionFrame>(inout pending,child);}
+fn call_frame(inout c:Context,f_input:ExpressionFrame)->ExpressionFrame {
+ let mut f:ExpressionFrame=f_input;let n:s::Node=f.node;
+ let callee:s::Node=n.children[0];if callee.kind!="name" {s::error("K0204","only named calls are supported",n.span);}
+ let mut types:Array<string>=[];for t in s::split_types(callee.ty,"|") {array_push::<string>(inout types,ty(c,t,n.span));}
+ let signature:builtins::Signature=builtins::signature(callee.text);f.name=callee.text;f.op="call";
+ if signature.name!="" {
+  if array_len::<string>(types)!=signature.generics {s::error("K0203","explicit generic arguments required",n.span);}
+  if s::starts(callee.text,"map_")&&array_len::<string>(types)>0&&types[0]!="string"&&types[0]!="i32"&&types[0]!="u8"&&types[0]!="bool" {s::error("K0203","unsupported map key",n.span);}
+  let mut replacements:Array<string>=signature.params;array_push::<string>(inout replacements,signature.result);let mut replaced:Array<string>=[];
+  for raw in replacements {let mut value:string=raw;let mut i:i32=0;for t in types {value=string_replace(value,"$"+i32_to_string(i),t);i=i+1;}array_push::<string>(inout replaced,value);}
+  f.value_type=replaced[array_len::<string>(replaced)-1];f.params=array_slice::<string>(replaced,0,array_len::<string>(replaced)-1);f.modes=signature.modes;f.op="intrinsic";
+  if signature.effect!="" {for effect in string_split(signature.effect,"|") {if !contains(c.effects,effect) {array_push::<string>(inout c.effects,effect);}}}
+ }else {
+  let parts:Array<string>=string_split(callee.text,"::");let last:i32=array_len::<string>(parts)-1;let mut enum_type:string="";
+  if last>0 {let prefix:string=s::join(array_slice::<string>(parts,0,last),"::");let index:i32=definition_index(c,prefix,c.module);if prefix=="Option"||prefix=="Result"||index>=0&&c.definitions[index].declaration.kind=="enum" {let mut type_name:string=prefix;if array_len::<string>(types)>0 {type_name=type_name+"<"+s::join(types,",")+">";}enum_type=ty(c,type_name,n.span);}}
+  if enum_type!="" {f.params=variant(c,enum_type,parts[last],n.span);f.value_type=enum_type;f.name=parts[last];f.op="variant";}
+  else {let index:i32=instantiate(inout c,callee.text,types,n.span);let instance:Instance=c.instances[index];let mut i:i32=0;for p in instance.params {array_push::<string>(inout f.params,p.ty);if p.flag {array_push::<i32>(inout f.modes,i);}i=i+1;}f.value_type=instance.result;f.name=instance.id;}
+ }
+ let raw:Array<s::Node>=array_slice::<s::Node>(n.children,1,array_len::<s::Node>(n.children));if array_len::<s::Node>(raw)!=array_len::<string>(f.params) {s::error("K0204","incorrect argument count",n.span);}
+ for index in f.modes {if raw[index].kind!="inout" {s::error("K0207","inout argument required",raw[index].span);}let root_name:string=root(raw[index]);let mut j:i32=0;for other in raw {if j!=index&&references(other,root_name) {s::error("K0208","overlapping inout arguments",n.span);}j=j+1;}}
+ return f;
+}
+fn expression(inout c:Context,n_input:s::Node,expected_input:string)->ir::Node {
+ let mut pending:Array<ExpressionFrame>=[expression_frame(n_input,expected_input)];let mut result:ir::Node=ir::make("","","",[],n_input.span,false);
+ while array_len::<ExpressionFrame>(pending)>0 {
+  let mut f:ExpressionFrame=pending[array_len::<ExpressionFrame>(pending)-1];array_pop::<ExpressionFrame>(inout pending);let n:s::Node=f.node;
+  if f.step==0 {
+   if n.kind=="int" {let mut value_type:string="i32";if f.expected=="u8" {value_type="u8";}let mut valid:bool=true;match string_to_i32(n.text) {Result::Ok(value)=>{if value<0||value_type=="u8"&&value>255 {valid=false;}},Result::Error(message)=>{valid=false;}}if !valid {s::error("K0209","integer literal out of range",n.span);}result=ir::make("literal",n.text,value_type,[],n.span,false);}
+   else if n.kind=="string"||n.kind=="bool" {result=ir::make("literal",n.text,n.kind,[],n.span,false);}
+   else if n.kind=="name" {if n.ty!="" {s::error("K0203","type arguments on a value",n.span);}let b:Binding=variable(c,n.text,n.span);result=ir::make("local",b.name,b.ty,[],n.span,false);}
+   else if n.kind=="call" {f=call_frame(inout c,f);f.step=1;}
+   else if n.kind=="array"||n.kind=="tuple" {let parts:(string,Array<string>)=s::type_parts(f.expected);f.params=parts.1;if n.kind=="array"&&parts.0!="Array" {s::error("K0206","array literal needs Array context",n.span);}f.value_type=f.expected;f.op=parts.0;f.step=2;}
+   else if n.kind=="unary" {if n.text=="-"&&n.children[0].kind=="int"&&n.children[0].text=="2147483648" {result=ir::make("literal","-2147483648","i32",[],n.span,false);}else {let mut hint:string="i32";if n.text=="!" {hint="bool";}f.step=3;expression_wait(inout pending,f,n.children[0],hint);continue;}}
+   else if n.kind=="binary" {f.step=4;expression_wait(inout pending,f,n.children[0],"");continue;}
+   else if n.kind=="construct" {let mut name:string=n.text;if n.ty!="" {name=name+"<"+s::join(s::split_types(n.ty,"|"),",")+">";}f.value_type=ty(c,name,n.span);let info:(i32,Map<string,string>)=aggregate(c,f.value_type,n.span);let d:Definition=c.definitions[info.0];if d.declaration.kind!="struct" {s::error("K0203","expected struct",n.span);}f.fields=only(d.declaration,"field");f.sub=info.1;f.module=d.module;f.step=6;}
+   else if n.kind=="access"||n.kind=="index" {f.step=8;expression_wait(inout pending,f,n.children[0],"");continue;}
+   else {s::error("K0206","invalid expression",n.span);}
+  }else if f.step==10||f.step==11 {
+   let arg:s::Node=n.children[f.index+1];expect(result.ty,f.params[f.index],arg.span);if f.step==11 {result=ir::make("location","",result.ty,[result],arg.span,false);}array_push::<ir::Node>(inout f.args,result);f.index=f.index+1;f.step=1;
+  }else if f.step==12 {array_push::<ir::Node>(inout f.args,result);array_push::<string>(inout f.types,result.ty);f.index=f.index+1;f.step=2;}
+  else if f.step==3 {result=ir::make("unary",n.text,result.ty,[result],n.span,false);}
+  else if f.step==4 {f.first=result;f.step=5;expression_wait(inout pending,f,n.children[1],result.ty);continue;}
+  else if f.step==5 {let left:ir::Node=f.first;let right:ir::Node=result;let op:string=n.text;expect(right.ty,left.ty,n.span);if op=="&&"||op=="||" {expect(left.ty,"bool",n.span);}else if op=="+"||op=="-"||op=="*"||op=="/"||op=="%"||op=="&"||op=="|"||op=="^"||op=="<<"||op==">>"||op==">>>" {if op!="+"||left.ty!="string" {expect(left.ty,"i32",n.span);}}else if op=="<"||op=="<="||op==">"||op==">=" {if left.ty!="i32"&&left.ty!="u8"&&left.ty!="string" {s::error("K0206","invalid ordering operands",n.span);}}let mut value_type:string=left.ty;if op=="=="||op=="!="||op=="<"||op=="<="||op==">"||op==">="||op=="&&"||op=="||" {value_type="bool";}result=ir::make("binary",op,value_type,[left,right],n.span,false);}
+  else if f.step==7 {let child:s::Node=n.children[f.index];let field:ir::Node=ir::make("field",child.text,f.child_type,[result],child.span,true);array_push::<ir::Node>(inout f.args,field);f.index=f.index+1;f.step=6;}
+  else if f.step==8 {
+   let value:ir::Node=result;let parts:(string,Array<string>)=s::type_parts(value.ty);
+   if n.kind=="index" {if parts.0!="Array" {s::error("K0206","only arrays support indexing",n.span);}f.first=value;f.value_type=parts.1[0];f.step=9;expression_wait(inout pending,f,n.children[1],"i32");continue;}
+   let mut value_type:string="";if parts.0=="tuple" {let mut index:i32=-1;match string_to_i32(n.text) {Result::Ok(v)=>{index=v;},Result::Error(message)=>{}}if index<0||index>=array_len::<string>(parts.1) {s::error("K0203","invalid tuple field",n.span);}value_type=parts.1[index];}
+   else {let info:(i32,Map<string,string>)=aggregate(c,value.ty,n.span);let d:Definition=c.definitions[info.0];for field in only(d.declaration,"field") {if field.text==n.text {value_type=resolve_type(c,field.ty,info.1,d.module,field.span,0);}}if value_type=="" {s::error("K0203","unknown struct field",n.span);}}
+   result=ir::make("field",n.text,value_type,[value],n.span,false);
+  }else if f.step==9 {result=ir::make("index","",f.value_type,[f.first,result],n.span,false);}
+  if f.step==1 {
+   if f.index<array_len::<string>(f.params) {let arg:s::Node=n.children[f.index+1];let mut mutable:bool=false;for index in f.modes {if index==f.index {mutable=true;}}
+    if mutable {let target:s::Node=arg.children[0];if target.kind!="name"&&target.kind!="access"&&target.kind!="index" {s::error("K0207","expected assignable place",target.span);}if !variable(c,root(target),target.span).mutable {s::error("K0207","mutation of immutable binding",target.span);}f.step=11;expression_wait(inout pending,f,target,"");}
+    else {if arg.kind=="inout" {s::error("K0207","unexpected inout argument",arg.span);}let hint:string=f.params[f.index];f.step=10;expression_wait(inout pending,f,arg,hint);}continue;
+   }result=ir::make(f.op,f.name,f.value_type,f.args,n.span,false);
+  }else if f.step==2 {
+   if f.index<array_len::<s::Node>(n.children) {let mut hint:string="";if n.kind=="array" {hint=f.params[0];}else if f.op=="tuple"&&f.index<array_len::<string>(f.params) {hint=f.params[f.index];}f.step=12;expression_wait(inout pending,f,n.children[f.index],hint);continue;}
+   if n.kind=="tuple" {f.value_type="("+s::join(f.types,",")+")";}result=ir::make(n.kind,"",f.value_type,f.args,n.span,false);
+  }else if f.step==6 {
+   if f.index<array_len::<s::Node>(n.children) {let child:s::Node=n.children[f.index];let mut found:bool=false;for field in f.fields {if field.text==child.text {if contains(f.seen,child.text) {s::error("K0203","unknown or duplicate field",child.span);}found=true;array_push::<string>(inout f.seen,child.text);f.child_type=resolve_type(c,field.ty,f.sub,f.module,field.span,0);}}
+    if !found {s::error("K0203","unknown or duplicate field",child.span);}let hint:string=f.child_type;f.step=7;expression_wait(inout pending,f,child.children[0],hint);continue;
+   }if array_len::<string>(f.seen)!=array_len::<s::Node>(f.fields) {s::error("K0203","missing struct field",n.span);}result=ir::make("record","",f.value_type,f.args,n.span,false);
+  }
+  if f.expected!="" {expect(result.ty,f.expected,n.span);}
+ }
+ return result;
+}
+
+struct PatternFrame {node:s::Node,value_type:string,op:string,name:string,params:Array<string>,args:Array<ir::Node>,index:i32}
+fn pattern_frame(n:s::Node,value_type:string)->PatternFrame {return PatternFrame {node:n,value_type:value_type,op:"",name:"",params:[],args:[],index:0};}
+fn pattern(inout c:Context,n_input:s::Node,value_type_input:string)->ir::Node {
+ let mut pending:Array<PatternFrame>=[pattern_frame(n_input,value_type_input)];let mut result:ir::Node=ir::make("","","",[],n_input.span,false);
+ while array_len::<PatternFrame>(pending)>0 {let mut f:PatternFrame=pending[array_len::<PatternFrame>(pending)-1];array_pop::<PatternFrame>(inout pending);let n:s::Node=f.node;
+  if f.op=="" {
+   if n.kind=="pattern" {if n.text=="_" {result=ir::make("pattern","_",f.value_type,[],n.span,false);}else if n.text=="true"||n.text=="false" {expect(f.value_type,"bool",n.span);result=ir::make("pattern",n.text,f.value_type,[],n.span,false);}else {let b:Binding=bind(inout c,n.text,f.value_type,false,n.span);result=ir::make("pattern",b.name,f.value_type,[],n.span,false);}continue;}
+   let parts:(string,Array<string>)=s::type_parts(f.value_type);
+   if n.kind=="tuple_pattern" {if parts.0!="tuple"||array_len::<string>(parts.1)!=array_len::<s::Node>(n.children) {s::error("K0206","tuple pattern mismatch",n.span);}f.op="tuple_pattern";f.params=parts.1;}
+   else {let names:Array<string>=string_split(n.text,"::");let last:i32=array_len::<string>(names)-1;let prefix:string=s::join(array_slice::<string>(names,0,last),"::");if prefix!=""&&prefix!=parts.0 {let id:i32=lookup(c,prefix,c.module,n.span);if id<0||c.definitions[id].id!=parts.0 {s::error("K0206","variant pattern type mismatch",n.span);}}f.params=variant(c,f.value_type,names[last],n.span);if array_len::<string>(f.params)!=array_len::<s::Node>(n.children) {s::error("K0206","variant pattern arity",n.span);}f.op="variant_pattern";f.name=names[last];}
+  }else {array_push::<ir::Node>(inout f.args,result);f.index=f.index+1;}
+  if f.index<array_len::<s::Node>(n.children) {let child:PatternFrame=pattern_frame(n.children[f.index],f.params[f.index]);array_push::<PatternFrame>(inout pending,f);array_push::<PatternFrame>(inout pending,child);}
+  else {result=ir::make(f.op,f.name,f.value_type,f.args,n.span,false);}
+ }return result;
+}
+
+struct Constructor { op: string, name: string, types: Array<string> }
+fn irrefutable(p:ir::Node)->bool {let mut pending:Array<ir::Node>=[p];while array_len::<ir::Node>(pending)>0 {let node:ir::Node=pending[array_len::<ir::Node>(pending)-1];array_pop::<ir::Node>(inout pending);if node.op=="pattern"&&node.name!="true"&&node.name!="false" {continue;}if node.op!="tuple_pattern" {return false;}let mut i:i32=array_len::<ir::Node>(node.args)-1;while i>=0 {array_push::<ir::Node>(inout pending,node.args[i]);i=i-1;}}return true;}
+struct PatternPair {left:ir::Node,right:ir::Node}
+fn covers(a:ir::Node,b:ir::Node)->bool {let mut pending:Array<PatternPair>=[PatternPair {left:a,right:b}];while array_len::<PatternPair>(pending)>0 {let pair:PatternPair=pending[array_len::<PatternPair>(pending)-1];array_pop::<PatternPair>(inout pending);if irrefutable(pair.left) {continue;}if pair.left.op!=pair.right.op||pair.left.name!=pair.right.name||array_len::<ir::Node>(pair.left.args)!=array_len::<ir::Node>(pair.right.args) {return false;}let mut i:i32=array_len::<ir::Node>(pair.left.args)-1;while i>=0 {array_push::<PatternPair>(inout pending,PatternPair {left:pair.left.args[i],right:pair.right.args[i]});i=i-1;}}return true;}
+fn exhaustive(c: Context, rows: Array<Array<ir::Node>>, types: Array<string>, location: s::Span, depth: i32) -> bool {
+    if array_len::<Array<ir::Node>>(rows) == 0 || depth > 128 { return false; } if array_len::<string>(types) == 0 { return true; }
+    let tail: Array<string> = array_slice::<string>(types, 1, array_len::<string>(types)); let mut defaults: Array<Array<ir::Node>> = [];
+    for row in rows { if irrefutable(row[0]) { array_push::<Array<ir::Node>>(inout defaults, array_slice::<ir::Node>(row, 1, array_len::<ir::Node>(row))); } }
+    if exhaustive(c, defaults, tail, location, depth + 1) { return true; }
+    let parts: (string,Array<string>) = s::type_parts(types[0]); let mut constructors: Array<Constructor> = [];
+    if parts.0 == "bool" { constructors = [Constructor { op: "pattern", name: "true", types: [] },Constructor { op: "pattern", name: "false", types: [] }]; }
+    else if parts.0 == "tuple" { constructors = [Constructor { op: "tuple_pattern", name: "", types: parts.1 }]; }
+    else {
+        let mut names: Array<string> = []; if parts.0 == "Option" { names = ["Some","None"]; } else if parts.0 == "Result" { names = ["Ok","Error"]; }
+        else { let index: i32 = definition_index(c, parts.0, c.module); if index >= 0 && c.definitions[index].declaration.kind == "enum" { for v in only(c.definitions[index].declaration,"variant") { array_push::<string>(inout names,v.text); } } }
+        for name in names { array_push::<Constructor>(inout constructors,Constructor { op:"variant_pattern",name:name,types:variant(c,types[0],name,location) }); }
+    }
+    if array_len::<Constructor>(constructors) == 0 { return false; }
+    for ctor in constructors {
+        let mut specialized: Array<Array<ir::Node>> = [];
+        for row in rows {
+            let p: ir::Node = row[0]; let mut next: Array<ir::Node> = []; let mut matching: bool = false;
+            if irrefutable(p) { matching = true; for t in ctor.types { array_push::<ir::Node>(inout next,ir::make("pattern","_",t,[],location,false)); } }
+            else if p.op == ctor.op && p.name == ctor.name { matching = true; next = p.args; }
+            if matching { let mut i:i32=1; while i<array_len::<ir::Node>(row) { array_push::<ir::Node>(inout next,row[i]); i=i+1; } array_push::<Array<ir::Node>>(inout specialized,next); }
+        }
+        let mut next_types:Array<string>=ctor.types; for t in tail { array_push::<string>(inout next_types,t); }
+        if !exhaustive(c,specialized,next_types,location,depth+1) { return false; }
+    }
+    return true;
+}
+struct StatementFrame {node:s::Node,step:i32,index:i32,args:Array<ir::Node>,patterns:Array<Array<ir::Node>>,saved:i32,pat:ir::Node}
+fn statement_frame(n:s::Node)->StatementFrame {return StatementFrame {node:n,step:0,index:0,args:[],patterns:[],saved:0,pat:ir::make("","","",[],n.span,false)};}
+fn statement_wait(inout pending:Array<StatementFrame>,f:StatementFrame,child:s::Node)->void {array_push::<StatementFrame>(inout pending,f);let next:StatementFrame=statement_frame(child);array_push::<StatementFrame>(inout pending,next);}
+fn statement(inout c:Context,n_input:s::Node)->ir::Node {
+ let mut pending:Array<StatementFrame>=[statement_frame(n_input)];let mut result:ir::Node=ir::make("","","",[],n_input.span,false);
+ while array_len::<StatementFrame>(pending)>0 {let mut f:StatementFrame=pending[array_len::<StatementFrame>(pending)-1];array_pop::<StatementFrame>(inout pending);let n:s::Node=f.node;let a:Array<s::Node>=n.children;
+  if f.step==0 {
+   if n.kind=="block" {f.saved=array_len::<Binding>(c.bindings);c.depth=c.depth+1;f.step=1;}
+   else if n.kind=="let" {let value_type:string=ty(c,n.ty,n.span);let value:ir::Node=expression(inout c,a[0],value_type);let b:Binding=bind(inout c,n.text,value_type,n.flag,n.span);result=ir::make("bind",b.name,value_type,[value],n.span,n.flag);continue;}
+   else if n.kind=="assign" {let target:ir::Node=place(inout c,a[0]);let value:ir::Node=expression(inout c,a[1],target.ty);result=ir::make("store","","void",[target,value],n.span,false);continue;}
+   else if n.kind=="expr" {let value:ir::Node=expression(inout c,a[0],"");result=ir::make("evaluate","","void",[value],n.span,false);continue;}
+   else if n.kind=="return" {if array_len::<s::Node>(a)==0 {expect("void",c.result,n.span);}for child in a {let hint:string=c.result;let value:ir::Node=expression(inout c,child,hint);array_push::<ir::Node>(inout f.args,value);}result=ir::make("return","","void",f.args,n.span,false);continue;}
+   else if n.kind=="if"||n.kind=="while" {let condition:ir::Node=expression(inout c,a[0],"bool");f.args=[condition];if n.kind=="while" {c.loops=c.loops+1;}f.index=1;f.step=2;}
+   else if n.kind=="for" {let collection:ir::Node=expression(inout c,a[1],"");let parts:(string,Array<string>)=s::type_parts(collection.ty);if parts.0!="Array"&&parts.0!="Map" {s::error("K0206","expected collection",n.span);}let mut item_type:string=parts.1[0];if parts.0=="Map" {item_type="("+s::join(parts.1,",")+")";}f.saved=array_len::<Binding>(c.bindings);c.depth=c.depth+1;f.pat=pattern(inout c,a[0],item_type);f.args=[f.pat,collection];c.loops=c.loops+1;f.step=3;statement_wait(inout pending,f,a[2]);continue;}
+   else if n.kind=="match" {let value:ir::Node=expression(inout c,a[0],"");f.args=[value];f.index=1;f.step=4;}
+   else if n.kind=="break"||n.kind=="continue" {if c.loops==0 {s::error("K0205","loop control outside loop",n.span);}result=ir::make(n.kind,"","void",[],n.span,false);continue;}
+   else {s::error("K0206","unknown statement",n.span);}
+  }else if f.step==1||f.step==2 {array_push::<ir::Node>(inout f.args,result);f.index=f.index+1;}
+  else if f.step==3 {c.loops=c.loops-1;c.depth=c.depth-1;c.bindings=array_slice::<Binding>(c.bindings,0,f.saved);if !exhaustive(c,[[f.pat]],[f.pat.ty],n.span,0) {s::error("K0206","refutable iteration pattern",n.span);}array_push::<ir::Node>(inout f.args,result);result=ir::make("for","","void",f.args,n.span,false);continue;}
+  else if f.step==5 {c.depth=c.depth-1;c.bindings=array_slice::<Binding>(c.bindings,0,f.saved);for row in f.patterns {if covers(row[0],f.pat) {s::error("K0210","unreachable match arm",f.pat.span);}}let row:Array<ir::Node>=[f.pat];array_push::<Array<ir::Node>>(inout f.patterns,row);let arm:ir::Node=ir::make("arm","","void",[f.pat,result],a[f.index].span,false);array_push::<ir::Node>(inout f.args,arm);f.index=f.index+1;f.step=4;}
+  if f.step==1||f.step==2 {
+   if f.index<array_len::<s::Node>(a) {statement_wait(inout pending,f,a[f.index]);continue;}
+   if f.step==1 {c.depth=c.depth-1;c.bindings=array_slice::<Binding>(c.bindings,0,f.saved);}else if n.kind=="while" {c.loops=c.loops-1;}result=ir::make(n.kind,"","void",f.args,n.span,false);
+  }else if f.step==4 {
+   if f.index<array_len::<s::Node>(a) {let arm:s::Node=a[f.index];f.saved=array_len::<Binding>(c.bindings);c.depth=c.depth+1;let value_type:string=f.args[0].ty;f.pat=pattern(inout c,arm.children[0],value_type);f.step=5;statement_wait(inout pending,f,arm.children[1]);continue;}
+   let value_type:string=f.args[0].ty;if !exhaustive(c,f.patterns,[value_type],n.span,0) {s::error("K0210","non-exhaustive match",n.span);}result=ir::make("match","","void",f.args,n.span,false);
+  }
+ }return result;
+}
+struct ReturnsFrame {node:ir::Node,index:i32,all:bool}
+fn returns(n:ir::Node)->bool {
+ let mut pending:Array<ReturnsFrame>=[ReturnsFrame {node:n,index:-1,all:false}];let mut result:bool=false;
+ while array_len::<ReturnsFrame>(pending)>0 {let mut f:ReturnsFrame=pending[array_len::<ReturnsFrame>(pending)-1];array_pop::<ReturnsFrame>(inout pending);let node:ir::Node=f.node;
+  if f.index<0 {if node.op=="return" {result=true;continue;}if node.op=="block" {f.index=0;}else if node.op=="if" {if array_len::<ir::Node>(node.args)!=3 {result=false;continue;}f.index=1;f.all=true;}else if node.op=="match" {if array_len::<ir::Node>(node.args)<2 {result=false;continue;}f.index=1;f.all=true;}else {result=false;continue;}}
+  else {if f.all&&!result||!f.all&&result {continue;}f.index=f.index+1;}
+  if f.index>=array_len::<ir::Node>(node.args) {result=f.all;continue;}let mut child:ir::Node=node.args[f.index];if node.op=="match" {child=child.args[1];}array_push::<ReturnsFrame>(inout pending,f);array_push::<ReturnsFrame>(inout pending,ReturnsFrame {node:child,index:-1,all:false});
+ }return result;
+}
+
+pub fn analyze(mods: Array<modules::Module>) -> ir::Program {
+    let mut c: Context = Context { modules: mods, definitions: [], instances: [], bindings: [], substitution: map_new::<string,string>(), module: 0, counter: 0, depth: 0, loops: 0, result: "void", effects: [], types: [] };
+    let mut module: i32 = 0;
+    for mod in mods {
+        for n in mod.tree.children {
+            if n.kind == "import" { continue; }
+            let mut collision:bool=false;match map_get::<string,string>(mod.imports,n.text) {Option::Some(value)=>{collision=true;},Option::None=>{}}
+            if n.kind=="fn"&&builtins::signature(n.text).name!="" {collision=true;}
+            if n.kind=="struct"||n.kind=="enum"||n.kind=="type" {let prelude:Array<string>=["i32","u8","bool","string","void","Array","Map","Option","Result","String","Vec","Bytes"];if contains(prelude,n.text) {collision=true;}}
+            if collision {s::error("K0201","declaration conflicts with a prelude name or import alias",n.span);}
+            let id: string = mod.id + "::" + n.text;
+            for old in c.definitions { if old.id == id { s::error("K0201", "duplicate declaration", n.span); } }
+            let mut names: Array<string> = [];
+            for child in n.children { if child.kind == "generic" || child.kind == "param" || child.kind == "field" || child.kind == "variant" { if contains(names, child.text) { s::error("K0201", "duplicate member", child.span); } array_push::<string>(inout names, child.text); } }
+            array_push::<Definition>(inout c.definitions, Definition { module: module, declaration: n, id: id });
+        }
+        module = module + 1;
+    }
+    for d in c.definitions {
+        let mut sub: Map<string,string> = map_new::<string,string>(); for g in only(d.declaration, "generic") { map_set::<string,string>(inout sub, g.text, g.text); }
+        for child in d.declaration.children {
+            if child.ty != "" { resolve_type(c, child.ty, sub, d.module, child.span, 0); }
+            for t in child.children { if t.kind == "type" { resolve_type(c, t.ty, sub, d.module, t.span, 0); } }
+        }
+        if d.declaration.ty != "" { resolve_type(c, d.declaration.ty, sub, d.module, d.declaration.span, 0); }
+    }
+    let main: i32 = instantiate(inout c, "main", [], mods[0].tree.span); let entry: Instance = c.instances[main];
+    if array_len::<ir::Node>(entry.params) != 0 || entry.result != "void" && entry.result != "i32" { s::error("K0204", "main must have no parameters and return void or i32", mods[0].tree.span); }
+    for d in c.definitions { if d.declaration.kind == "fn" && array_len::<s::Node>(only(d.declaration, "generic")) == 0 { c.module = d.module; instantiate(inout c, d.declaration.text, [], d.declaration.span); } }
+    let mut functions: Array<ir::Node> = []; let mut q: i32 = 0;
+    while q < array_len::<Instance>(c.instances) {
+        let instance: Instance = c.instances[q]; let d: Definition = c.definitions[instance.definition]; let n: s::Node = d.declaration;
+        c.module = d.module; c.substitution = instance.substitution; c.bindings = []; c.depth = 0; c.loops = 0; c.counter = array_len::<ir::Node>(instance.params); c.result = instance.result;
+        let mut i: i32 = 0; for p in only(n, "param") { let cp: ir::Node = instance.params[i]; array_push::<Binding>(inout c.bindings, Binding { source: p.text, name: cp.name, ty: cp.ty, mutable: p.flag, depth: 0 }); i = i + 1; }
+        let body: ir::Node = statement(inout c, n.children[array_len::<s::Node>(n.children) - 1]);
+        if instance.result != "void" && !returns(body) { s::error("K0205", "missing return", n.span); }
+        let mut args: Array<ir::Node> = instance.params; array_push::<ir::Node>(inout args, body);
+        array_push::<ir::Node>(inout functions, ir::make("function", instance.id, instance.result, args, n.span, false)); q = q + 1;
+    }
+    let mut i: i32 = 1; while i < array_len::<ir::Node>(functions) { let mut j: i32 = i; while j > 0 && functions[j].name < functions[j - 1].name { let value: ir::Node = functions[j]; functions[j] = functions[j - 1]; functions[j - 1] = value; j = j - 1; } i = i + 1; }
+    for f in functions { collect_node(inout c,f); }
+    i = 1; while i < array_len::<ir::Node>(c.types) { let mut j:i32=i; while j>0 && c.types[j].name<c.types[j-1].name { let t:ir::Node=c.types[j]; c.types[j]=c.types[j-1]; c.types[j-1]=t;j=j-1;}i=i+1; }
+    ir::sort_strings(inout c.effects); let program: ir::Program = ir::Program { entry: entry.id, types: c.types, functions: functions, effects: c.effects }; ir::validate(program); return program;
+}
+struct CollectFrame {ty:string,span:s::Span,step:i32,index:i32,child_index:i32,parameters:Array<string>,children:Array<s::Node>,position:i32,sub:Map<string,string>,module:i32,kind:string,fields:Array<ir::Node>,args:Array<ir::Node>,field_type:string}
+fn collect_frame(ty:string,location:s::Span)->CollectFrame {return CollectFrame {ty:ty,span:location,step:0,index:0,child_index:0,parameters:[],children:[],position:-1,sub:map_new::<string,string>(),module:0,kind:"",fields:[],args:[],field_type:""};}
+fn collect_type(inout c:Context,value_type:string,location:s::Span)->void {
+ let mut pending:Array<CollectFrame>=[collect_frame(value_type,location)];
+ while array_len::<CollectFrame>(pending)>0 {let mut f:CollectFrame=collect_frame(value_type,location);match array_pop::<CollectFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}
+  if f.step==0 {let parts:(string,Array<string>)=s::type_parts(f.ty);f.parameters=parts.1;f.step=1;}
+  if f.step==1 {if f.index<array_len::<string>(f.parameters) {let ty:string=f.parameters[f.index];f.index=f.index+1;let child:CollectFrame=collect_frame(ty,f.span);array_push::<CollectFrame>(inout pending,f);array_push::<CollectFrame>(inout pending,child);continue;}let parts:(string,Array<string>)=s::type_parts(f.ty);let mut found:bool=false;for d in c.definitions {if d.id==parts.0 {found=true;}}if !found {continue;}for old in c.types {if old.name==f.ty {found=false;}}if !found {continue;}let info:(i32,Map<string,string>)=aggregate(c,f.ty,f.span);let d:Definition=c.definitions[info.0];f.position=array_len::<ir::Node>(c.types);f.sub=info.1;f.module=d.module;f.children=d.declaration.children;f.kind=d.declaration.kind;f.span=d.declaration.span;array_push::<ir::Node>(inout c.types,ir::make(f.kind,f.ty,f.ty,[],f.span,false));f.index=0;f.step=2;}
+  if f.step==3 {let child:s::Node=f.children[f.index];let field:ir::Node=ir::make("field",child.text,f.field_type,[],child.span,false);array_push::<ir::Node>(inout f.fields,field);f.index=f.index+1;f.step=2;}
+  if f.step==5 {let field:s::Node=f.children[f.index].children[f.child_index];let arg:ir::Node=ir::make("field",i32_to_string(f.child_index),f.field_type,[],field.span,false);array_push::<ir::Node>(inout f.args,arg);f.child_index=f.child_index+1;f.step=4;}
+  if f.step==2 {if f.index>=array_len::<s::Node>(f.children) {c.types[f.position]=ir::make(f.kind,f.ty,f.ty,f.fields,f.span,false);continue;}let child:s::Node=f.children[f.index];if child.kind=="field" {f.field_type=resolve_type(c,child.ty,f.sub,f.module,child.span,0);f.step=3;let next:CollectFrame=collect_frame(f.field_type,child.span);array_push::<CollectFrame>(inout pending,f);array_push::<CollectFrame>(inout pending,next);continue;}if child.kind=="variant" {f.args=[];f.child_index=0;f.step=4;}else {f.index=f.index+1;array_push::<CollectFrame>(inout pending,f);continue;}}
+  if f.step==4 {let child:s::Node=f.children[f.index];if f.child_index>=array_len::<s::Node>(child.children) {let variant:ir::Node=ir::make("variant",child.text,f.ty,f.args,child.span,false);array_push::<ir::Node>(inout f.fields,variant);f.index=f.index+1;f.step=2;array_push::<CollectFrame>(inout pending,f);}else {let field:s::Node=child.children[f.child_index];f.field_type=resolve_type(c,field.ty,f.sub,f.module,field.span,0);f.step=5;let next:CollectFrame=collect_frame(f.field_type,field.span);array_push::<CollectFrame>(inout pending,f);array_push::<CollectFrame>(inout pending,next);}}
+ }
+}
+fn collect_node(inout c:Context,n:ir::Node)->void {let mut pending:Array<ir::Node>=[n];while array_len::<ir::Node>(pending)>0 {let node:ir::Node=pending[array_len::<ir::Node>(pending)-1];array_pop::<ir::Node>(inout pending);collect_type(inout c,node.ty,node.span);let mut i:i32=array_len::<ir::Node>(node.args);while i>0 {i=i-1;array_push::<ir::Node>(inout pending,node.args[i]);}}}

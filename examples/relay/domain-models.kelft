@@ -1,0 +1,65 @@
+type Text = string;
+type UUID = string;
+fn __valid_uuid(value:string)->bool { if string_len(value)!=36 { return false; } let mut i:i32=0; while i<36 { let b:i32=i32_from_u8(string_byte(value,i)); if i==8||i==13||i==18||i==23 { if b!=45 {return false;} } else { if !(b>=48&&b<=57||b>=65&&b<=70||b>=97&&b<=102) {return false;} } i=i+1; } return true; }
+pub struct AcceptInvitation {token:Text,}
+pub fn validate_AcceptInvitation(value:AcceptInvitation)->bool {if string_len(value.token)<64||string_len(value.token)>64 {return false;}return true;}
+pub struct AcceptedOperation {operation:UUID,task:Task,}
+pub fn validate_AcceptedOperation(value:AcceptedOperation)->bool {if !__valid_uuid(value.operation) {return false;}if !validate_Task(value.task) {return false;}return true;}
+pub struct AuthCallback {code:Option<Text>,error:Option<Text>,error_description:Option<Text>,error_uri:Option<Text>,iss:Option<Text>,session_state:Option<Text>,state:Option<Text>,}
+pub fn validate_AuthCallback(value:AuthCallback)->bool {return true;}
+pub struct ChangeRole {member:UUID,role:Membership_role,workspace:UUID,}
+pub fn validate_ChangeRole(value:ChangeRole)->bool {if !__valid_uuid(value.member) {return false;}if !__valid_uuid(value.workspace) {return false;}return true;}
+pub struct Conflict {fields:Array<Text>,id:UUID,original:Operation,resolved:bool,server:Task,task:UUID,}
+pub fn validate_Conflict(value:Conflict)->bool {if !__valid_uuid(value.id) {return false;}if !validate_Operation(value.original) {return false;}if !validate_Task(value.server) {return false;}if !__valid_uuid(value.task) {return false;}return true;}
+pub struct ConflictedOperation {code:Text,conflict:Conflict,message:Text,}
+pub fn validate_ConflictedOperation(value:ConflictedOperation)->bool {if !validate_Conflict(value.conflict) {return false;}return true;}
+pub struct CreateInvitation {recipient:Text,workspace:UUID,}
+pub fn validate_CreateInvitation(value:CreateInvitation)->bool {if string_len(value.recipient)<1||string_len(value.recipient)>320 {return false;}if !__valid_uuid(value.workspace) {return false;}return true;}
+pub struct CreateWorkspace {name:Text,}
+pub fn validate_CreateWorkspace(value:CreateWorkspace)->bool {if string_len(value.name)<1||string_len(value.name)>120 {return false;}return true;}
+pub struct Health {migration:i32,status:Text,}
+pub fn validate_Health(value:Health)->bool {return true;}
+pub struct Identity {issuer:Text,subject:Text,}
+pub fn validate_Identity(value:Identity)->bool {if string_len(value.issuer)<1||string_len(value.issuer)>2048 {return false;}if string_len(value.subject)<1||string_len(value.subject)>2048 {return false;}return true;}
+pub struct Invitation {expires_day:i32,expires_second:i32,id:UUID,issuer:Text,recipient:Text,used:bool,workspace:UUID,}
+pub fn validate_Invitation(value:Invitation)->bool {if !__valid_uuid(value.id) {return false;}if string_len(value.recipient)<1||string_len(value.recipient)>320 {return false;}if !__valid_uuid(value.workspace) {return false;}return true;}
+pub struct InvitationLink {invitation:Invitation,link:Text,}
+pub fn validate_InvitationLink(value:InvitationLink)->bool {if !validate_Invitation(value.invitation) {return false;}return true;}
+pub struct LoginRequest {switch:Option<bool>,}
+pub fn validate_LoginRequest(value:LoginRequest)->bool {return true;}
+pub struct MemberRequest {member:UUID,workspace:UUID,}
+pub fn validate_MemberRequest(value:MemberRequest)->bool {if !__valid_uuid(value.member) {return false;}if !__valid_uuid(value.workspace) {return false;}return true;}
+pub enum Membership_role {admin,member}
+pub struct Membership {role:Membership_role,user:User,}
+pub fn validate_Membership(value:Membership)->bool {if !validate_User(value.user) {return false;}return true;}
+pub enum Operation_kind {create,update,resolve}
+pub struct Operation {base:Option<TaskBaseline>,conflict:Option<UUID>,dependency:Option<UUID>,id:UUID,kind:Operation_kind,original:Identity,patch:TaskPatch,task:UUID,}
+pub fn validate_Operation(value:Operation)->bool {match value.base {Option::Some(item)=>{if !validate_TaskBaseline(item) {return false;}},Option::None=>{}}match value.conflict {Option::Some(item)=>{if !__valid_uuid(item) {return false;}},Option::None=>{}}match value.dependency {Option::Some(item)=>{if !__valid_uuid(item) {return false;}},Option::None=>{}}if !__valid_uuid(value.id) {return false;}if !validate_Identity(value.original) {return false;}if !validate_TaskPatch(value.patch) {return false;}if !__valid_uuid(value.task) {return false;}return true;}
+pub struct OperationRequest {operation:Operation,workspace:UUID,}
+pub fn validate_OperationRequest(value:OperationRequest)->bool {if !validate_Operation(value.operation) {return false;}if !__valid_uuid(value.workspace) {return false;}return true;}
+pub struct Problem {code:Text,message:Text,}
+pub fn validate_Problem(value:Problem)->bool {if string_len(value.code)<1||string_len(value.code)>80 {return false;}if string_len(value.message)<1||string_len(value.message)>240 {return false;}return true;}
+pub struct SessionInfo {csrf:Text,email:Option<Text>,email_verified:bool,identity:Identity,memberships:Array<WorkspaceMembership>,user:User,workspaces:Array<Workspace>,}
+pub fn validate_SessionInfo(value:SessionInfo)->bool {if !validate_Identity(value.identity) {return false;}for __item_0 in value.memberships {if !validate_WorkspaceMembership(__item_0) {return false;}}if !validate_User(value.user) {return false;}for __item_0 in value.workspaces {if !validate_Workspace(__item_0) {return false;}}return true;}
+pub struct Snapshot {conflicts:Array<Conflict>,members:Array<Membership>,tasks:Array<Task>,workspace:Workspace,}
+pub fn validate_Snapshot(value:Snapshot)->bool {for __item_0 in value.conflicts {if !validate_Conflict(__item_0) {return false;}}for __item_0 in value.members {if !validate_Membership(__item_0) {return false;}}for __item_0 in value.tasks {if !validate_Task(__item_0) {return false;}}if !validate_Workspace(value.workspace) {return false;}return true;}
+pub enum Task_state {todo,doing,done}
+pub struct Task {id:UUID,owner:Option<User>,revision:i32,state:Task_state,title:Text,workspace:UUID,}
+pub fn validate_Task(value:Task)->bool {if !__valid_uuid(value.id) {return false;}match value.owner {Option::Some(item)=>{if !validate_User(item) {return false;}},Option::None=>{}}if string_len(value.title)<1||string_len(value.title)>120 {return false;}if !__valid_uuid(value.workspace) {return false;}return true;}
+pub struct TaskBaseline {owner:Option<UUID>,revision:i32,state:Task_state,title:Text,}
+pub fn validate_TaskBaseline(value:TaskBaseline)->bool {match value.owner {Option::Some(item)=>{if !__valid_uuid(item) {return false;}},Option::None=>{}}if string_len(value.title)<1||string_len(value.title)>120 {return false;}return true;}
+pub struct TaskPatch {assign:Option<bool>,owner:Option<UUID>,state:Option<Task_state>,title:Option<Text>,}
+pub fn validate_TaskPatch(value:TaskPatch)->bool {match value.owner {Option::Some(item)=>{if !__valid_uuid(item) {return false;}},Option::None=>{}}match value.title {Option::Some(item)=>{if string_len(item)<1||string_len(item)>120 {return false;}},Option::None=>{}}return true;}
+pub struct User {display_name:Text,id:UUID,}
+pub fn validate_User(value:User)->bool {if string_len(value.display_name)<1||string_len(value.display_name)>120 {return false;}if !__valid_uuid(value.id) {return false;}return true;}
+pub struct Workspace {id:UUID,name:Text,revision:i32,}
+pub fn validate_Workspace(value:Workspace)->bool {if !__valid_uuid(value.id) {return false;}if string_len(value.name)<1||string_len(value.name)>120 {return false;}return true;}
+pub struct WorkspaceMembership {role:Membership_role,workspace:UUID,}
+pub fn validate_WorkspaceMembership(value:WorkspaceMembership)->bool {if !__valid_uuid(value.workspace) {return false;}return true;}
+pub struct WorkspaceRequest {workspace:UUID,}
+pub fn validate_WorkspaceRequest(value:WorkspaceRequest)->bool {if !__valid_uuid(value.workspace) {return false;}return true;}
+pub fn __pre_0(role:Text,permission:Text)->bool {let __requirement_0:bool=((role=="admin")||(role=="member"));if !__requirement_0 {return false;}return true;}
+pub fn __contract_0(role:Text,permission:Text,result:bool)->bool {let __requirement_0:bool=((role!="admin")||result);if !__requirement_0 {return false;}let __requirement_1:bool=((role!="member")||(result==(((permission=="tasks.read")||(permission=="tasks.write"))||(permission=="workspace.leave"))));if !__requirement_1 {return false;}return true;}
+pub fn __pre_1(inout task:Task,to:Task_state)->bool {if !validate_Task(task) {return false;}return true;}
+pub fn __contract_1(inout task:Task,to:Task_state)->bool {if !validate_Task(task) {return false;}let __requirement_0:bool=(task.state==to);if !__requirement_0 {return false;}return true;}
+fn main()->void {}

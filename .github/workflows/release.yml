@@ -1,0 +1,226 @@
+name: Native compiler release
+run-name: Compiler / ${{ inputs.operation }} / ${{ inputs.target }}
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [verify, prepare, publish]
+        default: verify
+      target:
+        type: choice
+        options: [all, linux-x86_64, linux-arm64, windows-x86_64, windows-arm64, macos-x86_64, macos-arm64]
+        default: all
+      candidate_sha:
+        description: Exact source commit; defaults to the workflow commit for verify/prepare
+        type: string
+      release_id:
+        description: Existing draft ID, required only for publish
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: compiler-release-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: inputs.operation != 'publish'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      candidate: ${{ steps.context.outputs.candidate }}
+      matrix: ${{ steps.context.outputs.matrix }}
+      public_commit: ${{ steps.context.outputs.public_commit }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - id: context
+        env:
+          RELEASE_OPERATION: ${{ inputs.operation }}
+          RELEASE_TARGET: ${{ inputs.target }}
+          RELEASE_CANDIDATE: ${{ inputs.candidate_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-actions.mjs preflight
+      - run: node scripts/check.mjs --verify-inventory
+      - name: Prepare the proof ZIP reader
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends unzip
+      - run: node --test tests/release.test.mjs tests/release-pipeline.test.mjs tests/source-archive.test.mjs
+      - if: inputs.operation == 'prepare'
+        run: node scripts/release.mjs review --target publication
+
+  native:
+    needs: preflight
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ needs.preflight.outputs.candidate }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          architecture: ${{ endsWith(matrix.target, 'arm64') && 'arm64' || 'x64' }}
+          package-manager-cache: false
+      - if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap unzip
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Recover earlier attempts without replacing their evidence
+        if: github.run_attempt > 1
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: ${{ matrix.target }}-attempt-*
+          path: build/release/reuse
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+      - name: Offline generations and extracted-package qualification
+        env:
+          CANDIDATE: ${{ needs.preflight.outputs.public_commit }}
+          NATIVE_TARGET: ${{ matrix.target }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-actions.mjs qualify
+      - name: Retain exact results; rerun only failed hosts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ matrix.target }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/release/native/qualification.json
+            build/release/native/inputs.json
+            build/release/native/inventory.json
+            build/release/native/kelft-v*
+            build/release/native/logs/
+            build/release/native/extracted-logs/
+            build/release/native/S2/rebuild.json
+            build/release/native/S3/rebuild.json
+            build/release/native/S2/rootfs/compiler*
+            build/release/native/S2/rootfs/policies/
+            build/release/native/S2/compiler.o
+            build/release/native/S2/compiler.obj
+            build/release/native/S2/runtime-modes.json
+            build/release/native/S3/rootfs/compiler*
+            build/release/native/S3/rootfs/policies/
+            build/release/native/S3/compiler.o
+            build/release/native/S3/compiler.obj
+            build/release/native/S3/runtime-modes.json
+          retention-days: 30
+
+  assemble:
+    needs: [preflight, native]
+    if: inputs.target == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ needs.preflight.outputs.candidate }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: '*-attempt-*'
+          path: build/release-inputs
+      - env:
+          CANDIDATE: ${{ needs.preflight.outputs.public_commit }}
+        run: node -e "const c=require('node:child_process'),r=c.spawnSync(process.execPath,['scripts/release.mjs','assemble','--input','build/release-inputs','--out','build/release-assets',...(process.env.CANDIDATE?['--candidate',process.env.CANDIDATE]:[])],{stdio:'inherit'});process.exit(r.status??1);"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-assets
+          path: build/release-assets/
+          retention-days: 30
+
+  attest:
+    needs: [preflight, assemble]
+    if: inputs.operation == 'prepare' && github.repository == 'kelftlang/kelft' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: release-assets
+          path: release-assets
+      - id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: release-assets/*
+      - env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE" release-assets/attestations.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-assets
+          path: release-assets/
+          retention-days: 30
+
+  draft:
+    needs: [preflight, attest]
+    if: inputs.operation == 'prepare'
+    environment: compiler-release-draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: signed-assets
+          path: build/signed-assets
+      - run: node scripts/release-actions.mjs install-gh
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release.mjs prepare --input build/signed-assets
+
+  publish:
+    if: inputs.operation == 'publish' && github.repository == 'kelftlang/kelft' && github.ref == 'refs/heads/main'
+    environment: compiler-release-publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - run: node scripts/release-actions.mjs install-gh
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          DRAFT_ID: ${{ inputs.release_id }}
+          CANDIDATE: ${{ inputs.candidate_sha }}
+        run: node -e "const c=require('node:child_process'),r=c.spawnSync(process.execPath,['scripts/release-actions.mjs','publish','--release-id',process.env.DRAFT_ID,'--candidate',process.env.CANDIDATE],{stdio:'inherit'});process.exit(r.status??1);"

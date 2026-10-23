@@ -1,0 +1,17 @@
+{
+  "schema": "kelft.release-inputs/1",
+  "node": "24.22.0",
+  "githubCLI": {
+    "version": "2.103.0",
+    "url": "https://github.com/cli/cli/releases/download/v2.103.0/gh_2.103.0_linux_amd64.tar.gz",
+    "sha256": "sha256:fdd768eb70f6409f80fcfa9f3a1c0adf0fc98d827ab3ce0bed2ac22762c5d786"
+  },
+  "runners": {
+    "linux-x86_64": "ubuntu-24.04",
+    "linux-arm64": "ubuntu-24.04-arm",
+    "windows-x86_64": "windows-2025",
+    "windows-arm64": "windows-11-vs2026-arm",
+    "macos-x86_64": "macos-15-intel",
+    "macos-arm64": "macos-14"
+  }
+}

@@ -1,0 +1,40 @@
+// Native verification of an extracted compiler distribution. The expected
+// manifest digest must come from the independently reviewed delivery receipt.
+import "../json.kelft" as j;
+import "../hash.kelft" as h;
+import "../intent.kelft" as intent;
+import "../syntax.kelft" as s;
+fn fail(message:string)->void {s::error("K0403",message,s::span("<native-package>",0,0));}
+fn need(ok:bool,message:string)->void {if !ok {fail(message);}}
+fn read(file:string)->Bytes {match read_file(file) {Result::Ok(bytes)=>{return bytes;},Result::Error(message)=>{fail(message);}}return [];}
+fn text(value:j::Value,key:string)->string {let field:j::Value=j::field(value,key);need(j::is_string(field),"package string missing: "+key);return j::string(field);}
+fn keys(value:j::Value,allowed:Array<string>)->void {need(j::is_object(value),"package object required");for (key,item) in j::object(value) {let mut known:bool=false;for name in allowed {if key==name {known=true;}}need(known,"unknown package field: "+key);}}
+fn integer(value:j::Value,key:string)->i32 {match j::field(value,key) {j::Value::Number(source)=>{match string_to_i32(source) {Result::Ok(number)=>{return number;},Result::Error(message)=>{fail("invalid package number: "+key);}}},_=>{fail("package number missing: "+key);}}return 0;}
+fn name(value:string)->void {
+ need(string_len(value)>0&&string_len(value)<4096&&!s::starts(value,"/")&&string_find(value,"\\",0)<0&&string_find(value,":",0)<0&&string_find(value,string_from_codepoint(0),0)<0,"invalid package path");
+ for part in string_split(value,"/") {need(part!=""&&part!="."&&part!="..","package path traversal");}
+}
+fn digest(value:string)->void {need(intent::valid_hash(value),"package SHA-256 required");}
+fn contents(root:string,files:j::Value)->void {
+ for (file,record) in j::object(files) {
+  name(file);keys(record,["sha256","mode","size"]);let expected:string=text(record,"sha256");digest(expected);let size:i32=integer(record,"size");need(size>=0&&size<=67108864,"package file size exceeds bound");let mode:i32=integer(record,"mode");need(mode==420||mode==493,"unsupported package file mode");
+  let path:string=root+"/rootfs/"+file;need(canonical_path(path)==path,"package file alias or link rejected: "+file);let bytes:Bytes=read(path);need(array_len::<u8>(bytes)==size&&h::sha256_bytes(bytes)==expected,"package file changed: "+file);
+ }
+}
+pub fn verify(directory:string,expected:string)->j::Value {
+ digest(expected);let root:string=canonical_path(directory);need(s::starts(root,"/")&&root!="/","absolute Linux package directory required");let manifest_path:string=root+"/manifest.json";need(canonical_path(manifest_path)==manifest_path,"package manifest alias rejected");
+ let raw:Bytes=read(manifest_path);need(array_len::<u8>(raw)<=4194304,"package manifest exceeds bound");let manifest:j::Value=j::parse(bytes_to_string(raw));need(h::sha256(j::canonical(manifest))==expected,"package manifest differs from the reviewed digest");
+ keys(manifest,["schema","profile","identity","bootstrapReportHash","compilerHash","configurationIdentity","maximumHash","files","productionClosureVerified","releaseEligible"]);
+ need(text(manifest,"schema")=="kelft-native-standalone-bundle/1"&&(text(manifest,"profile")=="linux-x86_64"||text(manifest,"profile")=="linux-arm64"),"unsupported compiler package");
+ let files:j::Value=j::field(manifest,"files");need(j::is_object(files),"package file inventory required");let count:i32=map_len::<string,j::Value>(j::object(files));need(count>0&&count<=8192,"bounded nonempty package inventory required");
+ let hash_fields:Array<string>=["bootstrapReportHash","compilerHash","configurationIdentity","maximumHash"];for field in hash_fields {digest(text(manifest,field));}
+ need(text(j::field(files,"compiler"),"sha256")==text(manifest,"compilerHash")&&integer(j::field(files,"compiler"),"mode")==493,"package compiler identity/mode differs");
+ need(text(j::field(files,"control/maximum.json"),"sha256")==text(manifest,"maximumHash"),"compiler maximum identity differs");
+ digest(text(j::field(files,"control/toolchain.json"),"sha256"));
+ contents(root,files);let configuration:j::Value=j::parse(bytes_to_string(read(root+"/rootfs/control/toolchain.json")));need(text(configuration,"identity")==text(manifest,"configurationIdentity")&&h::sha256(j::canonical(j::remove(configuration,"identity")))==text(manifest,"configurationIdentity"),"package toolchain identity differs");
+ // Recheck every measured input and the manifest after inspecting configuration.
+ contents(root,files);need(h::sha256_bytes(read(manifest_path))==h::sha256_bytes(raw),"package manifest changed during verification");
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft-native-package-verification/1\",\"state\":\"verified\",\"productionClosureVerified\":false,\"minimumOSCertified\":false,\"releaseEligible\":false}");
+ report=j::set(report,"manifestHash",j::Value::Text(expected));report=j::set(report,"compilerHash",j::field(manifest,"compilerHash"));report=j::set(report,"producer",j::field(manifest,"identity"));report=j::set(report,"filesVerified",j::Value::Number(i32_to_string(count)));return report;
+}
+pub fn command(arguments:Array<string>)->void {need(array_len::<string>(arguments)==3,"package-verify DIRECTORY REVIEWED_MANIFEST_SHA256");println(j::canonical(verify(arguments[1],arguments[2])));}

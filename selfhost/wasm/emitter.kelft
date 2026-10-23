@@ -1,0 +1,158 @@
+import "../core.kelft" as ir;
+import "../syntax.kelft" as s;
+import "./binary.kelft" as b;
+import "./runtime.kelft" as runtime;
+import "../json.kelft" as json;
+import "../intent_capabilities.kelft" as capabilities;
+struct Loop {stop:string,next:string,depth:i32,resources:i32}
+struct Context {program:ir::Program,names:Array<string>,slots:Map<string,i32>,inouts:Array<string>,locals:Array<string>,frame:i32,params:i32,labels:i32,scopes:Array<Array<string>>,loops:Array<Loop>,runtime_names:Array<string>,resources:Array<i32>,cached:Array<string>,cached_index:i32,cached_temps:Array<i32>,temp_index:i32,replaying:bool}
+fn j(parts:Array<string>)->string {return s::join(parts,"\n");}
+fn c(n:i32)->string {return "i32.const "+i32_to_string(n);}
+fn q(n:i32)->string {return "i64.const "+i32_to_string(n);}
+fn g(n:i32)->string {return "local.get "+i32_to_string(n);}
+fn set(n:i32,value:string)->string {return j([value,"local.set "+i32_to_string(n)]);}
+fn call(name:string,args:Array<string>)->string {let mut out:Array<string>=args;array_push::<string>(inout out,"call "+name);return j(out);}
+fn op(name:string,args:Array<string>)->string {let mut out:Array<string>=args;array_push::<string>(inout out,name);return j(out);}
+fn iff(test:string,yes:string,no:string,result:string)->string {let mut tag:string="if";if result!="" {tag=tag+" "+result;}let mut parts:Array<string>=[test,tag,yes];if no!="" {array_push::<string>(inout parts,"else");array_push::<string>(inout parts,no);}array_push::<string>(inout parts,"end");return j(parts);}
+fn ptr(value:string)->string {return op("i32.wrap_i64",[value]);}
+fn box(value:string,tag:i32)->string {return op("i64.or",[op("i64.extend_i32_u",[value]),op("i64.shl",[q(tag),q(32)])]);}
+fn add(a:string,d:string)->string {return op("i32.add",[a,d]);}
+fn len(value:string)->string {return op("i32.load 12",[ptr(value)]);}
+fn wide(value:string)->string {return op("i64.load 0",[value]);}
+fn swide(address:string,value:string)->string {return op("i64.store 0",[address,value]);}
+fn element(value:string,index:string)->string {return call("slot",[value,index]);}
+fn str(value:string)->string {let hex:string="0123456789abcdef";let mut out:string="str ";for byte in string_to_bytes(value) {let n:i32=i32_from_u8(byte);out=out+s::slice(hex,n>>>4,(n>>>4)+1)+s::slice(hex,n&15,(n&15)+1);}return out;}
+fn has(values:Array<string>,value:string)->bool {for old in values {if old==value {return true;}}return false;}
+fn get(values:Map<string,i32>,key:string)->i32 {match map_get::<string,i32>(values,key) {Option::Some(value)=>{return value;},Option::None=>{s::error("K0403","missing Wasm local",s::span("<wasm>",0,0));}}return 0;}
+fn temp(inout ctx:Context,ty:string)->i32 {if ctx.replaying&&ctx.temp_index<array_len::<i32>(ctx.cached_temps) {let id:i32=ctx.cached_temps[ctx.temp_index];ctx.temp_index=ctx.temp_index+1;return id;}let id:i32=ctx.params+array_len::<string>(ctx.locals);array_push::<string>(inout ctx.locals,ty);return id;}
+fn address(ctx:Context,name:string)->string {return add(g(ctx.frame),c(16+get(ctx.slots,name)*8));}
+fn clean(ctx:Context,names:Array<string>)->string {let mut parts:Array<string>=[];for name in names {array_push::<string>(inout parts,call("release",[wide(address(ctx,name))]));array_push::<string>(inout parts,swide(address(ctx,name),q(0)));}return j(parts);}
+fn free_resources(values:Array<i32>)->string {let mut out:Array<string>=[];for value in values {array_push::<string>(inout out,call("release",[g(value)]));}return j(out);}
+fn field(program:ir::Program,n:ir::Node)->i32 {if s::starts(n.args[0].ty,"(") {return s::number(n.name);}for decl in program.types {if decl.name==n.args[0].ty {let mut i:i32=0;for f in decl.args {if f.name==n.name {return i;}i=i+1;}}}s::error("K0403","Wasm field layout is missing",n.span);return 0;}
+fn collect(n:ir::Node,inout names:Array<string>)->void {let mut pending:Array<ir::Node>=[n];while array_len::<ir::Node>(pending)>0 {let node:ir::Node=pending[array_len::<ir::Node>(pending)-1];array_pop::<ir::Node>(inout pending);if node.op=="bind"||node.op=="param"||node.op=="local"||node.op=="pattern"&&node.name!="_"&&node.name!="true"&&node.name!="false" {if !has(names,node.name) {array_push::<string>(inout names,node.name);}}let mut i:i32=array_len::<ir::Node>(node.args)-1;while i>=0 {array_push::<ir::Node>(inout pending,node.args[i]);i=i-1;}}}
+fn aggregate(inout ctx:Context,items:Array<ir::Node>,positions:Array<i32>)->string {
+ let array:i32=temp(inout ctx,"i64");let mut values:Array<i32>=[];let mut code:Array<string>=[];
+ for item in items {let value:i32=temp(inout ctx,"i64");array_push::<i32>(inout values,value);}
+ let mut i:i32=0;for item in items {array_push::<string>(inout code,set(values[i],expression(inout ctx,item)));i=i+1;}
+ array_push::<string>(inout code,set(array,call("new_array",[c(array_len::<ir::Node>(items))])));i=0;
+ for item in items {let mut position:i32=i;if array_len::<i32>(positions)>0 {position=positions[i];}array_push::<string>(inout code,swide(element(g(array),c(position)),g(values[i])));i=i+1;}array_push::<string>(inout code,g(array));return j(code);
+}
+fn place(inout ctx:Context,n:ir::Node)->string {if ctx.replaying {return operand(inout ctx,n);}return evaluate(inout ctx,n,true);}
+fn emit_place(inout ctx:Context,n:ir::Node)->string {
+ let mut keys:Array<ir::Node>=[];let mut root:ir::Node=n;
+ while root.op=="index"||root.op=="field" {let mut key:ir::Node=root.args[0];if root.op=="index" {key=root.args[1];}else {key=ir::make("literal",i32_to_string(field(ctx.program,root)),"i32",[],root.span,false);}let mut next:Array<ir::Node>=[key];for old in keys {array_push::<ir::Node>(inout next,old);}keys=next;root=root.args[0];}
+ let path:i32=temp(inout ctx,"i64");let location:i32=temp(inout ctx,"i64");let mut code:Array<string>=[set(path,aggregate(inout ctx,keys,[]))];let mut make:string=call("location",[address(ctx,root.name),g(path)]);if has(ctx.inouts,root.name) {make=call("location_extend",[wide(address(ctx,root.name)),g(path)]);}array_push::<string>(inout code,set(location,make));array_push::<string>(inout code,call("release",[g(path)]));array_push::<string>(inout code,g(location));return j(code);
+}
+fn intrinsic(inout ctx:Context,n:ir::Node,args:Array<string>)->string {
+ let mut a:string=q(0);let mut d:string=q(0);let mut e:string=q(0);if array_len::<string>(args)>0 {a=args[0];}if array_len::<string>(args)>1 {d=args[1];}if array_len::<string>(args)>2 {e=args[2];}
+ if n.name=="print"||n.name=="println"||n.name=="eprint" {let mut fd:i32=1;if n.name=="eprint" {fd=2;}let mut out:Array<string>=[call("out",[c(fd),a])];if n.name=="println" {array_push::<string>(inout out,call("out",[c(1),str("\n")]));}array_push::<string>(inout out,q(0));return j(out);}
+ if n.name=="i32_to_string" {return call("number",[ptr(a)]);}if n.name=="i32_from_u8" {return box(ptr(a),1);}
+ if n.name=="u8_from_i32" {return j([iff(op("i32.or",[op("i32.lt_s",[ptr(a),c(0)]),op("i32.gt_u",[ptr(a),c(255)])]),call("panic",[str("KRT_U8_RANGE")]),"",""),box(ptr(a),2)]);}
+ if n.name=="string_len"||n.name=="array_len"||n.name=="map_len" {return box(len(a),1);}
+ if n.name=="string_byte" {return box(call("byte",[a,ptr(d)]),2);}if n.name=="string_slice" {return call("slice",[a,ptr(d),ptr(e)]);}if n.name=="array_slice" {return call("aslice",[a,ptr(d),ptr(e)]);}
+ if n.name=="array_push" {let old:i32=temp(inout ctx,"i64");let next:i32=temp(inout ctx,"i64");return j([set(old,call("location_get",[a])),set(next,call("push",[g(old),d])),call("location_set",[a,g(next)]),call("release",[g(old)]),call("release",[g(next)]),q(0)]);}
+ if n.name=="array_pop" {return call("pop",[a]);}if n.name=="map_new" {return call("new_array",[c(0)]);}if n.name=="map_get" {return call("map_get",[a,d]);}if n.name=="map_set" {return j([call("map_set",[a,d,e]),q(0)]);}if n.name=="map_remove" {return box(call("map_remove",[a,d]),3);}if n.name=="args" {return call("args",[]);}
+ if n.name=="exit" {return j([iff(op("i32.gt_u",[ptr(a),c(255)]),call("panic",[str("KRT_EXIT")]),"",""),call("wasi.proc_exit",[ptr(a)]),"unreachable",q(0)]);}
+ if has(ctx.runtime_names,"intrinsic."+n.name) {return call("intrinsic."+n.name,args);}s::error("K0403","Wasm intrinsic not implemented: "+n.name,n.span);return "";
+}
+fn operator(name:string)->string {
+ let names:Array<string>=["+","-","*","/","%","&","|","^","<<",">>",">>>","<","<=",">",">="];
+ let values:Array<string>=["add","sub","mul","div","rem","and","or","xor","shl","shr_s","shr_u","lt_s","le_s","gt_s","ge_s"];let mut i:i32=0;for value in names {if value==name {return values[i];}i=i+1;}return "";
+}
+fn expression(inout ctx:Context,n:ir::Node)->string {if ctx.replaying {return operand(inout ctx,n);}return evaluate(inout ctx,n,false);}
+struct ExpressionFrame {node:ir::Node,place:bool,step:i32,index:i32,children:Array<ir::Node>,values:Array<string>,temps:Array<i32>}
+fn expression_frame(n:ir::Node,place:bool)->ExpressionFrame {return ExpressionFrame {node:n,place:place,step:0,index:0,children:[],values:[],temps:[]};}
+fn operand(inout ctx:Context,n:ir::Node)->string {if ctx.cached_index>=array_len::<string>(ctx.cached) {s::error("K0403","missing Wasm operand",n.span);}let out:string=ctx.cached[ctx.cached_index];ctx.cached_index=ctx.cached_index+1;return out;}
+fn evaluate(inout ctx:Context,n:ir::Node,place:bool)->string {
+ let mut pending:Array<ExpressionFrame>=[expression_frame(n,place)];let mut result:string="";
+ while array_len::<ExpressionFrame>(pending)>0 {let mut f:ExpressionFrame=expression_frame(n,false);match array_pop::<ExpressionFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:ir::Node=f.node;
+  if f.step==0 {let mut count:i32=0;f.children=node.args;
+   if f.place {let mut root:ir::Node=node;let mut keys:Array<ir::Node>=[];while root.op=="index"||root.op=="field" {let mut key:ir::Node=root.args[0];if root.op=="index" {key=root.args[1];}else {key=ir::make("literal",i32_to_string(field(ctx.program,root)),"i32",[],root.span,false);}array_push::<ir::Node>(inout keys,key);root=root.args[0];}f.children=[];let mut i:i32=array_len::<ir::Node>(keys)-1;while i>=0 {array_push::<ir::Node>(inout f.children,keys[i]);i=i-1;}count=3+array_len::<ir::Node>(keys);
+   }else if node.op=="array"||node.op=="tuple"||node.op=="record"||node.op=="variant" {count=1+array_len::<ir::Node>(node.args);if node.op=="variant" {count=count+2;}if node.op=="record" {f.children=[];for item in node.args {array_push::<ir::Node>(inout f.children,item.args[0]);}}}
+   else if node.op=="field"||node.op=="index"||node.op=="binary" {count=3;}else if node.op=="unary" {count=1;}else if node.op=="intrinsic" {count=1+array_len::<ir::Node>(node.args);}
+   let mut i:i32=0;while i<count {let value:i32=temp(inout ctx,"i64");array_push::<i32>(inout f.temps,value);i=i+1;}f.step=2;
+  }else if f.step==1 {array_push::<string>(inout f.values,result);f.step=2;}
+  if f.index<array_len::<ir::Node>(f.children) {let child:ir::Node=f.children[f.index];let child_place:bool=!f.place&&node.op=="location";f.index=f.index+1;f.step=1;array_push::<ExpressionFrame>(inout pending,f);array_push::<ExpressionFrame>(inout pending,expression_frame(child,child_place));}
+  else {ctx.cached=f.values;ctx.cached_index=0;ctx.cached_temps=f.temps;ctx.temp_index=0;ctx.replaying=true;if f.place {result=emit_place(inout ctx,node);}else {result=emit_expression(inout ctx,node);}if ctx.cached_index!=array_len::<string>(ctx.cached)||ctx.temp_index!=array_len::<i32>(ctx.cached_temps) {s::error("K0403","unconsumed Wasm continuation",node.span);}ctx.cached=[];ctx.cached_temps=[];ctx.replaying=false;}
+ }return result;
+}
+fn emit_expression(inout ctx:Context,n:ir::Node)->string {
+ let a:Array<ir::Node>=n.args;
+ if n.op=="literal" {if n.ty=="string" {return str(n.name);}let mut value:i32=0;let mut tag:i32=1;if n.ty=="bool" {tag=3;if n.name=="true" {value=1;}}else {value=s::number(n.name);if n.ty=="u8" {tag=2;}}return box(c(value),tag);}
+ if n.op=="local" {if has(ctx.inouts,n.name) {return call("location_get",[wide(address(ctx,n.name))]);}return call("retain",[wide(address(ctx,n.name))]);}
+ if n.op=="location" {return place(inout ctx,a[0]);}if n.op=="array"||n.op=="tuple" {return aggregate(inout ctx,a,[]);}
+ if n.op=="record" {let mut items:Array<ir::Node>=[];let mut positions:Array<i32>=[];for f in a {array_push::<ir::Node>(inout items,f.args[0]);for decl in ctx.program.types {if decl.name==n.ty {let mut i:i32=0;for d in decl.args {if d.name==f.name {array_push::<i32>(inout positions,i);}i=i+1;}}}}return aggregate(inout ctx,items,positions);}
+ if n.op=="variant" {let values:i32=temp(inout ctx,"i64");let result:i32=temp(inout ctx,"i64");return j([set(values,aggregate(inout ctx,a,[])),set(result,call("variant",[str(n.name),g(values)])),call("release",[g(values)]),g(result)]);}
+ if n.op=="field"||n.op=="index" {let source:i32=temp(inout ctx,"i64");let index:i32=temp(inout ctx,"i64");let result:i32=temp(inout ctx,"i64");let first:string=expression(inout ctx,a[0]);let mut second:string="";if n.op=="index" {second=expression(inout ctx,a[1]);}else {second=box(c(field(ctx.program,n)),1);}return j([set(source,first),set(index,second),set(result,call("get",[g(source),ptr(g(index))])),call("release",[g(source)]),call("release",[g(index)]),g(result)]);}
+ if n.op=="call" {let mut values:Array<string>=[];for child in a {array_push::<string>(inout values,expression(inout ctx,child));}return call(n.name,values);}
+ if n.op=="intrinsic" {let mut values:Array<i32>=[];for child in a {array_push::<i32>(inout values,temp(inout ctx,"i64"));}let result:i32=temp(inout ctx,"i64");let mut code:Array<string>=[];let mut args:Array<string>=[];let mut i:i32=0;for child in a {array_push::<string>(inout code,set(values[i],expression(inout ctx,child)));array_push::<string>(inout args,g(values[i]));i=i+1;}array_push::<string>(inout code,set(result,intrinsic(inout ctx,n,args)));for value in values {array_push::<string>(inout code,call("release",[g(value)]));}array_push::<string>(inout code,g(result));return j(code);}
+ if n.op=="unary" {let value:i32=temp(inout ctx,"i64");let raw:string=ptr(g(value));let mut operation:string=op("i32.xor",[raw,c(-1)]);let mut tag:i32=1;if n.name=="!" {operation=op("i32.eqz",[raw]);tag=3;}if n.name=="-" {operation=op("i32.sub",[c(0),raw]);}return j([set(value,expression(inout ctx,a[0])),box(operation,tag)]);}
+ if n.op=="binary" {
+  let left:i32=temp(inout ctx,"i64");let right:i32=temp(inout ctx,"i64");let result:i32=temp(inout ctx,"i64");
+  if n.name=="&&"||n.name=="||" {let first:string=expression(inout ctx,a[0]);let second:string=expression(inout ctx,a[1]);let mut yes:string=box(c(1),3);let mut no:string=second;if n.name=="&&" {yes=second;no=box(c(0),3);}return j([set(left,first),iff(ptr(g(left)),yes,no,"i64")]);}
+  let mut body:string="";if n.name=="=="||n.name=="!=" {let mut comparison:string=call("equal",[g(left),g(right)]);if n.name=="!=" {comparison=op("i32.eqz",[comparison]);}body=box(comparison,3);}else if n.name=="+"&&n.ty=="string" {body=call("concat",[g(left),g(right)]);}else {let name:string=operator(n.name);let mut raw:string="";if a[0].ty=="string"&&(n.name=="<"||n.name=="<="||n.name==">"||n.name==">=") {raw=op("i32."+name,[call("compare",[g(left),g(right)]),c(0)]);}else if n.name=="/"||n.name=="%" {raw=call(name,[ptr(g(left)),ptr(g(right))]);}else {raw=op("i32."+name,[ptr(g(left)),ptr(g(right))]);}let mut tag:i32=1;if n.ty=="bool" {tag=3;}body=box(raw,tag);}
+  return j([set(left,expression(inout ctx,a[0])),set(right,expression(inout ctx,a[1])),set(result,body),call("release",[g(left)]),call("release",[g(right)]),g(result)]);
+ }
+ s::error("K0403","unsupported Wasm Core expression "+n.op,n.span);return "";
+}
+struct PatternFrame {node:ir::Node,value:string,index:i32,waiting:bool,children:Array<string>}
+fn pattern_frame(n:ir::Node,value:string)->PatternFrame {return PatternFrame {node:n,value:value,index:0,waiting:false,children:[]};}
+fn pattern(ctx:Context,p:ir::Node,value:string,bind:bool)->string {
+ let mut pending:Array<PatternFrame>=[pattern_frame(p,value)];let mut result:string="";
+ while array_len::<PatternFrame>(pending)>0 {let mut f:PatternFrame=pattern_frame(p,value);match array_pop::<PatternFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:ir::Node=f.node;
+  if node.op=="pattern" {if bind {if node.name=="_"||node.name=="true"||node.name=="false" {result="";}else {result=call("replace_cell",[address(ctx,node.name),call("retain",[f.value])]);}}else if node.name=="true" {result=ptr(f.value);}else if node.name=="false" {result=op("i32.eqz",[ptr(f.value)]);}else {result=c(1);}continue;}
+  if f.waiting {array_push::<string>(inout f.children,result);f.waiting=false;}
+  if f.index<array_len::<ir::Node>(node.args) {let child:ir::Node=node.args[f.index];let child_value:string=wide(element(f.value,c(f.index)));f.index=f.index+1;f.waiting=true;array_push::<PatternFrame>(inout pending,f);array_push::<PatternFrame>(inout pending,pattern_frame(child,child_value));}
+  else if bind {result=j(f.children);}else {result=c(1);let mut i:i32=array_len::<string>(f.children)-1;while i>=0 {result=iff(f.children[i],result,c(0),"i32");i=i-1;}if node.op=="variant_pattern" {result=iff(call("equal",[wide(element(f.value,op("i32.sub",[len(f.value),c(1)]))),str(node.name)]),result,c(0),"i32");}}
+ }return result;
+}
+struct StatementFrame {node:ir::Node,step:i32,index:i32,code:Array<string>,roots:Array<string>,test:string,yes:string,bindings:string,collection:string,values:i32,counter:i32,stop:string,next:string,body:string}
+fn statement_frame(n:ir::Node)->StatementFrame {return StatementFrame {node:n,step:0,index:0,code:[],roots:[],test:"",yes:"",bindings:"",collection:"",values:-1,counter:-1,stop:"",next:"",body:""};}
+fn statement(inout ctx:Context,n:ir::Node)->string {
+ let mut pending:Array<StatementFrame>=[statement_frame(n)];let mut result:string="";
+ while array_len::<StatementFrame>(pending)>0 {let mut f:StatementFrame=statement_frame(n);match array_pop::<StatementFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:ir::Node=f.node;let a:Array<ir::Node>=node.args;let mut child:i32=-1;
+  if node.op=="block" {if f.step==0 {for item in a {if item.op=="bind" {array_push::<string>(inout f.roots,item.name);}}let roots:Array<string>=f.roots;array_push::<Array<string>>(inout ctx.scopes,roots);f.step=1;}else if f.step==2 {array_push::<string>(inout f.code,result);f.step=1;}if f.index<array_len::<ir::Node>(a) {child=f.index;f.index=f.index+1;f.step=2;}else {array_pop::<Array<string>>(inout ctx.scopes);let cleanup:string=clean(ctx,f.roots);array_push::<string>(inout f.code,cleanup);result=j(f.code);}}
+  else if node.op=="if" {if f.step==0 {f.test=ptr(expression(inout ctx,a[0]));f.step=1;child=1;}else if f.step==1 {f.yes=result;f.step=2;if array_len::<ir::Node>(a)>2 {child=2;}else {result=iff(f.test,f.yes,"","");}}else {result=iff(f.test,f.yes,result,"");}}
+  else if node.op=="while"||node.op=="for" {if f.step==0 {let id:i32=ctx.labels;ctx.labels=id+1;f.stop="@stop"+i32_to_string(id);f.next="@next"+i32_to_string(id);f.body="@body"+i32_to_string(id);let mut continue_label:string=f.next;if node.op=="for" {continue_label=f.body;}let scope_depth:i32=array_len::<Array<string>>(ctx.scopes);let mut resource_depth:i32=array_len::<i32>(ctx.resources);if node.op=="for" {resource_depth=resource_depth+1;}array_push::<Loop>(inout ctx.loops,Loop {stop:f.stop,next:continue_label,depth:scope_depth,resources:resource_depth});if node.op=="while" {f.test=ptr(expression(inout ctx,a[0]));child=1;}else {f.values=temp(inout ctx,"i64");f.counter=temp(inout ctx,"i32");f.collection=expression(inout ctx,a[1]);f.bindings=pattern(ctx,a[0],wide(element(g(f.values),g(f.counter))),true);let values:i32=f.values;array_push::<i32>(inout ctx.resources,values);child=2;}f.step=1;
+   }else {if node.op=="while" {result=j(["block "+f.stop,"loop "+f.next,f.test,"i32.eqz","br_if "+f.stop,result,"br "+f.next,"end","end"]);}else {array_pop::<i32>(inout ctx.resources);result=j([set(f.values,f.collection),set(f.counter,c(0)),"block "+f.stop,"loop "+f.next,op("i32.ge_u",[g(f.counter),len(g(f.values))]),"br_if "+f.stop,f.bindings,"block "+f.body,result,"end",set(f.counter,add(g(f.counter),c(1))),"br "+f.next,"end","end",call("release",[g(f.values)])]);}array_pop::<Loop>(inout ctx.loops);}}
+  else if node.op=="match" {if f.step==0 {f.values=temp(inout ctx,"i64");f.stop="@match"+i32_to_string(ctx.labels);ctx.labels=ctx.labels+1;f.code=[set(f.values,expression(inout ctx,a[0])),"block "+f.stop];let value:i32=f.values;array_push::<i32>(inout ctx.resources,value);f.index=1;f.step=1;}else if f.step==2 {let arm_code:string=iff(f.test,j([f.bindings,result,"br "+f.stop]),"","");array_push::<string>(inout f.code,arm_code);f.step=1;}if f.index<array_len::<ir::Node>(a) {let arm:ir::Node=a[f.index];f.test=pattern(ctx,arm.args[0],g(f.values),false);f.bindings=pattern(ctx,arm.args[0],g(f.values),true);f.index=f.index+1;f.step=2;array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(arm.args[1]));continue;}else {array_pop::<i32>(inout ctx.resources);array_push::<string>(inout f.code,"end");let release:string=call("release",[g(f.values)]);array_push::<string>(inout f.code,release);result=j(f.code);}}
+  else {result=simple_statement(inout ctx,node);}
+  if child>=0 {array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(a[child]));}
+ }return result;
+}
+fn simple_statement(inout ctx:Context,n:ir::Node)->string {
+ let a:Array<ir::Node>=n.args;
+
+ if n.op=="bind" {let location:string=address(ctx,n.name);return call("replace_cell",[location,expression(inout ctx,a[0])]);}if n.op=="evaluate" {return call("release",[expression(inout ctx,a[0])]);}
+ if n.op=="store" {let location:i32=temp(inout ctx,"i64");let value:i32=temp(inout ctx,"i64");return j([set(location,place(inout ctx,a[0])),set(value,expression(inout ctx,a[1])),call("location_set",[g(location),g(value)]),call("release",[g(location)]),call("release",[g(value)])]);}
+ if n.op=="return" {let result:i32=temp(inout ctx,"i64");let mut value:string=q(0);if array_len::<ir::Node>(a)>0 {value=expression(inout ctx,a[0]);}return j([set(result,value),free_resources(ctx.resources),clean(ctx,ctx.names),call("release",[op("i64.extend_i32_u",[g(ctx.frame)])]),g(result),"return"]);}
+
+
+ if n.op=="break"||n.op=="continue" {let target:Loop=ctx.loops[array_len::<Loop>(ctx.loops)-1];let mut roots:Array<string>=[];let mut i:i32=target.depth;while i<array_len::<Array<string>>(ctx.scopes) {for root in ctx.scopes[i] {array_push::<string>(inout roots,root);}i=i+1;}let mut label:string=target.stop;if n.op=="continue" {label=target.next;}return j([free_resources(array_slice::<i32>(ctx.resources,target.resources,array_len::<i32>(ctx.resources))),clean(ctx,roots),"br "+label]);}
+
+ s::error("K0403","unsupported Wasm Core statement "+n.op,n.span);return "";
+}
+pub fn emit(program:ir::Program)->Bytes {return emit_with_policy(program,"");}
+pub fn emit_with_policy(program:ir::Program,policy:string)->Bytes {
+ return emit_profile(program,policy,"wasi-preview1");
+}
+pub fn emit_profile(program:ir::Program,policy:string,profile:string)->Bytes {
+ return emit_profile_with_host(program,policy,profile,json::Value::Null());
+}
+pub fn emit_profile_with_host(program:ir::Program,policy:string,profile:string,host:json::Value)->Bytes {
+ if profile=="browser-events-v1"&&array_len::<string>(program.effects)>0 {s::error("K0213","browser event modules cannot perform filesystem or artifact effects",s::span("",0,0));}
+ ir::validate(program);let mut functions:Array<b::Function>=runtime::functions();let mut runtime_names:Array<string>=[];for f in functions {array_push::<string>(inout runtime_names,f.name);}let mut labels:i32=0;
+ for f in program.functions {
+  let mut params:Array<ir::Node>=[];let mut inouts:Array<string>=[];for p in f.args {if p.op=="param" {array_push::<ir::Node>(inout params,p);if p.flag {array_push::<string>(inout inouts,p.name);}}}
+  let mut names:Array<string>=[];collect(f,inout names);let mut slots:Map<string,i32>=map_new::<string,i32>();let mut i:i32=0;for name in names {map_set::<string,i32>(inout slots,name,i);i=i+1;}
+  let mut ctx:Context=Context {program:program,names:names,slots:slots,inouts:inouts,locals:["i32"],frame:array_len::<ir::Node>(params),params:array_len::<ir::Node>(params),labels:labels,scopes:[],loops:[],runtime_names:runtime_names,resources:[],cached:[],cached_index:0,cached_temps:[],temp_index:0,replaying:false};
+  let body:string=statement(inout ctx,f.args[array_len::<ir::Node>(f.args)-1]);let mut code:Array<string>=[set(ctx.frame,call("alloc",[c(0),c(array_len::<string>(names)*8),c(0)]))];let mut signature:Array<string>=[];i=0;for p in params {array_push::<string>(inout signature,"i64");array_push::<string>(inout code,swide(address(ctx,p.name),g(i)));i=i+1;}array_push::<string>(inout code,body);array_push::<string>(inout code,clean(ctx,names));array_push::<string>(inout code,call("release",[op("i64.extend_i32_u",[g(ctx.frame)])]));array_push::<string>(inout code,q(0));
+  array_push::<b::Function>(inout functions,b::Function {name:f.name,params:signature,locals:ctx.locals,result:"i64",code:j(code)});labels=ctx.labels;
+ }
+ let mut maximum:string="";if policy!="" {maximum="1";let value:json::Value=json::parse(policy);let keys:Array<string>=["read","write"];for key in keys {let mut operation:string="r";if key=="write" {operation="w";}for root in json::array(json::field(value,key)) {let path:string=json::string(root);maximum=maximum+operation+i32_to_string(string_len(path))+":"+path;}}}
+ let mut initial:string=q(0);if maximum!="" {initial=str(maximum);}
+ let mut start_locals:Array<string>=[];let mut entry_code:string=j([call(program.entry,[]),"drop"]);for f in program.functions {if f.name==program.entry&&f.ty=="i32" {start_locals=["i64"];entry_code=j([set(0,call(program.entry,[])),iff(op("i32.gt_u",[ptr(g(0)),c(255)]),call("panic",[str("KRT_EXIT")]),"",""),call("wasi.proc_exit",[ptr(g(0))])]);}}
+ array_push::<b::Function>(inout functions,b::Function {name:"_start",params:[],locals:start_locals,result:"",code:j([initial,"global.set 3",entry_code])});
+ let mut export_name:string="_start";if profile=="browser-events-v1" {export_name="kelft_dispatch";}let mut binary:Bytes=b::assemble_named(runtime::imports(),functions,"_start",export_name);
+ if profile=="browser-events-v1" {let mut maximum:json::Value=host;if maximum==json::Value::Null() {maximum=capabilities::default_browser();}maximum=capabilities::browser(maximum);let mut metadata:json::Value=json::parse("{\"schemaVersion\":\"0.2\",\"profile\":\"browser-events-v1\"}");metadata=json::set(metadata,"maximum",maximum);binary=b::custom(binary,"kelft.capabilities.v1",json::canonical(metadata));}return binary;
+}

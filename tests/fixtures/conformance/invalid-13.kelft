@@ -1,0 +1,1 @@
+struct A{x:i32} fn main()->void { let a:A=A{x:1,x:2}; }

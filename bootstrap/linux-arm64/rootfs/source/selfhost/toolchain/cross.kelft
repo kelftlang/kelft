@@ -1,0 +1,26 @@
+// Artifact selection is independent of the compiler's execution host. No tools
+// or linker flags cross this source-only interface.
+import "./object.kelft" as cli;
+import "../native-windows-object.kelft" as frontend;
+import "../core.kelft" as core;
+import "../direct/linux-aggregate.kelft" as linux;
+fn fail(message:string)->void {eprint("error[K0403]: "+message+"\n");exit(1);}
+pub fn command(arguments:Array<string>)->bool {
+ if array_len::<string>(arguments)==0||arguments[0]!="cross-object" {return false;}
+ if array_len::<string>(arguments)<2 {fail("cross-object requires an entry");}
+ let mut target:string="";let mut normalized:Array<string>=["native-object",arguments[1]];let mut at:i32=2;
+ while at<array_len::<string>(arguments) {
+  let flag:string=arguments[at];at=at+1;if at>=array_len::<string>(arguments) {fail("missing cross-object option value");}
+  let value:string=arguments[at];
+  if flag=="--artifact-target" {if target!="" {fail("duplicate artifact target");}target=value;}
+  else {array_push::<string>(inout normalized,flag);array_push::<string>(inout normalized,value);}at=at+1;
+ }
+ if target!="linux-x86_64"&&target!="windows-x86_64" {fail("unsupported cross-object artifact target");}
+ let r:cli::Request=cli::parse(normalized);
+ if target=="windows-x86_64" {cli::write(r,frontend::guest_object(r.entry,r.root,r.declarations,r.bindings,r.maximum));}
+ else {cli::write(r,linux_object(r));}return true;
+}
+fn linux_object(r:cli::Request)->Bytes {
+ let mut program:core::Program=frontend::analyze(r.entry,r.root,r.declarations,r.bindings);
+ return linux::write_object(linux::consume_object(inout program,268435456,r.maximum));
+}

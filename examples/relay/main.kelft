@@ -1,0 +1,24 @@
+import "./domain-models.kelft" as models;
+import "./task.kelft" as tasks;
+import "./permissions.kelft" as permissions;
+
+fn main()->i32 {
+    let initial:models::Task=models::Task {id:"00000000-0000-4000-8000-000000000001",workspace:"00000000-0000-4000-8000-000000000002",title:"Relay Core check",state:models::Task_state::todo(),owner:Option::<models::User>::None(),revision:1};
+    if !models::validate_Task(initial) {return 1;}
+    let destinations:Array<models::Task_state>=[models::Task_state::todo(),models::Task_state::doing(),models::Task_state::done()];
+    let mut task:models::Task=initial;
+    for source in destinations {
+        tasks::move_task(inout task,source);
+        if task.state!=source||!models::validate_Task(task) {return 2;}
+        for destination in destinations {
+            tasks::move_task(inout task,source);
+            tasks::move_task(inout task,destination);
+            if task.state!=destination||!models::validate_Task(task) {return 3;}
+            if task.id!=initial.id||task.workspace!=initial.workspace||task.title!=initial.title||task.owner!=initial.owner||task.revision!=initial.revision {return 4;}
+        }
+    }
+    if !permissions::permits("admin","workspace.manage")||!permissions::permits("admin","tasks.write") {return 5;}
+    if !permissions::permits("member","tasks.read")||!permissions::permits("member","tasks.write")||!permissions::permits("member","workspace.leave")||permissions::permits("member","workspace.manage") {return 6;}
+    println("Relay Core checks passed");
+    return 0;
+}

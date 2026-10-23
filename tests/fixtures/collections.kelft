@@ -1,0 +1,17 @@
+fn main() -> void {
+    let mut values: Array<i32> = [1, 2];
+    for value in values { array_push::<i32>(inout values, 3); println(i32_to_string(value)); }
+    println(i32_to_string(array_len::<i32>(values)));
+    let mut m: Map<string,i32> = map_new::<string,i32>();
+    map_set::<string,i32>(inout m, "z", 1);
+    map_set::<string,i32>(inout m, "a", 2);
+    let copy: Map<string,i32> = m;
+    map_set::<string,i32>(inout m, "a", 9);
+    for (key, value) in copy { println(key + i32_to_string(value)); }
+    let tuple: (i32,string) = (4, "tuple");
+    println(tuple.1);
+    match map_get::<string,i32>(m, "a") {
+        Option::Some(value) => { println(i32_to_string(value)); },
+        Option::None => { println("missing"); }
+    }
+}

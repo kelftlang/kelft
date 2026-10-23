@@ -1,0 +1,8 @@
+import "../json.kelft" as j;
+import "../toolchain/host-capabilities.kelft" as policy;
+import "./binary.kelft" as b;
+import "./elf.kelft" as elf;
+import "../core.kelft" as c;
+pub fn uses_host(program:c::Program)->bool {let mut pending:Array<c::Node>=program.functions;while array_len::<c::Node>(pending)>0 {let at:i32=array_len::<c::Node>(pending)-1;let node:c::Node=pending[at];array_pop::<c::Node>(inout pending);if node.op=="intrinsic"&&(node.name=="process_run"||node.name=="filesystem_read"||node.name=="filesystem_write") {return true;}for child in node.args {array_push::<c::Node>(inout pending,child);}}return false;}
+pub fn filesystem_maximum(maximum:string)->string {let value:j::Value=j::parse(maximum);let mut present:bool=false;for (key,item) in j::object(value) {if key=="process" {present=true;}}if !present {return maximum;}let normalized:j::Value=policy::normalize_host_policy(value);if policy::validate_host_policy(normalized)!="" {b::error("invalid process capability policy");}return j::canonical(j::remove(normalized,"process"));}
+pub fn host_maximum(maximum:string)->elf::Data {let raw:string=j::canonical(policy::normalize_host_policy(j::parse(maximum)));let mut bytes:Bytes=[];b::word(inout bytes,string_len(raw));b::append(inout bytes,string_to_bytes(raw));return elf::Data {name:"k_host_maximum",bytes:bytes};}

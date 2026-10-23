@@ -1,0 +1,7 @@
+build/
+.cache/
+host/.cache/
+host/driver/target/
+node_modules/
+.kelft-test-*/
+.kelft-rebuild-*/

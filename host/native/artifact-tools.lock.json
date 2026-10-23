@@ -1,0 +1,43 @@
+{
+  "schema": "kelft-artifact-tools/1",
+  "platform": "linux/amd64",
+  "node": {
+    "image": "node@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5",
+    "version": "v24.22.0",
+    "platformImages": {
+      "linux/amd64": "node@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5",
+      "linux/arm64": "node@sha256:156e9bc7a0a267cc6ca77b4283e32b123479342df684ce297455d7b95ff5a6b5"
+    },
+    "distributions": {
+      "windows-x86_64": {
+        "file": "win-x64/node.exe",
+        "sha256": "ba93f9a70bd86fce3ebbb39ec758501458453467aa92a34a0a3602d1e3fc2b9c",
+        "format": "pe"
+      },
+      "windows-arm64": {
+        "file": "win-arm64/node.exe",
+        "sha256": "df4b0e71e4e4d022bf8582fbe75f6061feb9c4a111a86f3fec6300d24b6fe5e0",
+        "format": "pe"
+      },
+      "macos-x86_64": {
+        "file": "node-v24.22.0-darwin-x64.tar.gz",
+        "sha256": "495e3f273c645f3c4677d438304cdfc701729ea5dec5728f5c8e76a2dece4b91",
+        "format": "tar.gz"
+      },
+      "macos-arm64": {
+        "file": "node-v24.22.0-darwin-arm64.tar.gz",
+        "sha256": "6a9724d9b50a5f22b4816cded441b5a8d9ddae546191a5e5b7efa5a5e2ee26d5",
+        "format": "tar.gz"
+      }
+    }
+  },
+  "rust": {
+    "image": "rust@sha256:b36c246742b4d323472588f789601be34eb4af053255e2af53969078ee8dcec7",
+    "version": "1.99.0",
+    "platformImages": {
+      "linux/amd64": "rust@sha256:b36c246742b4d323472588f789601be34eb4af053255e2af53969078ee8dcec7",
+      "linux/arm64": "rust@sha256:e393e07b3c3c39f238de676b0eb60c03dc7aefe5d6e37be6d29c686bf4d7e256"
+    }
+  },
+  "releaseEligible": false
+}

@@ -1,0 +1,11 @@
+// Internal protocol identities. Recognition confers no target availability.
+pub fn profile(target:string)->string {
+ if target=="native-linux-x86_64-v1" {return "linux-x86_64-development-v1";}
+ if target=="native-linux-arm64-v1" {return "linux-arm64-development-v1";}
+ if target=="native-windows-x86_64-v1" {return "windows-x86_64-development-v1";}
+ if target=="native-windows-arm64-v1" {return "windows-arm64-development-v1";}
+ if target=="native-macos-x86_64-v1" {return "macos-x86_64-development-v1";}
+ if target=="native-macos-arm64-v1" {return "macos-arm64-development-v1";}
+ return "";
+}
+pub fn is_native(target:string)->bool {return profile(target)!="";}

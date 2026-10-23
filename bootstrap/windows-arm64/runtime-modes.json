@@ -1,0 +1,373 @@
+{
+  "schema": "kelft.runtime-modes/1",
+  "files": [
+    {
+      "path": "bin/kelft-boundary.exe",
+      "mode": 493
+    },
+    {
+      "path": "bin/kelft.exe",
+      "mode": 493
+    },
+    {
+      "path": "manifest.json",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/compiler.exe",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/control/toolchain.json",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/policies/rebuild.exe",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/policies/testing.exe",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/toolchain/kernel32.lib",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain/link.exe",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/toolchain/ntdll.lib",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain/shell32.lib",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/kernel32.def",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/ntdll.def",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/README.md",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/shell32.def",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/CC-BY-4.0.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/MIT-0.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/Apache-2.0.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT-library.html",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT.html",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/LLVM-exception.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/MIT.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/NCSA.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/adler2-2.0.1/LICENSE-0BSD",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/adler2-2.0.1/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/adler2-2.0.1/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/block-buffer-0.10.4/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/block-buffer-0.10.4/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cfg-if-1.0.5/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cfg-if-1.0.5/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cpufeatures-0.2.17/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cpufeatures-0.2.17/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crc32fast-1.5.2/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crc32fast-1.5.2/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crypto-common-0.1.7/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crypto-common-0.1.7/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/digest-0.10.7/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/digest-0.10.7/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/flate2-1.1.5/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/flate2-1.1.5/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/generic-array-0.14.7/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/getrandom-0.3.4/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/getrandom-0.3.4/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/hmac-0.12.1/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/hmac-0.12.1/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/itoa-1.0.18/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/itoa-1.0.18/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/memchr-2.8.3/COPYING",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/memchr-2.8.3/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE-APACHE.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE-MIT.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE-ZLIB.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/proc-macro2-1.0.107/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/proc-macro2-1.0.107/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/quote-1.0.47/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/quote-1.0.47/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde-1.0.229/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde-1.0.229/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_core-1.0.229/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_core-1.0.229/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_derive-1.0.229/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_derive-1.0.229/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_json-1.0.154/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_json-1.0.154/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/sha2-0.10.9/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/sha2-0.10.9/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/simd-adler32-0.3.10/LICENSE.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/subtle-2.6.1/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/syn-3.0.9/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/syn-3.0.9/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/typenum-1.20.1/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/typenum-1.20.1/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/typenum-1.20.1/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/unicode-ident-1.0.27/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/unicode-ident-1.0.27/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/unicode-ident-1.0.27/LICENSE-UNICODE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/version_check-0.9.5/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/version_check-0.9.5/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/windows-link-0.2.1/license-apache-2.0",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/windows-link-0.2.1/license-mit",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/windows-sys-0.61.2/license-apache-2.0",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/windows-sys-0.61.2/license-mit",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/zmij-1.0.23/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/llvm/LICENSE.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/microsoft/README.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/notices.json",
+      "mode": 420
+    },
+    {
+      "path": "provenance/generation.json",
+      "mode": 420
+    },
+    {
+      "path": "provenance/seed.json",
+      "mode": 420
+    }
+  ]
+}

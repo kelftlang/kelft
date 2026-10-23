@@ -1,0 +1,7 @@
+import "./intent-cases.kelft" as fixtures;
+import "../../../selfhost/json.kelft" as j;
+import "../../../selfhost/intent_preservation.kelft" as preservation;
+import "../../../selfhost/intent_source.kelft" as source;
+import "../../../selfhost/intent_public.kelft" as public_contracts;
+pub fn run(id:string)->j::Value {let c:j::Value=fixtures::scenario(id);let mut approved:Array<string>=[];for value in j::array(j::field(c,"approved")) {array_push::<string>(inout approved,j::string(value));}return preservation::check(j::array(j::field(c,"before")),j::array(j::field(c,"after")),j::array(j::field(c,"policies")),approved);}
+fn main()->void {let values:Array<string>=args();if values[0]=="data" {println(j::canonical(fixtures::data()));}else if values[0]=="manifest" {println(j::canonical(public_contracts::extract(source::lower(source::parse(j::string(j::field(fixtures::data(),"manifestSource")),"intent.kelft")))));}else {println(j::canonical(run(values[0])));}}

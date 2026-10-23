@@ -1,0 +1,28 @@
+// Trusted private runtime builders, not public pointer operations.
+import "./ir.kelft" as ir;
+pub struct Builder {name:string,params:Array<string>,locations:i32,result:string,slots:Array<string>,blocks:Array<ir::Block>,serial:i32,current:i32}
+pub fn builder(name:string,params:Array<string>,locations:i32,result:string)->Builder {return Builder {name:name,params:params,locations:locations,result:result,slots:[],blocks:[ir::Block {label:"entry",instructions:[],end:ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""}}],serial:0,current:0};}
+pub fn slot(inout b:Builder,width:string)->i32 {let out:i32=array_len::<string>(b.slots);array_push::<string>(inout b.slots,width);return out;}
+pub fn emit(inout b:Builder,i:ir::Instruction)->void {let at:i32=b.current;array_push::<ir::Instruction>(inout b.blocks[at].instructions,i);}
+pub fn label(inout b:Builder)->string {let out:string="b"+i32_to_string(b.serial);b.serial=b.serial+1;return out;}
+pub fn begin(inout b:Builder,name:string)->void {let at:i32=array_len::<ir::Block>(b.blocks);array_push::<ir::Block>(inout b.blocks,ir::Block {label:name,instructions:[],end:ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""}});b.current=at;}
+pub fn end(inout b:Builder,t:ir::End)->void {let at:i32=b.current;b.blocks[at].end=t;}
+pub fn branch(inout b:Builder,condition:i32,yes:string,no:string)->void {end(inout b,ir::End {op:"branch",value:-1,label:"",condition:condition,yes:yes,no:no});}
+pub fn jump(inout b:Builder,label:string)->void {end(inout b,ir::End {op:"goto",value:-1,label:label,condition:-1,yes:"",no:""});}
+pub fn ret(inout b:Builder,value:i32)->void {end(inout b,ir::End {op:"return",value:value,label:"",condition:-1,yes:"",no:""});}
+pub fn constant(inout b:Builder,value:i32,width:string)->i32 {let out:i32=slot(inout b,width);let mut i:ir::Instruction=ir::instruction("const",out);i.value=value;emit(inout b,i);return out;}
+pub fn c(inout b:Builder,value:i32)->i32 {return constant(inout b,value,"i32");}
+pub fn nil(inout b:Builder)->i32 {return constant(inout b,0,"ptr");}
+pub fn assign(inout b:Builder,out:i32,value:i32)->void {let mut i:ir::Instruction=ir::instruction("copy",out);i.value=value;emit(inout b,i);}
+pub fn copy(inout b:Builder,value:i32)->i32 {let width:string=b.slots[value];let out:i32=slot(inout b,width);assign(inout b,out,value);return out;}
+pub fn argument(inout b:Builder,index:i32)->i32 {let width:string=b.params[index];let out:i32=slot(inout b,width);let mut i:ir::Instruction=ir::instruction("argument",out);i.index=index;emit(inout b,i);return out;}
+pub fn location(inout b:Builder,index:i32)->i32 {let out:i32=slot(inout b,"ptr");let mut i:ir::Instruction=ir::instruction("location",out);i.index=index;emit(inout b,i);return out;}
+pub fn context(inout b:Builder)->i32 {let out:i32=slot(inout b,"ptr");emit(inout b,ir::instruction("context",out));return out;}
+pub fn load(inout b:Builder,base:i32,offset:i32,width:string)->i32 {let out:i32=slot(inout b,width);let mut i:ir::Instruction=ir::instruction("load",out);i.base=base;i.offset=offset;emit(inout b,i);return out;}
+pub fn store(inout b:Builder,base:i32,offset:i32,value:i32)->void {let mut i:ir::Instruction=ir::instruction("store",-1);i.base=base;i.offset=offset;i.value=value;emit(inout b,i);}
+pub fn pointer(inout b:Builder,base:i32,offset:i32)->i32 {let out:i32=slot(inout b,"ptr");let mut i:ir::Instruction=ir::instruction("ptr_add",out);i.base=base;i.offset=offset;emit(inout b,i);return out;}
+pub fn binary(inout b:Builder,kind:string,left:i32,right:i32)->i32 {let out:i32=slot(inout b,"i32");let mut i:ir::Instruction=ir::instruction("binary",out);i.kind=kind;i.left=left;i.right=right;emit(inout b,i);return out;}
+pub fn equal(inout b:Builder,left:i32,right:i32)->i32 {let out:i32=slot(inout b,"i32");let mut i:ir::Instruction=ir::instruction("ptr_eq",out);i.left=left;i.right=right;emit(inout b,i);return out;}
+pub fn call(inout b:Builder,symbol:string,args:Array<i32>,result:string,locations:Array<i32>)->i32 {let mut out:i32=-1;if result!="void" {out=slot(inout b,result);}let mut i:ir::Instruction=ir::instruction("call",out);i.symbol=symbol;i.args=args;i.locations=locations;emit(inout b,i);return out;}
+pub fn guard(inout b:Builder,condition:i32)->void {let bad:string=label(inout b);let good:string=label(inout b);branch(inout b,condition,bad,good);begin(inout b,bad);call(inout b,"k_panic_KRT_RESOURCE",[],"void",[]);end(inout b,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});begin(inout b,good);}
+pub fn finish(b:Builder)->ir::Function {return ir::Function {name:b.name,params:b.params,locations:b.locations,result:b.result,slots:b.slots,entry:"entry",blocks:b.blocks};}

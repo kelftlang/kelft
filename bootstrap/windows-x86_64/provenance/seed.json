@@ -1,0 +1,22 @@
+{
+  "schema": "kelft.native-seed-provenance/1",
+  "target": "windows-x86_64",
+  "compilerSHA256": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d",
+  "coordinatorSHA256": "sha256:30d11493d7dea84cf54ab059829183e7f0918107e541119f78822093eabaeb7d",
+  "boundarySHA256": "sha256:33c31b41231c91061970f3658750b2ccb921b6f932dbc494ad4d53f450d55188",
+  "sourceRevision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+  "sourceArchiveSHA256": "sha256:611aab42ebdea5a59b8111ee606c81bdad4d47b67d3afbb1b40510a6ca366349",
+  "hostSourceHash": "sha256:bad406f59b45415936262b9833633049becc0c0e25a0ce382d40735a8db2fba9",
+  "workflowArtifactSHA256": "sha256:58805e9f90161556c7f1a46e52dab3e742c9c8c80319fe6fce847bd2aa80f115",
+  "transformations": [
+    "preserve qualified executable, policy and platform-tool bytes",
+    "omit local output objects and local checkout paths",
+    "replace notices with the reviewed native dependency inventory",
+    "record POSIX modes and reconstruct oversized payloads from authenticated parts"
+  ],
+  "qualified": false,
+  "releaseEligible": false,
+  "workflowArtifactSHA256s": [
+    "sha256:58805e9f90161556c7f1a46e52dab3e742c9c8c80319fe6fce847bd2aa80f115"
+  ]
+}

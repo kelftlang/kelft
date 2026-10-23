@@ -1,0 +1,1057 @@
+{
+  "schema": "kelft.runtime-modes/1",
+  "files": [
+    {
+      "path": "bin/kelft",
+      "mode": 493
+    },
+    {
+      "path": "bin/kelft-boundary",
+      "mode": 493
+    },
+    {
+      "path": "manifest.json",
+      "mode": 384
+    },
+    {
+      "path": "rootfs/compiler",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/control/maximum.json",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/control/toolchain.json",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/etc/ld.so.cache",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libbfd-2.42-system.so",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libc.so.6",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libctf.so.0",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libjansson.so.4",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libsframe.so.1",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libz.so.1",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/aarch64-linux-gnu/libzstd.so.1",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/lib/ld-linux-aarch64.so.1",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/policies/rebuild",
+      "mode": 448
+    },
+    {
+      "path": "rootfs/policies/testing",
+      "mode": 448
+    },
+    {
+      "path": "rootfs/source/selfhost/c/emitter.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/c/runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/core.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/aggregate-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/arm-elf.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/arm64.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/artifact-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/binary.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/builder.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/byte-append.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/byte-copy.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/byte-push.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/channel-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/coff-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/coff.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-api.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-arm-aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-arm64.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-fs-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-guest-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-link-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/darwin-x86_64.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/elf.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/engine-boundary.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/engine-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/fs-policy-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/fs-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/graph-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/heap.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/host-policy.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/host-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/ir.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/link-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/linux-aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/linux-arm-aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/linux-arm-services.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/linux-guest-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/linux-runtime-data.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/macho-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/macho.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/map-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/native-target.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/opcodes.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/package-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/packed-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/path-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/pool.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/process-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/protocol-darwin-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/protocol-darwin.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/protocol-linux-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/protocol-windows-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/protocol-windows.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/protocol.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/runtime-ir.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/scalar-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/scalar.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/stream-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/string-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/string-transform-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/verification-artifact-darwin-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/verification-artifact-darwin.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/verification-artifact-linux-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/verification-artifact-windows-arm.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/verification-artifact-windows.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/verification-artifact.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-api.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-arm-aggregate.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-arm64.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-artifact-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-fs-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-guest-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-link-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-path-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-process-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/windows-x86_64.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/write-runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/direct/x86_64.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/driver-native.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/emitter.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/hash.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_bindings.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_capabilities.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_domain.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_enforce.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_migration.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_preservation.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_public.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_source.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent_wire.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intent.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/intrinsics.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/json.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/lexer.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/main.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/modules.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-compiler.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-darwin-arm-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-darwin-arm-installed.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-darwin-arm-object.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-darwin-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-darwin-installed.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-darwin-object.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-engine.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-installed-engine.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-linux-arm-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-linux-arm-object.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-main.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-windows-arm-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-windows-arm-installed.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-windows-arm-object.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-windows-driver.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-windows-installed.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/native-windows-object.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/parser.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/semantic.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/syntax.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/cross.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/host-capabilities.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/inspect.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/object.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/pins.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/rebuild.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/targets.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/testing-corpus.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/testing-shards.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/testing.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/toml.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/workspace-command.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/toolchain/workspace.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/verification-native.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/verification.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/wasm/binary.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/wasm/emitter.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/selfhost/wasm/runtime.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/api-boundary.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/bootstrap/strings.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/contracts.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/filesystem.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/json-safe.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/process.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/source/stdlib/testing.kelft",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/usr/bin/aarch64-linux-gnu-ld.bfd",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libbfd-2.42-system.so",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libc.so.6",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libctf.so.0.0.0",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libjansson.so.4.14.0",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libsframe.so.1.0.0",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libz.so.1.3",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.5",
+      "mode": 420
+    },
+    {
+      "path": "supervisor.json",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/CC-BY-4.0.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/MIT-0.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/Apache-2.0.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT-library.html",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT.html",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/LLVM-exception.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/MIT.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/NCSA.txt",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/adler2-2.0.1/LICENSE-0BSD",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/adler2-2.0.1/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/adler2-2.0.1/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/block-buffer-0.10.4/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/block-buffer-0.10.4/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cfg-if-1.0.5/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cfg-if-1.0.5/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cpufeatures-0.2.17/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/cpufeatures-0.2.17/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crc32fast-1.5.2/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crc32fast-1.5.2/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crypto-common-0.1.7/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/crypto-common-0.1.7/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/digest-0.10.7/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/digest-0.10.7/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/flate2-1.1.5/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/flate2-1.1.5/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/generic-array-0.14.7/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/getrandom-0.3.4/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/getrandom-0.3.4/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/hmac-0.12.1/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/hmac-0.12.1/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/itoa-1.0.18/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/itoa-1.0.18/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/libc-0.2.190/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/libc-0.2.190/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/memchr-2.8.3/COPYING",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/memchr-2.8.3/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE-APACHE.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE-MIT.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/miniz_oxide-0.8.9/LICENSE-ZLIB.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/proc-macro2-1.0.107/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/proc-macro2-1.0.107/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/quote-1.0.47/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/quote-1.0.47/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde-1.0.229/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde-1.0.229/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_core-1.0.229/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_core-1.0.229/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_derive-1.0.229/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_derive-1.0.229/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_json-1.0.154/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/serde_json-1.0.154/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/sha2-0.10.9/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/sha2-0.10.9/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/simd-adler32-0.3.10/LICENSE.md",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/subtle-2.6.1/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/syn-3.0.9/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/syn-3.0.9/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/typenum-1.20.1/LICENSE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/typenum-1.20.1/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/typenum-1.20.1/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/unicode-ident-1.0.27/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/unicode-ident-1.0.27/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/unicode-ident-1.0.27/LICENSE-UNICODE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/version_check-0.9.5/LICENSE-APACHE",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/version_check-0.9.5/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/cargo/zmij-1.0.23/LICENSE-MIT",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/binutils-aarch64-linux-gnu/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libbinutils_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libctf0_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libsframe1_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libc6_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libc6-dev_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libjansson4_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/zlib1g_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libzstd1_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/libgcc-13-dev_arm64/copyright",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/licenses/GPL-2",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/licenses/GPL-3",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/licenses/LGPL-2",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/licenses/LGPL-2.1",
+      "mode": 420
+    },
+    {
+      "path": "notices/gnu/licenses/LGPL-3",
+      "mode": 420
+    },
+    {
+      "path": "notices/notices.json",
+      "mode": 420
+    },
+    {
+      "path": "provenance/generation.json",
+      "mode": 420
+    },
+    {
+      "path": "provenance/seed.json",
+      "mode": 420
+    }
+  ]
+}

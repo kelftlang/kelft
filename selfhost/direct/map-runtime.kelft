@@ -1,0 +1,62 @@
+// Trusted ordered-map builders. Inputs are borrowed; splice returns owned storage.
+import "./builder.kelft" as g;
+import "./ir.kelft" as ir;
+pub fn functions()->Array<ir::Function> {
+ let mut functions:Array<ir::Function>=[];
+ build_k_map_compare(inout functions);
+ build_k_map_lower_bound(inout functions);
+ build_k_map_splice(inout functions);
+ return functions;
+}
+
+fn build_k_map_compare(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_map_compare",["ptr","ptr","i32"],0,"i32");let left:i32=g::argument(inout b,0);let right:i32=g::argument(inout b,1);let strings:i32=g::argument(inout b,2);
+  let zero_mode:i32=g::c(inout b,0);let negative_mode:i32=g::binary(inout b,"lt_s",strings,zero_mode);
+  g::guard(inout b,negative_mode);
+  let one_mode:i32=g::c(inout b,1);let excessive_mode:i32=g::binary(inout b,"gt_s",strings,one_mode);g::guard(inout b,excessive_mode);
+  let text:string=g::label(inout b);let number:string=g::label(inout b);g::branch(inout b,strings,text,number);g::begin(inout b,text);
+  let a_ptr:i32=g::load(inout b,left,0,"ptr");let z_ptr:i32=g::load(inout b,right,0,"ptr");let comparison:i32=g::call(inout b,"k_string_compare",[a_ptr,z_ptr],"i32",[]);g::ret(inout b,comparison);g::begin(inout b,number);
+  let a:i32=g::load(inout b,left,0,"i32");let z:i32=g::load(inout b,right,0,"i32");let less:i32=g::binary(inout b,"lt_s",a,z);let greater:i32=g::binary(inout b,"gt_s",a,z);
+  let order:i32=g::binary(inout b,"sub",greater,less);g::ret(inout b,order);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_map_lower_bound(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_map_lower_bound",["ptr","ptr","i32"],0,"i32");let map:i32=g::argument(inout b,0);let key:i32=g::argument(inout b,1);let strings:i32=g::argument(inout b,2);
+  let low:i32=g::c(inout b,0);
+  let payload:i32=g::load(inout b,map,8,"i32");let shift:i32=g::c(inout b,3);let high:i32=g::binary(inout b,"shr_u",payload,shift);let test:string=g::label(inout b);let body:string=g::label(inout b);let before:string=g::label(inout b);let after:string=g::label(inout b);let done:string=g::label(inout b);
+  g::jump(inout b,test);g::begin(inout b,test);
+  let remaining:i32=g::binary(inout b,"lt_s",low,high);g::branch(inout b,remaining,body,done);g::begin(inout b,body);
+  let difference:i32=g::binary(inout b,"sub",high,low);
+  let shift_half:i32=g::c(inout b,1);let half:i32=g::binary(inout b,"shr_u",difference,shift_half);let mid:i32=g::binary(inout b,"add",low,half);let cell:i32=g::call(inout b,"k_array_at",[map,mid],"ptr",[]);let entry:i32=g::load(inout b,cell,0,"ptr");
+  let header:i32=g::c(inout b,40);let raw:i32=g::pointer(inout b,entry,header);let order:i32=g::call(inout b,"k_map_compare",[raw,key,strings],"i32",[]);
+  let zero_order:i32=g::c(inout b,0);let is_before:i32=g::binary(inout b,"lt_s",order,zero_order);
+  g::branch(inout b,is_before,before,after);g::begin(inout b,before);
+  let one_step:i32=g::c(inout b,1);let following:i32=g::binary(inout b,"add",mid,one_step);g::assign(inout b,low,following);g::jump(inout b,test);g::begin(inout b,after);g::assign(inout b,high,mid);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,low);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_map_splice(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_map_splice",["ptr","i32","i32","ptr"],0,"ptr");let map:i32=g::argument(inout b,0);let index:i32=g::argument(inout b,1);let remove:i32=g::argument(inout b,2);let entry:i32=g::argument(inout b,3);
+  let payload:i32=g::load(inout b,map,8,"i32");let shift:i32=g::c(inout b,3);let size:i32=g::binary(inout b,"shr_u",payload,shift);
+  let zero_index:i32=g::c(inout b,0);
+  let below:i32=g::binary(inout b,"lt_s",index,zero_index);let above:i32=g::binary(inout b,"gt_s",index,size);
+  let invalid_index:i32=g::binary(inout b,"or",below,above);g::guard(inout b,invalid_index);
+  let zero_remove:i32=g::c(inout b,0);
+  let negative:i32=g::binary(inout b,"lt_s",remove,zero_remove);
+  let one_remove:i32=g::c(inout b,1);let excessive:i32=g::binary(inout b,"gt_s",remove,one_remove);
+  let invalid_remove:i32=g::binary(inout b,"or",negative,excessive);g::guard(inout b,invalid_remove);
+  let available:i32=g::binary(inout b,"sub",size,index);let excessive_remove:i32=g::binary(inout b,"gt_s",remove,available);g::guard(inout b,excessive_remove);
+  let nil:i32=g::nil(inout b);
+  let missing:i32=g::equal(inout b,entry,nil);
+  let zero_added:i32=g::c(inout b,0);let added:i32=g::binary(inout b,"eq",missing,zero_added);let remaining:i32=g::binary(inout b,"sub",size,remove);let length:i32=g::binary(inout b,"add",remaining,added);let owned:i32=g::c(inout b,1);let out:i32=g::call(inout b,"k_array_alloc",[length,owned],"ptr",[]);let at:i32=g::c(inout b,0);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let insert:string=g::label(inout b);let copy:string=g::label(inout b);let store:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);
+  let has_next:i32=g::binary(inout b,"lt_s",at,length);g::branch(inout b,has_next,body,done);g::begin(inout b,body);
+  let value:i32=g::copy(inout b,entry);
+  let at_index:i32=g::binary(inout b,"eq",at,index);let is_insert:i32=g::binary(inout b,"and",added,at_index);g::branch(inout b,is_insert,insert,copy);g::begin(inout b,insert);g::jump(inout b,store);g::begin(inout b,copy);
+  let source:i32=g::copy(inout b,at);let adjust:string=g::label(inout b);let read:string=g::label(inout b);
+  let past_index:i32=g::binary(inout b,"ge_s",at,index);g::branch(inout b,past_index,adjust,read);g::begin(inout b,adjust);let skipped:i32=g::binary(inout b,"add",at,remove);
+  let source_index:i32=g::binary(inout b,"sub",skipped,added);g::assign(inout b,source,source_index);g::jump(inout b,read);g::begin(inout b,read);
+  let cell:i32=g::call(inout b,"k_array_at",[map,source],"ptr",[]);
+  let source_entry:i32=g::load(inout b,cell,0,"ptr");g::assign(inout b,value,source_entry);g::jump(inout b,store);g::begin(inout b,store);let destination:i32=g::call(inout b,"k_array_at",[out,at],"ptr",[]);let retained:i32=g::call(inout b,"k_heap_retain",[value],"ptr",[]);g::store(inout b,destination,0,retained);
+  let one_step:i32=g::c(inout b,1);let following:i32=g::binary(inout b,"add",at,one_step);
+  g::assign(inout b,at,following);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }

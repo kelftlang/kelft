@@ -1,0 +1,74 @@
+// Production test decisions; the host supplies bounded file/process observations.
+import "../json.kelft" as j;
+import "../syntax.kelft" as s;
+import "../parser.kelft" as parser;
+import "./testing-corpus.kelft" as corpus;
+import "./testing-shards.kelft" as shards;
+fn action(operation:string)->j::Value {let mut out:j::Value=j::parse("{\"schema\":\"kelft.test-action/1\"}");return j::set(out,"operation",j::Value::Text(operation));}
+fn fail(code:string,message:string,status:i32)->void {
+ let mut detail:j::Value=j::parse("{}");detail=j::set(detail,"code",j::Value::Text(code));detail=j::set(detail,"message",j::Value::Text(message));
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft.test-report/1\",\"status\":\"failure\",\"target\":null,\"cases\":[],\"totals\":{\"passed\":0,\"failed\":0}}");report=j::set(report,"error",detail);
+ let mut out:j::Value=action("complete");out=j::set(out,"exit",j::Value::Number(i32_to_string(status)));out=j::set(out,"json",j::Value::Bool(true));out=j::set(out,"report",report);println(j::canonical(out));exit(0);
+}
+fn need(ok:bool,message:string)->void {if !ok {fail("TEST_CONTRACT",message,1);}}
+fn text(value:j::Value,key:string)->string {return j::string(j::field(value,key));}
+pub fn options(raw:j::Value)->j::Value {
+ let arguments:Array<j::Value>=j::array(raw);need(j::is_array(raw)&&array_len::<j::Value>(arguments)>0&&arguments[0]==j::Value::Text("test"),"test arguments required");
+ let mut out:j::Value=j::parse("{\"path\":\"tests/kelft\",\"root\":\"\",\"policy\":\"\",\"filter\":\"\",\"list\":false,\"json\":false,\"corpus\":false,\"timeoutMs\":30000}");let mut seen:Map<string,bool>=map_new::<string,bool>();let mut positional:bool=false;let mut at:i32=1;
+ while at<array_len::<j::Value>(arguments) {
+  need(j::is_string(arguments[at]),"argument must be text");let flag:string=j::string(arguments[at]);
+  if !s::starts(flag,"-") {if positional {fail("INVALID_INVOCATION","only one test path is accepted",64);}out=j::set(out,"path",j::Value::Text(flag));positional=true;}
+  else {
+   match map_get::<string,bool>(seen,flag) {Option::Some(value)=>{fail("INVALID_INVOCATION","duplicate test option: "+flag,64);},Option::None=>{}}map_set::<string,bool>(inout seen,flag,true);
+   if flag=="--list" {out=j::set(out,"list",j::Value::Bool(true));}else if flag=="--json" {out=j::set(out,"json",j::Value::Bool(true));}else if flag=="--corpus" {out=j::set(out,"corpus",j::Value::Bool(true));}
+   else if flag=="--timeout-ms" {at=at+1;if at>=array_len::<j::Value>(arguments)||!j::is_string(arguments[at])||j::string(arguments[at])==""||s::starts(j::string(arguments[at]),"-") {fail("INVALID_INVOCATION","missing test option value: "+flag,64);}let raw:string=j::string(arguments[at]);let mut value:i32=0;let mut valid:bool=string_len(raw)<=6&&!s::starts(raw,"0");for byte in string_to_bytes(raw) {let digit:i32=i32_from_u8(byte)-48;if digit<0||digit>9 {valid=false;}if valid {value=value*10+digit;}}if !valid||value<1||value>600000 {fail("INVALID_INVOCATION","invalid test timeout: "+raw,64);}out=j::set(out,"timeoutMs",j::Value::Number(i32_to_string(value)));}
+   else if flag=="--shard" {at=at+1;if at>=array_len::<j::Value>(arguments)||!j::is_string(arguments[at])||j::string(arguments[at])==""||s::starts(j::string(arguments[at]),"-") {fail("INVALID_INVOCATION","missing test option value: "+flag,64);}let raw:string=j::string(arguments[at]);if array_len::<i32>(shards::parse_test_shard(raw))==0 {fail("INVALID_INVOCATION","invalid test shard: "+raw,64);}out=j::set(out,"shard",j::Value::Text(raw));}
+   else if flag=="--filter"||flag=="--project-root"||flag=="--capabilities" {at=at+1;if at>=array_len::<j::Value>(arguments)||!j::is_string(arguments[at])||j::string(arguments[at])==""||s::starts(j::string(arguments[at]),"-") {fail("INVALID_INVOCATION","missing test option value: "+flag,64);}let mut key:string="policy";if flag=="--filter" {key="filter";}if flag=="--project-root" {key="root";}out=j::set(out,key,arguments[at]);}
+   else {fail("INVALID_INVOCATION","unknown test option: "+flag,64);}
+  }at=at+1;
+ }if j::boolean(j::field(out,"corpus"))&&!positional {out=j::set(out,"path",j::Value::Text("tests/conformance.json"));}return out;
+}
+fn normal(path:string)->bool {if path==""||s::has(path,"\\")||s::has(path,":")||s::has(path,"\u{0}") {return false;}for part in string_split(path,"/") {if part==""||part=="."||part==".." {return false;}}return true;}
+fn wrapper(file:string,tests:Array<j::Value>)->string {
+ let mut out:string="import "+s::json_quote("../"+file)+" as suite;\nimport \"../stdlib/testing.kelft\" as testing;\nfn main()->i32 {\n let arguments:Array<string>=args();if array_len::<string>(arguments)!=2 {return 64;}\n";
+ for test in tests {out=out+" if arguments[0]=="+s::json_quote(text(test,"id"))+" {let mut context:testing::Context=testing::context(arguments[0]);suite::"+text(test,"name")+"(inout context);return testing::complete(context,arguments[1]);}\n";}return out+" return 64;\n}\n";
+}
+pub fn decide(request:j::Value)->j::Value {
+ need(text(request,"schema")=="kelft.test-request/1","unsupported test request");let opt:j::Value=options(j::field(request,"arguments"));
+ if j::field(request,"sources")==j::Value::Null() {let mut out:j::Value=action("discover");for (key,value) in j::object(opt) {out=j::set(out,key,value);}return out;}
+ if j::boolean(j::field(opt,"corpus")) {return corpus::decide(request,opt);}
+ need(j::is_object(j::field(request,"sources")),"test sources must be an object");let mut suites:Map<string,j::Value>=map_new::<string,j::Value>();let mut cases:Array<j::Value>=[];
+ for (file,source) in j::object(j::field(request,"sources")) {
+  need(normal(file)&&string_len(file)>=11&&s::slice(file,string_len(file)-11,string_len(file))==".test.kelft","invalid test source path");need(j::is_string(source),"test source must be text");
+  let tree:s::Node=parser::parse(j::string(source),file);let mut found:Map<string,j::Value>=map_new::<string,j::Value>();
+  for declaration in tree.children {
+   if declaration.kind!="fn"||!s::starts(declaration.text,"test_") {continue;}let mut params:Array<s::Node>=[];let mut generics:i32=0;
+   for child in declaration.children {if child.kind=="param" {array_push::<s::Node>(inout params,child);}if child.kind=="generic" {generics=generics+1;}}
+   if !declaration.flag||declaration.ty!="void"||array_len::<s::Node>(params)!=1||!params[0].flag||params[0].ty!="testing::Context"||generics>0 {fail("INVALID_TEST_SIGNATURE",file+"::"+declaration.text+" must be pub fn(inout context:testing::Context)->void",1);}
+   let id:string=file+"::"+declaration.text;let mut test:j::Value=j::parse("{}");test=j::set(test,"id",j::Value::Text(id));test=j::set(test,"file",j::Value::Text(file));test=j::set(test,"name",j::Value::Text(declaration.text));
+   if s::has(id,text(opt,"filter")) {match map_get::<string,j::Value>(found,id) {Option::Some(previous)=>{fail("INVALID_TEST_SIGNATURE","duplicate test: "+id,1);},Option::None=>{}}map_set::<string,j::Value>(inout found,id,test);}
+  }
+  let mut tests:Array<j::Value>=[];for (id,test) in found {array_push::<j::Value>(inout tests,test);array_push::<j::Value>(inout cases,test);}if array_len::<j::Value>(tests)>0 {map_set::<string,j::Value>(inout suites,file,j::Value::Array(tests));}
+ }
+ if array_len::<j::Value>(cases)==0 {fail("EMPTY_TEST_SELECTION","no tests selected",64);}need(array_len::<j::Value>(cases)<=4096,"test case limit exceeded");
+ cases=shards::select_test_shard(cases,text(opt,"shard"),true);if array_len::<j::Value>(cases)==0 {fail("EMPTY_TEST_SELECTION","no tests selected",64);}
+ if j::boolean(j::field(opt,"list")) {let mut ids:Array<j::Value>=[];for test in cases {array_push::<j::Value>(inout ids,j::field(test,"id"));}let mut report:j::Value=j::parse("{\"schema\":\"kelft.test-report/1\",\"status\":\"listed\"}");report=j::set(report,"target",j::field(request,"target"));report=j::set(report,"cases",j::Value::Array(ids));let totals:j::Value=j::set(j::parse("{}"),"selected",j::Value::Number(i32_to_string(array_len::<j::Value>(cases))));report=j::set(report,"totals",totals);let mut out:j::Value=action("complete");out=j::set(out,"exit",j::Value::Number("0"));out=j::set(out,"json",j::field(opt,"json"));return j::set(out,"report",report);}
+ let builds:j::Value=j::field(request,"builds");let executions:j::Value=j::field(request,"executions");
+ for test in cases {let file:string=text(test,"file");if j::field(builds,file)==j::Value::Null() {match map_get::<string,j::Value>(suites,file) {Option::Some(tests)=>{let mut out:j::Value=action("build");out=j::set(out,"file",j::Value::Text(file));return j::set(out,"source",j::Value::Text(wrapper(file,j::array(tests))));},Option::None=>{need(false,"test suite missing");}}}}
+ for test in cases {if text(j::field(builds,text(test,"file")),"status")=="success"&&j::field(executions,text(test,"id"))==j::Value::Null() {let mut out:j::Value=action("run");for (key,value) in j::object(test) {out=j::set(out,key,value);}return out;}}
+ let mut passed:i32=0;let mut failed:i32=0;let mut results:Array<j::Value>=[];
+ for test in cases {
+  let build:j::Value=j::field(builds,text(test,"file"));let execution:j::Value=j::field(executions,text(test,"id"));let completion:j::Value=j::field(execution,"completion");let mut status:string="failed";let mut reason:string="build failed";
+  if text(build,"status")=="success" {reason="test did not complete";let mut assertions:i32=-1;match completion {j::Value::Object(values)=>{match j::field(completion,"assertions") {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(n)=>{assertions=n;},Result::Error(message)=>{}}},_=>{}}},_=>{}}
+   if text(execution,"status")=="exited"&&text(completion,"schema")=="kelft.test-case/1"&&j::field(completion,"id")==j::field(test,"id")&&j::is_array(j::field(completion,"failures"))&&assertions>=0 {reason="assertion or exit failure";if j::field(execution,"exit")==j::Value::Number("0")&&array_len::<j::Value>(j::array(j::field(completion,"failures")))==0 {status="passed";reason="";}}
+   else if text(execution,"status")!="exited" {reason=text(execution,"status");if reason=="" {reason="execution failed";}}
+  }
+  if status=="passed" {passed=passed+1;}else {failed=failed+1;}let mut result:j::Value=j::set(test,"status",j::Value::Text(status));result=j::set(result,"reason",j::Value::Text(reason));result=j::set(result,"build",build);result=j::set(result,"execution",execution);array_push::<j::Value>(inout results,result);
+ }
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft.test-report/1\"}");let mut state:string="passed";let mut code:i32=0;if failed>0 {state="failed";code=1;}report=j::set(report,"status",j::Value::Text(state));report=j::set(report,"target",j::field(request,"target"));report=j::set(report,"cases",j::Value::Array(results));let mut totals:j::Value=j::parse("{}");totals=j::set(totals,"passed",j::Value::Number(i32_to_string(passed)));totals=j::set(totals,"failed",j::Value::Number(i32_to_string(failed)));report=j::set(report,"totals",totals);
+ let mut out:j::Value=action("complete");out=j::set(out,"exit",j::Value::Number(i32_to_string(code)));out=j::set(out,"json",j::field(opt,"json"));return j::set(out,"report",report);
+}
+pub fn command(arguments:Array<string>)->void {
+ need(array_len::<string>(arguments)>=2,"private test request required");match read_file(arguments[1]) {Result::Ok(bytes)=>{need(array_len::<u8>(bytes)<=16777216,"test request exceeds 16 MiB");match utf8_decode(bytes) {Result::Ok(raw)=>{println(j::canonical(decide(j::parse(raw))));},Result::Error(message)=>{need(false,"test request is not UTF-8");}}},Result::Error(message)=>{need(false,"cannot read test request");}}
+}
+fn main()->void {command(args());}

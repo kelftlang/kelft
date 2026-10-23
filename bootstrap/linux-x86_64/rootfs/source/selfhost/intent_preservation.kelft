@@ -1,0 +1,59 @@
+import "./json.kelft" as j;
+import "./syntax.kelft" as s;
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+fn bad(message:string)->void {s::error("K0710",message,s::span("<preservation>",0,0));}
+fn has(values:Array<string>,value:string)->bool {for old in values {if old==value {return true;}}return false;}
+fn selector(value:string)->void {
+    let segments:Array<string>=string_split(value,".");let mut index:i32=0;
+    for segment in segments {
+        if segment=="*"&&index==array_len::<string>(segments)-1&&index>0 {return;}
+        if segment=="" {bad("invalid scope selector "+value);}let mut i:i32=0;
+        while i<string_len(segment) {let c:i32=s::byte(segment,i);if !(c>=65&&c<=90||c>=97&&c<=122||c==95||i>0&&c>=48&&c<=57) {bad("invalid scope selector "+value);}i=i+1;}
+        index=index+1;
+    }
+}
+fn matches(value:string,id:string)->bool {if string_len(value)>2&&s::slice(value,string_len(value)-2,string_len(value))==".*" {return s::starts(id,s::slice(value,0,string_len(value)-1));}return id==value||s::starts(id,value+".");}
+fn find(values:Array<j::Value>,id:string)->j::Value {for value in values {if text(value,"id")==id {return value;}}return j::Value::Null();}
+fn compatible(before:j::Value,after:j::Value)->bool {
+    if j::canonical(j::set(j::set(before,"request",j::Value::Null()),"response",j::Value::Null()))!=j::canonical(j::set(j::set(after,"request",j::Value::Null()),"response",j::Value::Null())) {return false;}
+    let schema_keys:Array<string>=["request","response"];for key in schema_keys {
+        let a:j::Value=j::field(before,key);let b:j::Value=j::field(after,key);
+        if j::canonical(j::set(a,"fields",j::Value::Null()))!=j::canonical(j::set(b,"fields",j::Value::Null())) {return false;}
+        let af:j::Value=j::field(a,"fields");let bf:j::Value=j::field(b,"fields");
+        for (name,field) in j::object(af) {if j::canonical(field)!=j::canonical(j::field(bf,name)) {return false;}}
+        for (name,field) in j::object(bf) {if !j::is_object(j::field(af,name))&&(key=="request"&&j::boolean(j::field(field,"required"))||key=="response"&&!j::boolean(j::field(a,"extensible"))) {return false;}}
+    }return true;
+}
+pub fn check(before:Array<j::Value>,after:Array<j::Value>,policies:Array<j::Value>,approved:Array<string>)->j::Value {
+    let mut union:Array<string>=[];
+    let groups:Array<Array<j::Value>>=[before,after];for contracts in groups {
+        let mut ids:Array<string>=[];for contract in contracts {
+            if !j::is_object(contract)||text(contract,"kind")!="endpoint"&&text(contract,"kind")!="domain"||!j::is_object(j::field(contract,"errors"))||!j::is_array(j::field(contract,"behaviorObligations")) {bad("invalid public contract");}
+            for (key,value) in j::object(contract) {if key=="status" {let mut status:i32=0;match value {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(n)=>{status=n;},Result::Error(message)=>{}}},_=>{}}if !(status>=200&&status<=299||status==301||status==302||status==303||status==307||status==308) {bad("invalid public success status");}}}
+            let names:Array<string>=["id","name","method","path"];for key in names {if !j::is_string(j::field(contract,key)) {bad("invalid public contract");}}
+            for obligation in j::array(j::field(contract,"behaviorObligations")) {if !j::is_string(obligation) {bad("invalid public contract");}}
+            let schema_keys:Array<string>=["request","response"];for key in schema_keys {
+                let schema:j::Value=j::field(contract,key);if !j::is_object(schema)||!j::is_bool(j::field(schema,"extensible"))||!j::is_object(j::field(schema,"fields")) {bad("invalid public schema");}
+                for (name,root_type) in j::object(schema) {if name=="type"&&(!j::is_string(root_type)||j::string(root_type)=="") {bad("invalid public schema");}}
+                for (name,field) in j::object(j::field(schema,"fields")) {if !j::is_object(field)||!j::is_string(j::field(field,"type"))||!j::is_bool(j::field(field,"required")) {bad("invalid public schema");}}
+            }
+            let id:string=text(contract,"id");selector(id);if s::has(id,"*")||has(ids,id) {bad("duplicate or invalid public contract "+id);}array_push::<string>(inout ids,id);if !has(union,id) {array_push::<string>(inout union,id);}
+        }
+    }
+    for policy in policies {
+        let scope:string=text(policy,"selector");selector(scope);let mode:string=text(policy,"mode");if mode!="preserve"&&mode!="evolve"&&mode!="change" {bad("invalid change policy");}
+        let mut matched:bool=false;for contract in before {if matches(scope,text(contract,"id")) {matched=true;}}if !matched {bad("scope selector matches no accepted baseline "+scope);}
+    }
+    let mut obligations:Map<string,j::Value>=map_new::<string,j::Value>();
+    for id in union {
+        let mut mode:string="";for policy in policies {if matches(text(policy,"selector"),id) {if mode!=""&&mode!=text(policy,"mode") {bad("contradictory policies overlap at "+id);}mode=text(policy,"mode");}}
+        let old:j::Value=find(before,id);let next:j::Value=find(after,id);
+        if mode=="" {if j::canonical(old)!=j::canonical(next) {bad("unauthorized public contract change "+id);}continue;}
+        if mode=="change" {if !has(approved,id) {bad("contract change requires explicit approval "+id);}}
+        else if mode=="preserve" {if j::canonical(old)!=j::canonical(next) {bad("preserved public contract changed "+id);}}
+        else if j::is_object(old)&&(!j::is_object(next)||!compatible(old,next)) {bad("incompatible public contract evolution "+id);}
+        for obligation in j::array(j::field(old,"behaviorObligations")) {map_set::<string,j::Value>(inout obligations,j::string(obligation),obligation);}
+    }
+    let mut required:Array<j::Value>=[];for (key,value) in obligations {array_push::<j::Value>(inout required,value);}
+    let mut result:j::Value=j::parse("{\"structural\":\"passed\",\"behavior\":\"unverified\"}");return j::set(result,"requiredObligations",j::Value::Array(required));
+}

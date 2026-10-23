@@ -1,0 +1,197 @@
+// Windows process runtime.
+import "./builder.kelft" as b;
+import "./ir.kelft" as ir;
+import "./elf.kelft" as elf;
+import "../hash.kelft" as h;
+fn emit_argument(inout f:b::Builder,out:i32,index:i32)->void {let mut i:ir::Instruction=ir::instruction("argument",out);i.index=index;b::emit(inout f,i);}
+fn emit_binary(inout f:b::Builder,out:i32,kind:string,left:i32,right:i32)->void {let mut i:ir::Instruction=ir::instruction("binary",out);i.kind=kind;i.left=left;i.right=right;b::emit(inout f,i);}
+fn emit_call(inout f:b::Builder,out:i32,symbol:string,args:Array<i32>,locations:Array<i32>)->void {let mut i:ir::Instruction=ir::instruction("call",out);i.symbol=symbol;i.args=args;i.locations=locations;b::emit(inout f,i);}
+fn emit_const(inout f:b::Builder,out:i32,value:i32)->void {let mut i:ir::Instruction=ir::instruction("const",out);i.value=value;b::emit(inout f,i);}
+fn emit_context(inout f:b::Builder,out:i32)->void {let mut i:ir::Instruction=ir::instruction("context",out);b::emit(inout f,i);}
+fn emit_convert(inout f:b::Builder,out:i32,value:i32)->void {let mut i:ir::Instruction=ir::instruction("convert",out);i.value=value;b::emit(inout f,i);}
+fn emit_copy(inout f:b::Builder,out:i32,value:i32)->void {let mut i:ir::Instruction=ir::instruction("copy",out);i.value=value;b::emit(inout f,i);}
+fn emit_load(inout f:b::Builder,out:i32,base:i32,offset:i32)->void {let mut i:ir::Instruction=ir::instruction("load",out);i.base=base;i.offset=offset;b::emit(inout f,i);}
+fn emit_ptr_add(inout f:b::Builder,out:i32,base:i32,offset:i32)->void {let mut i:ir::Instruction=ir::instruction("ptr_add",out);i.base=base;i.offset=offset;b::emit(inout f,i);}
+fn emit_ptr_eq(inout f:b::Builder,out:i32,left:i32,right:i32)->void {let mut i:ir::Instruction=ir::instruction("ptr_eq",out);i.left=left;i.right=right;b::emit(inout f,i);}
+fn emit_slot_address(inout f:b::Builder,out:i32,slot:i32)->void {let mut i:ir::Instruction=ir::instruction("slot_address",out);i.slot=slot;b::emit(inout f,i);}
+fn emit_store(inout f:b::Builder,base:i32,offset:i32,value:i32)->void {let mut i:ir::Instruction=ir::instruction("store",-1);i.base=base;i.offset=offset;i.value=value;b::emit(inout f,i);}
+fn build_0()->ir::Function {let mut f:b::Builder=b::builder("k_windows_process_string",["ptr"],0,"ptr");let widths:Array<string>=["ptr","ptr","i32","i32","i32","i32","i32","i32","i32","i32","i32","ptr","i32","ptr","i32","i32","i32","i32","ptr"];for width in widths {b::slot(inout f,width);}
+emit_argument(inout f,0,0);
+emit_const(inout f,1,0);
+emit_ptr_eq(inout f,2,0,1);
+b::branch(inout f,2,"b0","b1");
+b::begin(inout f,"b0");
+emit_call(inout f,-1,"k_panic_KRT_UTF8",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b1");
+emit_const(inout f,3,65001);
+emit_const(inout f,4,128);
+emit_const(inout f,5,-1);
+emit_const(inout f,6,0);
+emit_call(inout f,7,"k_win_WideCharToMultiByte",[3,4,0,5,1,6,1,1],[]);
+emit_binary(inout f,8,"le_s",7,6);
+b::branch(inout f,8,"b2","b3");
+b::begin(inout f,"b2");
+emit_call(inout f,-1,"k_panic_KRT_UTF8",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b3");
+emit_const(inout f,9,1048576);
+emit_binary(inout f,10,"gt_s",7,9);
+b::branch(inout f,10,"b4","b5");
+b::begin(inout f,"b4");
+emit_call(inout f,-1,"k_panic_KRT_RESOURCE",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b5");
+emit_call(inout f,11,"k_bytes_alloc",[7],[]);
+emit_const(inout f,12,40);
+emit_ptr_add(inout f,13,11,12);
+emit_call(inout f,14,"k_win_WideCharToMultiByte",[3,4,0,5,13,7,1,1],[]);
+emit_binary(inout f,15,"ne",14,7);
+b::branch(inout f,15,"b6","b7");
+b::begin(inout f,"b6");
+emit_call(inout f,-1,"k_panic_KRT_UTF8",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b7");
+emit_const(inout f,16,1);
+emit_binary(inout f,17,"sub",7,16);
+emit_call(inout f,18,"k_string_copy",[13,17],[]);
+emit_call(inout f,-1,"k_heap_release",[11],[]);
+b::ret(inout f,18);
+return b::finish(f);}
+fn build_1()->ir::Function {let mut f:b::Builder=b::builder("k_args",[],0,"ptr");let widths:Array<string>=["ptr","ptr","i32","i32","ptr","ptr","i32","i32","i32","i32","i32","i32","i32","i32","ptr","i32","i32","i32","i32","i32","i32","ptr","ptr","ptr","i32","i32","i32","i32","ptr","i32","i32","ptr","i32","i32","i32"];for width in widths {b::slot(inout f,width);}
+emit_call(inout f,0,"k_win_GetCommandLineW",[],[]);
+emit_const(inout f,1,0);
+emit_ptr_eq(inout f,2,0,1);
+b::branch(inout f,2,"b0","b1");
+b::begin(inout f,"b0");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b1");
+emit_const(inout f,3,0);
+emit_slot_address(inout f,4,3);
+emit_call(inout f,5,"k_win_CommandLineToArgvW",[0,4],[]);
+emit_ptr_eq(inout f,6,5,1);
+b::branch(inout f,6,"b2","b3");
+b::begin(inout f,"b2");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b3");
+emit_const(inout f,7,1);
+emit_binary(inout f,8,"lt_s",3,7);
+b::branch(inout f,8,"b4","b5");
+b::begin(inout f,"b4");
+emit_call(inout f,-1,"k_panic_KRT_RESOURCE",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b5");
+emit_const(inout f,9,32768);
+emit_binary(inout f,10,"gt_s",3,9);
+b::branch(inout f,10,"b6","b7");
+b::begin(inout f,"b6");
+emit_call(inout f,-1,"k_panic_KRT_RESOURCE",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b7");
+emit_const(inout f,11,1);
+emit_binary(inout f,12,"sub",3,11);
+emit_const(inout f,13,1);
+emit_call(inout f,14,"k_array_alloc",[12,13],[]);
+emit_const(inout f,15,0);
+b::jump(inout f,"b8");
+b::begin(inout f,"b8");
+emit_binary(inout f,16,"lt_s",15,12);
+b::branch(inout f,16,"b9","b10");
+b::begin(inout f,"b9");
+emit_const(inout f,17,1);
+emit_binary(inout f,18,"add",15,17);
+emit_const(inout f,19,8);
+emit_binary(inout f,20,"mul",18,19);
+emit_ptr_add(inout f,21,5,20);
+emit_load(inout f,22,21,0);
+emit_call(inout f,23,"k_windows_process_string",[22],[]);
+emit_const(inout f,24,40);
+emit_const(inout f,25,8);
+emit_binary(inout f,26,"mul",15,25);
+emit_binary(inout f,27,"add",24,26);
+emit_ptr_add(inout f,28,14,27);
+emit_store(inout f,28,0,23);
+emit_const(inout f,29,1);
+emit_binary(inout f,30,"add",15,29);
+emit_copy(inout f,15,30);
+b::jump(inout f,"b8");
+b::begin(inout f,"b10");
+emit_call(inout f,31,"k_win_LocalFree",[5],[]);
+emit_ptr_eq(inout f,32,31,1);
+emit_const(inout f,33,0);
+emit_binary(inout f,34,"eq",32,33);
+b::branch(inout f,34,"b11","b12");
+b::begin(inout f,"b11");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b12");
+b::ret(inout f,14);
+return b::finish(f);}
+fn build_2()->ir::Function {let mut f:b::Builder=b::builder("k_current_dir",[],0,"ptr");let widths:Array<string>=["ptr","i32","ptr","ptr","ptr","ptr","ptr","i32","i32","i32","i32","i32","i32","i32","i32","ptr","i32","ptr","i32","i32","i32","i32","i32","i32","i32","ptr","u8","i32","u8","i32","ptr"];for width in widths {b::slot(inout f,width);}
+emit_context(inout f,0);
+emit_load(inout f,1,0,124);
+b::branch(inout f,1,"b0","b1");
+b::begin(inout f,"b0");
+emit_context(inout f,2);
+emit_load(inout f,3,2,80);
+emit_load(inout f,4,3,56);
+emit_call(inout f,5,"k_heap_retain",[4],[]);
+b::ret(inout f,5);
+b::begin(inout f,"b1");
+emit_const(inout f,6,0);
+emit_const(inout f,7,0);
+emit_call(inout f,8,"k_win_GetCurrentDirectoryW",[7,6],[]);
+emit_const(inout f,9,0);
+emit_binary(inout f,10,"le_s",8,9);
+b::branch(inout f,10,"b2","b3");
+b::begin(inout f,"b2");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b3");
+emit_const(inout f,11,32768);
+emit_binary(inout f,12,"gt_s",8,11);
+b::branch(inout f,12,"b4","b5");
+b::begin(inout f,"b4");
+emit_call(inout f,-1,"k_panic_KRT_RESOURCE",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b5");
+emit_const(inout f,13,2);
+emit_binary(inout f,14,"mul",8,13);
+emit_call(inout f,15,"k_bytes_alloc",[14],[]);
+emit_const(inout f,16,40);
+emit_ptr_add(inout f,17,15,16);
+emit_call(inout f,18,"k_win_GetCurrentDirectoryW",[8,17],[]);
+emit_const(inout f,19,0);
+emit_binary(inout f,20,"le_s",18,19);
+emit_binary(inout f,21,"ge_s",18,8);
+emit_binary(inout f,22,"or",20,21);
+b::branch(inout f,22,"b6","b7");
+b::begin(inout f,"b6");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b7");
+emit_const(inout f,23,2);
+emit_binary(inout f,24,"mul",18,23);
+emit_ptr_add(inout f,25,17,24);
+emit_load(inout f,26,25,0);
+emit_convert(inout f,27,26);
+b::branch(inout f,27,"b8","b9");
+b::begin(inout f,"b8");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b9");
+emit_load(inout f,28,25,1);
+emit_convert(inout f,29,28);
+b::branch(inout f,29,"b10","b11");
+b::begin(inout f,"b10");
+emit_call(inout f,-1,"k_panic_KRT_IO",[],[]);
+b::end(inout f,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});
+b::begin(inout f,"b11");
+emit_call(inout f,30,"k_windows_process_string",[17],[]);
+emit_call(inout f,-1,"k_heap_release",[15],[]);
+b::ret(inout f,30);
+return b::finish(f);}
+pub fn functions()->Array<ir::Function> {return [build_0(),build_1(),build_2()];}
+pub fn data()->Array<elf::Data> {return [];}

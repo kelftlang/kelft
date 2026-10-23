@@ -1,0 +1,154 @@
+// Immutable packed UTF-8 storage. These trusted builders expose no source pointers.
+import "./builder.kelft" as g;
+import "./ir.kelft" as ir;
+import "./string-transform-runtime.kelft" as transforms;
+fn byte(inout b:g::Builder,base:i32,index:i32)->i32 {
+ let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,index);let cell:i32=g::pointer(inout b,base,offset);let value:i32=g::load(inout b,cell,0,"u8");let out:i32=g::slot(inout b,"i32");
+ let mut i:ir::Instruction=ir::instruction("convert",out);i.value=value;g::emit(inout b,i);return out;
+}
+fn allocate(inout b:g::Builder,length:i32)->i32 {let count:i32=g::c(inout b,0);let mode:i32=g::c(inout b,0);let nil:i32=g::nil(inout b);return g::call(inout b,"k_heap_alloc",[length,count,mode,nil],"ptr",[]);}
+fn advance(inout b:g::Builder,index:i32)->void {let one:i32=g::c(inout b,1);let next:i32=g::binary(inout b,"add",index,one);g::assign(inout b,index,next);}
+fn array_byte(inout b:g::Builder,array:i32,index:i32)->i32 {
+ let cell:i32=g::call(inout b,"k_array_at",[array,index],"ptr",[]);let value:i32=g::load(inout b,cell,0,"u8");let out:i32=g::slot(inout b,"i32");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=value;g::emit(inout b,i);return out;
+}
+fn guard(inout b:g::Builder,condition:i32,code:string)->void {let bad:string=g::label(inout b);let good:string=g::label(inout b);g::branch(inout b,condition,bad,good);g::begin(inout b,bad);g::call(inout b,"k_panic_"+code,[],"void",[]);g::end(inout b,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});g::begin(inout b,good);}
+pub fn string_functions()->Array<ir::Function> {
+ let mut functions:Array<ir::Function>=[];
+ build_k_string_copy(inout functions);
+ build_k_string_concat(inout functions);
+ build_k_string_compare(inout functions);
+ build_k_string_byte(inout functions);
+ build_k_string_slice(inout functions);
+ build_k_string_find(inout functions);
+ build_k_string_bytes(inout functions);
+ build_k_utf8_valid(inout functions);
+ build_k_bytes_string(inout functions);
+ build_k_string_codepoint(inout functions);
+ build_k_i32_string(inout functions);
+ build_k_string_parse(inout functions);
+ for item in transforms::string_transform_functions() {array_push::<ir::Function>(inout functions,item);}return functions;
+}
+
+fn build_k_string_copy(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_copy",["ptr","i32"],0,"ptr");let source:i32=g::argument(inout b,0);let length:i32=g::argument(inout b,1);let out:i32=allocate(inout b,length);let index:i32=g::c(inout b,0);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);
+  let more:i32=g::binary(inout b,"lt_s",index,length);g::branch(inout b,more,body,done);g::begin(inout b,body);
+  let src:i32=g::pointer(inout b,source,index);let value:i32=g::load(inout b,src,0,"u8");let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,index);let dst:i32=g::pointer(inout b,out,offset);g::store(inout b,dst,0,value);
+  advance(inout b,index);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_concat(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_concat",["ptr","ptr"],0,"ptr");let left:i32=g::argument(inout b,0);let right:i32=g::argument(inout b,1);let a:i32=g::load(inout b,left,8,"i32");let z:i32=g::load(inout b,right,8,"i32");
+  let maximum:i32=g::c(inout b,268435400);let available:i32=g::binary(inout b,"sub",maximum,a);let excessive:i32=g::binary(inout b,"gt_s",z,available);g::guard(inout b,excessive);
+  let size:i32=g::binary(inout b,"add",a,z);let out:i32=allocate(inout b,size);let index:i32=g::c(inout b,0);let test:string=g::label(inout b);let body:string=g::label(inout b);let first:string=g::label(inout b);let second:string=g::label(inout b);let store:string=g::label(inout b);let done:string=g::label(inout b);let value:i32=g::slot(inout b,"u8");
+  g::jump(inout b,test);g::begin(inout b,test);let more:i32=g::binary(inout b,"lt_s",index,size);g::branch(inout b,more,body,done);g::begin(inout b,body);
+  let is_first:i32=g::binary(inout b,"lt_s",index,a);g::branch(inout b,is_first,first,second);g::begin(inout b,first);
+  let prefix:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",prefix,index);let cell:i32=g::pointer(inout b,left,offset);let v:i32=g::load(inout b,cell,0,"u8");g::assign(inout b,value,v);g::jump(inout b,store);g::begin(inout b,second);
+  let header:i32=g::c(inout b,40);let relative:i32=g::binary(inout b,"sub",index,a);let displacement:i32=g::binary(inout b,"add",header,relative);let source:i32=g::pointer(inout b,right,displacement);let w:i32=g::load(inout b,source,0,"u8");g::assign(inout b,value,w);g::jump(inout b,store);g::begin(inout b,store);
+  let base:i32=g::c(inout b,40);let position:i32=g::binary(inout b,"add",base,index);let destination:i32=g::pointer(inout b,out,position);g::store(inout b,destination,0,value);advance(inout b,index);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_compare(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_compare",["ptr","ptr"],0,"i32");let left:i32=g::argument(inout b,0);let right:i32=g::argument(inout b,1);let a:i32=g::load(inout b,left,8,"i32");let z:i32=g::load(inout b,right,8,"i32");let index:i32=g::c(inout b,0);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let different:string=g::label(inout b);let next:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);
+  let lmore:i32=g::binary(inout b,"lt_s",index,a);let rmore:i32=g::binary(inout b,"lt_s",index,z);let more:i32=g::binary(inout b,"and",lmore,rmore);g::branch(inout b,more,body,done);g::begin(inout b,body);
+  let lv:i32=byte(inout b,left,index);let rv:i32=byte(inout b,right,index);let difference:i32=g::binary(inout b,"sub",lv,rv);g::branch(inout b,difference,different,next);g::begin(inout b,different);g::ret(inout b,difference);
+  g::begin(inout b,next);advance(inout b,index);g::jump(inout b,test);g::begin(inout b,done);let delta:i32=g::binary(inout b,"sub",a,z);g::ret(inout b,delta);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_byte(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_byte",["ptr","i32"],0,"u8");let source:i32=g::argument(inout b,0);let index:i32=g::argument(inout b,1);let length:i32=g::load(inout b,source,8,"i32");
+  let zero:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",index,zero);let outside:i32=g::binary(inout b,"ge_s",index,length);let invalid:i32=g::binary(inout b,"or",negative,outside);guard(inout b,invalid,"KRT_BOUNDS");
+  let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,index);let cell:i32=g::pointer(inout b,source,offset);let out:i32=g::load(inout b,cell,0,"u8");g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_slice(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_slice",["ptr","i32","i32"],0,"ptr");let source:i32=g::argument(inout b,0);let start:i32=g::argument(inout b,1);let end:i32=g::argument(inout b,2);let length:i32=g::load(inout b,source,8,"i32");
+  let zero:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",start,zero);let reversed:i32=g::binary(inout b,"lt_s",end,start);let first:i32=g::binary(inout b,"or",negative,reversed);let outside:i32=g::binary(inout b,"gt_s",end,length);let invalid:i32=g::binary(inout b,"or",first,outside);guard(inout b,invalid,"KRT_BOUNDS");
+  let boundaries:Array<i32>=[start,end];for boundary in boundaries {
+   let check:string=g::label(inout b);let done:string=g::label(inout b);let at_end:i32=g::binary(inout b,"eq",boundary,length);g::branch(inout b,at_end,done,check);g::begin(inout b,check);
+   let value:i32=byte(inout b,source,boundary);let mask:i32=g::c(inout b,192);let bits:i32=g::binary(inout b,"and",value,mask);let continuation:i32=g::c(inout b,128);let bad:i32=g::binary(inout b,"eq",bits,continuation);guard(inout b,bad,"KRT_UTF8_BOUNDARY");g::jump(inout b,done);g::begin(inout b,done);
+  }
+  let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,start);let data:i32=g::pointer(inout b,source,offset);let size:i32=g::binary(inout b,"sub",end,start);let out:i32=g::call(inout b,"k_string_copy",[data,size],"ptr",[]);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_find(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_find",["ptr","ptr","i32"],0,"i32");let source:i32=g::argument(inout b,0);let needle:i32=g::argument(inout b,1);let start:i32=g::argument(inout b,2);let length:i32=g::load(inout b,source,8,"i32");let size:i32=g::load(inout b,needle,8,"i32");
+  let zero:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",start,zero);let outside:i32=g::binary(inout b,"gt_s",start,length);let invalid:i32=g::binary(inout b,"or",negative,outside);guard(inout b,invalid,"KRT_BOUNDS");
+  let index:i32=g::copy(inout b,start);let limit:i32=g::binary(inout b,"sub",length,size);let test:string=g::label(inout b);let candidate:string=g::label(inout b);let compare:string=g::label(inout b);let bytes:string=g::label(inout b);let next:string=g::label(inout b);let matched:string=g::label(inout b);let missing:string=g::label(inout b);
+  g::jump(inout b,test);g::begin(inout b,test);let within:i32=g::binary(inout b,"le_s",index,limit);g::branch(inout b,within,candidate,missing);g::begin(inout b,candidate);
+  let offset:i32=g::c(inout b,0);g::jump(inout b,compare);g::begin(inout b,compare);let remaining:i32=g::binary(inout b,"lt_s",offset,size);g::branch(inout b,remaining,bytes,matched);g::begin(inout b,bytes);
+  let at:i32=g::binary(inout b,"add",index,offset);let lv:i32=byte(inout b,source,at);let rv:i32=byte(inout b,needle,offset);let same:i32=g::binary(inout b,"eq",lv,rv);let more:string=g::label(inout b);g::branch(inout b,same,more,next);g::begin(inout b,more);
+  advance(inout b,offset);g::jump(inout b,compare);g::begin(inout b,next);advance(inout b,index);g::jump(inout b,test);g::begin(inout b,matched);g::ret(inout b,index);g::begin(inout b,missing);let minus:i32=g::c(inout b,-1);g::ret(inout b,minus);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_bytes(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_bytes",["ptr"],0,"ptr");let source:i32=g::argument(inout b,0);let length:i32=g::load(inout b,source,8,"i32");let out:i32=g::call(inout b,"k_bytes_alloc",[length],"ptr",[]);let index:i32=g::c(inout b,0);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);let more:i32=g::binary(inout b,"lt_s",index,length);g::branch(inout b,more,body,done);g::begin(inout b,body);
+  let prefix:i32=g::c(inout b,40);let from:i32=g::binary(inout b,"add",prefix,index);let source_cell:i32=g::pointer(inout b,source,from);let value:i32=g::load(inout b,source_cell,0,"u8");let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,index);let cell:i32=g::pointer(inout b,out,offset);g::store(inout b,cell,0,value);advance(inout b,index);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_utf8_valid(inout functions:Array<ir::Function>)->void {
+  // No allocation and no continuation reads until the whole sequence fits.
+  let mut b:g::Builder=g::builder("k_utf8_valid",["ptr"],0,"i32");let source:i32=g::argument(inout b,0);let bytes:i32=g::load(inout b,source,8,"i32");let shift:i32=g::call(inout b,"k_array_shift",[source],"i32",[]);let length:i32=g::binary(inout b,"shr_u",bytes,shift);let index:i32=g::c(inout b,0);let remaining:i32=g::c(inout b,0);let codepoint:i32=g::c(inout b,0);let minimum:i32=g::c(inout b,0);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let classify:string=g::label(inout b);let available:string=g::label(inout b);let continuations:string=g::label(inout b);let read:string=g::label(inout b);let combine:string=g::label(inout b);let finish:string=g::label(inout b);let next:string=g::label(inout b);let valid:string=g::label(inout b);let invalid:string=g::label(inout b);
+  g::jump(inout b,test);g::begin(inout b,test);let more:i32=g::binary(inout b,"lt_s",index,length);g::branch(inout b,more,body,valid);g::begin(inout b,body);
+  let lead:i32=array_byte(inout b,source,index);let ascii:i32=g::c(inout b,128);let single:i32=g::binary(inout b,"lt_s",lead,ascii);g::branch(inout b,single,next,classify);g::begin(inout b,classify);
+  let classes:Array<(i32,i32,i32,i32,i32)>=[(194,223,1,31,128),(224,239,2,15,2048),(240,244,3,7,65536)];for (low,high,count,mask,min) in classes {
+   let selected:string=g::label(inout b);let other:string=g::label(inout b);let lower:i32=g::c(inout b,low);let above:i32=g::binary(inout b,"ge_s",lead,lower);let upper:i32=g::c(inout b,high);let below:i32=g::binary(inout b,"le_s",lead,upper);let in_range:i32=g::binary(inout b,"and",above,below);g::branch(inout b,in_range,selected,other);g::begin(inout b,selected);
+   let needed:i32=g::c(inout b,count);g::assign(inout b,remaining,needed);let bits:i32=g::c(inout b,mask);let cp:i32=g::binary(inout b,"and",lead,bits);g::assign(inout b,codepoint,cp);let smallest:i32=g::c(inout b,min);g::assign(inout b,minimum,smallest);g::jump(inout b,available);g::begin(inout b,other);
+  }
+  g::jump(inout b,invalid);g::begin(inout b,available);let from_here:i32=g::binary(inout b,"sub",length,index);let one:i32=g::c(inout b,1);let bytes_left:i32=g::binary(inout b,"sub",from_here,one);let truncated:i32=g::binary(inout b,"gt_s",remaining,bytes_left);g::branch(inout b,truncated,invalid,continuations);g::begin(inout b,continuations);
+  let zero:i32=g::c(inout b,0);let more_bytes:i32=g::binary(inout b,"gt_s",remaining,zero);g::branch(inout b,more_bytes,read,finish);g::begin(inout b,read);advance(inout b,index);
+  let value:i32=array_byte(inout b,source,index);let mask:i32=g::c(inout b,192);let bits:i32=g::binary(inout b,"and",value,mask);let expected:i32=g::c(inout b,128);let is_continuation:i32=g::binary(inout b,"eq",bits,expected);g::branch(inout b,is_continuation,combine,invalid);g::begin(inout b,combine);
+  let amount:i32=g::c(inout b,6);let high:i32=g::binary(inout b,"shl",codepoint,amount);let low_mask:i32=g::c(inout b,63);let low:i32=g::binary(inout b,"and",value,low_mask);let combined:i32=g::binary(inout b,"or",high,low);g::assign(inout b,codepoint,combined);let decrement:i32=g::c(inout b,1);let rest:i32=g::binary(inout b,"sub",remaining,decrement);g::assign(inout b,remaining,rest);g::jump(inout b,continuations);g::begin(inout b,finish);
+  let too_small:i32=g::binary(inout b,"lt_s",codepoint,minimum);let maximum:i32=g::c(inout b,1114111);let too_large:i32=g::binary(inout b,"gt_s",codepoint,maximum);let first_surrogate:i32=g::c(inout b,55296);let above:i32=g::binary(inout b,"ge_s",codepoint,first_surrogate);let last_surrogate:i32=g::c(inout b,57343);let below:i32=g::binary(inout b,"le_s",codepoint,last_surrogate);let surrogate:i32=g::binary(inout b,"and",above,below);let outside:i32=g::binary(inout b,"or",too_small,too_large);let bad:i32=g::binary(inout b,"or",outside,surrogate);g::branch(inout b,bad,invalid,next);g::begin(inout b,next);advance(inout b,index);g::jump(inout b,test);g::begin(inout b,valid);let yes:i32=g::c(inout b,1);g::ret(inout b,yes);g::begin(inout b,invalid);let no:i32=g::c(inout b,0);g::ret(inout b,no);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_bytes_string(inout functions:Array<ir::Function>)->void {
+  // The caller has validated the borrowed bytes; copy into a new immutable owner.
+  let mut b:g::Builder=g::builder("k_bytes_string",["ptr"],0,"ptr");let source:i32=g::argument(inout b,0);let bytes:i32=g::load(inout b,source,8,"i32");let shift:i32=g::call(inout b,"k_array_shift",[source],"i32",[]);let length:i32=g::binary(inout b,"shr_u",bytes,shift);let out:i32=allocate(inout b,length);let index:i32=g::c(inout b,0);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);let more:i32=g::binary(inout b,"lt_s",index,length);g::branch(inout b,more,body,done);g::begin(inout b,body);
+  let value:i32=array_byte(inout b,source,index);let narrow:i32=g::slot(inout b,"u8");let mut i:ir::Instruction=ir::instruction("convert",narrow);i.value=value;g::emit(inout b,i);let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,index);let cell:i32=g::pointer(inout b,out,offset);g::store(inout b,cell,0,narrow);
+  advance(inout b,index);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_codepoint(inout functions:Array<ir::Function>)->void {
+  let mut b:g::Builder=g::builder("k_string_codepoint",["i32"],0,"ptr");let cp:i32=g::argument(inout b,0);let zero:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",cp,zero);let maximum:i32=g::c(inout b,1114111);let too_large:i32=g::binary(inout b,"gt_s",cp,maximum);let first_surrogate:i32=g::c(inout b,55296);let above:i32=g::binary(inout b,"ge_s",cp,first_surrogate);let last_surrogate:i32=g::c(inout b,57343);let below:i32=g::binary(inout b,"le_s",cp,last_surrogate);let surrogate:i32=g::binary(inout b,"and",above,below);let outside:i32=g::binary(inout b,"or",negative,too_large);let bad:i32=g::binary(inout b,"or",outside,surrogate);guard(inout b,bad,"KRT_UNICODE");
+  let maximums:Array<i32>=[127,2047,65535];let masks:Array<i32>=[127,31,15,7];let prefixes:Array<i32>=[0,192,224,240];let mut size:i32=1;while size<=4 {
+   let mut next:string="";if size<4 {let selected:string=g::label(inout b);next=g::label(inout b);let upper:i32=g::c(inout b,maximums[size-1]);let fits:i32=g::binary(inout b,"le_s",cp,upper);g::branch(inout b,fits,selected,next);g::begin(inout b,selected);}
+   let count:i32=g::c(inout b,size);let out:i32=allocate(inout b,count);let mut index:i32=0;while index<size {
+    let amount:i32=g::c(inout b,6*(size-index-1));let shifted:i32=g::binary(inout b,"shr_u",cp,amount);let mut mask:i32=63;let mut prefix:i32=128;if index==0 {mask=masks[size-1];prefix=prefixes[size-1];}let bits:i32=g::c(inout b,mask);let masked:i32=g::binary(inout b,"and",shifted,bits);let leading:i32=g::c(inout b,prefix);let value:i32=g::binary(inout b,"or",masked,leading);let narrow:i32=g::slot(inout b,"u8");let mut i:ir::Instruction=ir::instruction("convert",narrow);i.value=value;g::emit(inout b,i);g::store(inout b,out,40+index,narrow);index=index+1;
+   }
+   g::ret(inout b,out);if next!="" {g::begin(inout b,next);}size=size+1;
+  }
+  array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_i32_string(inout functions:Array<ir::Function>)->void {
+  // The later of two adjacent slots is the lower address of a 16-byte buffer.
+  let mut b:g::Builder=g::builder("k_i32_string",["i32"],0,"ptr");let input:i32=g::argument(inout b,0);let zero:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",input,zero);let value:i32=g::copy(inout b,input);
+  g::nil(inout b);let low:i32=g::nil(inout b);let scratch:i32=g::slot(inout b,"ptr");let mut address:ir::Instruction=ir::instruction("slot_address",scratch);address.slot=low;g::emit(inout b,address);
+  let negate:string=g::label(inout b);let digits:string=g::label(inout b);let sign:string=g::label(inout b);let minus:string=g::label(inout b);let done:string=g::label(inout b);let length:i32=g::c(inout b,0);
+  let origin:i32=g::c(inout b,0);let positive:i32=g::binary(inout b,"gt_s",value,origin);g::branch(inout b,positive,negate,digits);g::begin(inout b,negate);let base:i32=g::c(inout b,0);let negated:i32=g::binary(inout b,"sub",base,value);g::assign(inout b,value,negated);g::jump(inout b,digits);g::begin(inout b,digits);
+  let ascii:i32=g::c(inout b,48);let ten:i32=g::c(inout b,10);let remainder:i32=g::binary(inout b,"rem_s",value,ten);let digit:i32=g::binary(inout b,"sub",ascii,remainder);let narrow:i32=g::slot(inout b,"u8");let mut i:ir::Instruction=ir::instruction("convert",narrow);i.value=digit;g::emit(inout b,i);
+  let end:i32=g::c(inout b,10);let offset:i32=g::binary(inout b,"sub",end,length);let cell:i32=g::pointer(inout b,scratch,offset);g::store(inout b,cell,0,narrow);advance(inout b,length);let divisor:i32=g::c(inout b,10);let quotient:i32=g::binary(inout b,"div_s",value,divisor);g::assign(inout b,value,quotient);
+  let empty:i32=g::c(inout b,0);let more:i32=g::binary(inout b,"ne",value,empty);g::branch(inout b,more,digits,sign);g::begin(inout b,sign);g::branch(inout b,negative,minus,done);g::begin(inout b,minus);
+  let dash:i32=g::constant(inout b,45,"u8");let last:i32=g::c(inout b,10);let position:i32=g::binary(inout b,"sub",last,length);let sign_cell:i32=g::pointer(inout b,scratch,position);g::store(inout b,sign_cell,0,dash);advance(inout b,length);g::jump(inout b,done);g::begin(inout b,done);
+  let capacity:i32=g::c(inout b,11);let start:i32=g::binary(inout b,"sub",capacity,length);let data:i32=g::pointer(inout b,scratch,start);let out:i32=g::call(inout b,"k_string_copy",[data,length],"ptr",[]);g::ret(inout b,out);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+
+fn build_k_string_parse(inout functions:Array<ir::Function>)->void {
+  // Borrowed string and raw private i32 success cell, with no allocation.
+  let mut b:g::Builder=g::builder("k_string_parse",["ptr"],1,"i32");let source:i32=g::argument(inout b,0);let status:i32=g::location(inout b,0);let zero:i32=g::c(inout b,0);g::store(inout b,status,0,zero);
+  let length:i32=g::load(inout b,source,8,"i32");let index:i32=g::c(inout b,0);let value:i32=g::c(inout b,0);let last_digit:i32=g::c(inout b,7);let start:string=g::label(inout b);let signed:string=g::label(inout b);let after_sign:string=g::label(inout b);let first:string=g::label(inout b);let test:string=g::label(inout b);let read:string=g::label(inout b);let limit:string=g::label(inout b);let accumulate:string=g::label(inout b);let valid:string=g::label(inout b);let flip:string=g::label(inout b);let finish:string=g::label(inout b);let invalid:string=g::label(inout b);
+  let empty:i32=g::c(inout b,0);let no_bytes:i32=g::binary(inout b,"eq",length,empty);let maximum:i32=g::c(inout b,11);let too_long:i32=g::binary(inout b,"gt_s",length,maximum);let bad_length:i32=g::binary(inout b,"or",no_bytes,too_long);g::branch(inout b,bad_length,invalid,start);g::begin(inout b,start);
+  let lead:i32=byte(inout b,source,index);let dash:i32=g::c(inout b,45);let negative:i32=g::binary(inout b,"eq",lead,dash);g::branch(inout b,negative,signed,after_sign);g::begin(inout b,signed);
+  let one:i32=g::c(inout b,1);g::assign(inout b,index,one);let eight:i32=g::c(inout b,8);g::assign(inout b,last_digit,eight);g::jump(inout b,after_sign);g::begin(inout b,after_sign);let missing:i32=g::binary(inout b,"eq",index,length);g::branch(inout b,missing,invalid,first);g::begin(inout b,first);
+  let initial:i32=byte(inout b,source,index);let ascii_zero:i32=g::c(inout b,48);let leading_zero:i32=g::binary(inout b,"eq",initial,ascii_zero);let step:i32=g::c(inout b,1);let next:i32=g::binary(inout b,"add",index,step);let extra:i32=g::binary(inout b,"lt_s",next,length);let noncanonical:i32=g::binary(inout b,"and",leading_zero,extra);g::branch(inout b,noncanonical,invalid,test);g::begin(inout b,test);
+  let more:i32=g::binary(inout b,"lt_s",index,length);g::branch(inout b,more,read,valid);g::begin(inout b,read);let character:i32=byte(inout b,source,index);
+  let low:i32=g::c(inout b,48);let below_digit:i32=g::binary(inout b,"lt_s",character,low);let high:i32=g::c(inout b,57);let above_digit:i32=g::binary(inout b,"gt_s",character,high);let not_digit:i32=g::binary(inout b,"or",below_digit,above_digit);g::branch(inout b,not_digit,invalid,limit);g::begin(inout b,limit);
+  let ascii:i32=g::c(inout b,48);let digit:i32=g::binary(inout b,"sub",character,ascii);let threshold:i32=g::c(inout b,-214748364);let below:i32=g::binary(inout b,"lt_s",value,threshold);let at_limit:i32=g::binary(inout b,"eq",value,threshold);let excessive:i32=g::binary(inout b,"gt_s",digit,last_digit);let last:i32=g::binary(inout b,"and",at_limit,excessive);let overflow:i32=g::binary(inout b,"or",below,last);g::branch(inout b,overflow,invalid,accumulate);g::begin(inout b,accumulate);
+  let ten:i32=g::c(inout b,10);let scaled:i32=g::binary(inout b,"mul",value,ten);let updated:i32=g::binary(inout b,"sub",scaled,digit);g::assign(inout b,value,updated);advance(inout b,index);g::jump(inout b,test);g::begin(inout b,valid);
+  let out:i32=g::copy(inout b,value);g::branch(inout b,negative,finish,flip);g::begin(inout b,flip);let origin:i32=g::c(inout b,0);let positive:i32=g::binary(inout b,"sub",origin,value);g::assign(inout b,out,positive);g::jump(inout b,finish);g::begin(inout b,finish);let yes:i32=g::c(inout b,1);g::store(inout b,status,0,yes);g::ret(inout b,out);g::begin(inout b,invalid);let no:i32=g::c(inout b,0);g::ret(inout b,no);array_push::<ir::Function>(inout functions,g::finish(b));
+ }

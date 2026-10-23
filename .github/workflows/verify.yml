@@ -1,0 +1,41 @@
+name: Public source validation
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: node scripts/check.mjs
+      - run: node --test tests/release.test.mjs
+  native-windows:
+    if: vars.KELFT_NATIVE_BOOTSTRAP_CI == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Rebuild and test with native tools only
+        shell: pwsh
+        run: |
+          $env:PATH = ''
+          & "$env:SystemRoot\System32\cmd.exe" /d /c '.\bootstrap.cmd rebuild --out build/ci'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\build\ci\bin\kelft.exe test --project-root . --json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\build\ci\bin\kelft.exe test --corpus --project-root . --json
+          exit $LASTEXITCODE

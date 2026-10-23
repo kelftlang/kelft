@@ -1,0 +1,28 @@
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+import "./intent.kelft" as intent;
+import "./intent_source.kelft" as source;
+import "./hash.kelft" as hash;
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+fn bad(message:string)->void {s::error("K0715",message,s::span("<migration>",0,0));}
+fn includes(values:Array<string>,value:string)->bool {for item in values {if item==value {return true;}}return false;}
+fn meaningful(value:string)->bool {let mut i:i32=0;while i<string_len(value) {let b:i32=s::byte(value,i);if b!=32&&b!=9&&b!=10&&b!=13&&b!=11&&b!=12 {return true;}i=i+1;}return false;}
+pub fn receipt(legacy:j::Value,bytes:Bytes,graph:j::Value,mapping:j::Value,legacy_entry:string,source_entry:string)->j::Value {
+    let ir:j::Value=intent::parse(j::canonical(legacy));if !j::is_object(mapping) {bad("migration requires an explicit identity mapping");}
+    let mut items:Array<j::Value>=[];let sections:Array<string>=["constraints","assumptions","verificationTargets"];for section in sections {for item in j::array(j::field(ir,section)) {array_push::<j::Value>(inout items,item);}}
+    if map_len::<string,j::Value>(j::object(mapping))!=array_len::<j::Value>(items) {bad("migration must map every historical identity exactly once");}
+    for (id,targets) in j::object(mapping) {let mut known:bool=false;for item in items {if text(item,"id")==id {known=true;}}if !known {bad("migration must map every historical identity exactly once");}}
+    let nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));
+    for item in items {let targets:j::Value=j::field(mapping,text(item,"id"));if !j::is_array(targets)||array_len::<j::Value>(j::array(targets))==0 {bad("invalid migration identity mapping");}let mut seen:Array<string>=[];
+        for target in j::array(targets) {let id:string=j::string(target);if !j::is_string(target)||includes(seen,id) {bad("invalid migration identity mapping");}array_push::<string>(inout seen,id);let mut node:j::Value=j::Value::Null();for n in nodes {if text(n,"id")==id {node=n;}if text(n,"kind")=="build"&&(id==text(n,"id")||s::starts(id,text(n,"id")+".")) {bad("migration target must be an application declaration");}}if !j::is_object(node) {bad("migration target must be an application declaration");}
+            let hard:Array<string>=["must","ensures","require","allow","deny","scenario","roles","use","when"];let verify:Array<string>=["must","ensures","require","allow","deny","scenario","behavior","entity","roles","use","when"];
+            for old in j::array(j::field(ir,"constraints")) {if text(old,"id")==text(item,"id") {if text(old,"level")=="hard" {if !includes(hard,text(node,"kind")) {bad("migration cannot weaken a historical requirement");}}else if text(node,"kind")!="prefer" {bad("migration cannot weaken a historical requirement");}}}
+            for old in j::array(j::field(ir,"assumptions")) {if text(old,"id")==text(item,"id") {let mut decision:bool=false;if text(node,"kind")=="context" {for n in nodes {if text(n,"scope")==id&&text(n,"kind")=="decision"&&text(n,"form")=="string"&&meaningful(text(n,"value")) {decision=true;}}}if text(old,"status")=="proposed"||text(old,"status")=="stale" {if !decision {if text(node,"kind")!="unknown" {bad("unresolved historical assumptions must block acceptance");}for n in nodes {if text(n,"scope")==id&&text(n,"kind")=="blocks"&&text(n,"value")=="production" {bad("unresolved historical assumptions must block acceptance");}}}}else if !decision {bad("resolved historical assumptions require explicit context");}}}
+            for old in j::array(j::field(ir,"verificationTargets")) {if text(old,"id")==text(item,"id")&&!includes(verify,text(node,"kind")) {bad("verification migration requires an application obligation");}}
+        }
+    }
+    let mut before:j::Value=j::parse("{}");before=j::set(before,"entry",j::Value::Text(legacy_entry));before=j::set(before,"id",j::Value::Text(text(ir,"id")));before=j::set(before,"intentHash",j::Value::Text(intent::semantic_hash(ir)));before=j::set(before,"artifactHash",j::Value::Text(hash::sha256_bytes(bytes)));
+    let mut after:j::Value=j::parse("{}");after=j::set(after,"entry",j::Value::Text(source_entry));after=j::set(after,"intentHash",j::Value::Text(source::semantic_hash(graph)));
+    let mut historical:j::Value=j::parse("{}");for section in sections {historical=j::set(historical,section,j::field(ir,section));}
+    let mut out:j::Value=j::parse("{\"schemaVersion\":\"0.2\",\"kind\":\"migration\",\"state\":\"requires-acceptance\",\"evidence\":{\"method\":\"unverified\",\"outcome\":\"unverified\",\"detail\":\"Migration retains historical identities; fresh acceptance and verification are required.\"}}");out=j::set(out,"legacy",before);out=j::set(out,"source",after);out=j::set(out,"mappings",mapping);return j::set(j::set(out,"historical",historical),"legacy",before);
+}

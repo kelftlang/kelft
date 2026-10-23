@@ -1,0 +1,33 @@
+import "./json.kelft" as j;
+import "./syntax.kelft" as s;
+import "./intent_domain.kelft" as domain;
+import "./intent_public.kelft" as public;
+
+fn text(value:j::Value,key:string)->string {return j::string(j::field(value,key));}
+fn ends(value:string,suffix:string)->bool {return string_len(value)>=string_len(suffix)&&s::slice(value,string_len(value)-string_len(suffix),string_len(value))==suffix;}
+fn has(value:j::Value,key:string)->bool {match map_get::<string,j::Value>(j::object(value),key) {Option::Some(item)=>{return true;},Option::None=>{return false;}}}
+fn bad(node:j::Value,message:string)->void {let span:j::Value=j::field(node,"span");s::error("K0716",message,s::span(text(span,"file"),s::number(j::canonical(j::field(span,"start"))),s::number(j::canonical(j::field(span,"end")))));}
+fn scalar(ty:string,enums:j::Value)->bool {return ty=="Text"||ty=="string"||ty=="UUID"||ty=="i32"||ty=="u8"||ty=="bool"||has(enums,ty);}
+fn supported(raw:string,node:j::Value,entities:j::Value,enums:j::Value,depth:i32)->void {
+    if depth>64 {bad(node,"wire type nesting limit exceeded");}let ty:string=string_replace(string_replace(raw," ",""),"\t","");if ends(ty,"?") {supported(s::slice(ty,0,string_len(ty)-1),node,entities,enums,depth+1);return;}
+    if scalar(ty,enums)||ty=="void"||has(entities,ty)||s::has(ty,"|") {return;}
+    let parts:(string,Array<string>)=s::type_parts(ty);let base:string=parts.0;let args:Array<string>=parts.1;let count:i32=array_len::<string>(args);
+    if !(base=="Array"&&count==1||base=="Map"&&count==2||base=="Option"&&count==1||base=="Result"&&count==2||base=="tuple"&&count>0) {bad(node,"unsupported wire type: "+ty);}
+    if base=="Map"&&!scalar(args[0],enums) {bad(node,"wire map keys must be scalar values");}for arg in args {supported(arg,node,entities,enums,depth+1);}
+}
+pub fn source(graph:j::Value,json_module:string,wire_module:string)->string {
+    let nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));let modules:Array<string>=[json_module,wire_module];for module in modules {if !s::starts(module,"./")&&!s::starts(module,"../")||!ends(module,".kelft")||s::has(module,"\\") {bad(nodes[0],"wire modules must be relative Core imports");}let mut index:i32=0;while index<string_len(module) {if s::byte(module,index)<32 {bad(nodes[0],"wire modules must be relative Core imports");}index=index+1;}}
+    domain::check(graph);let contracts:j::Value=public::extract(graph);let mut entities:j::Value=j::parse("{}");let mut enums:j::Value=j::parse("{}");
+    for entity in nodes {if text(entity,"kind")!="entity" {continue;}let mut fields:j::Value=j::parse("{}");for field in nodes {if text(field,"kind")!="field"||text(field,"scope")!=text(entity,"id") {continue;}fields=j::set(fields,text(field,"name"),j::Value::Text(text(field,"value")));let mut ty:string=string_replace(string_replace(string_split(text(field,"value")," where ")[0]," ",""),"\t","");if ends(ty,"?") {ty=s::slice(ty,0,string_len(ty)-1);}if s::has(ty,"|") {let mut alternatives:Array<j::Value>=[];for variant in string_split(ty,"|") {array_push::<j::Value>(inout alternatives,j::Value::Text(variant));}enums=j::set(enums,text(entity,"name")+"_"+text(field,"name"),j::Value::Array(alternatives));}}entities=j::set(entities,text(entity,"name"),fields);}
+    for field in nodes {if text(field,"kind")=="field" {supported(string_split(text(field,"value")," where ")[0],field,entities,enums,0);}}
+    let mut models:j::Value=j::parse("{}");models=j::set(models,"entities",entities);models=j::set(models,"enums",enums);
+    return "import "+s::core_quote(json_module)+" as j;\nimport "+s::core_quote(wire_module)+" as w;\n"+
+        "pub fn models()->j::Value {return j::parse("+s::core_quote(j::canonical(models))+");}\n"+
+        "pub fn manifest()->j::Value {return j::parse("+s::core_quote(j::canonical(contracts))+");}\n"+
+        "pub fn parse(source:string)->Result<j::Value,string> {return w::parse(source);}\n"+
+        "pub fn validate_request(id:string,value:j::Value)->bool {return w::request(models(),manifest(),id,value);}\n"+
+        "pub fn validate_response(id:string,status:i32,value:j::Value)->bool {return w::response(models(),manifest(),id,status,value);}\n"+
+        "pub fn serialize_request(id:string,value:j::Value)->Result<string,string> {return w::serialize_request(models(),manifest(),id,value);}\n"+
+        "pub fn serialize_response(id:string,status:i32,value:j::Value)->Result<string,string> {return w::serialize_response(models(),manifest(),id,status,value);}\n"+
+        "pub fn route(method:string,path:string)->Option<j::Value> {return w::route(manifest(),method,path);}\n";
+}

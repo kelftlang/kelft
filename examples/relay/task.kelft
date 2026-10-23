@@ -1,0 +1,6 @@
+import "./domain-models.kelft" as models;
+
+pub fn move_task(inout task:models::Task,to:models::Task_state)->void {
+    task.state=to;
+    return;
+}

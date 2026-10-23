@@ -1,0 +1,125 @@
+import "./opcodes.kelft" as opcodes;
+// Private Microsoft x64 encoder, separate from Linux runtime/host adapters.
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./ir.kelft" as ir;
+import "./windows-api.kelft" as api;
+pub struct Code {name:string,bytes:Bytes,relocations:Array<x::Relocation>,frame_size:i32,allocation_end:i32,frame_setup_end:i32,epilogues:Array<i32>}
+struct Fixup {offset:i32,label:string}
+fn disp(inout out:Bytes,prefix:Bytes,value:i32)->void {b::append(inout out,prefix);b::word(inout out,value);}
+fn slot(offset:i32,original:i32,shift:i32)->i32 {if offset> -8||offset< -original {b::error("invalid Windows frame slot");}return shift+offset;}
+fn append_shared(inout out:Bytes,inout relocations:Array<x::Relocation>,i:x::Machine,operation_id:i32)->void {
+ // BEGIN generated opcode constants
+ let op_add:i32=993596020;
+ let op_address:i32=745154899;
+ let op_and:i32=254395046;
+ let op_call:i32=-1276017495;
+ let op_div_s:i32=-332448462;
+ let op_eq:i32=1142581827;
+ let op_ge_s:i32=1804211731;
+ let op_gt_s:i32=-585182360;
+ let op_imm:i32=2129075090;
+ let op_le_s:i32=699435220;
+ let op_lt_s:i32=1404448415;
+ let op_mask_u8:i32=-285466473;
+ let op_mul:i32=-343609983;
+ let op_ne:i32=1479958588;
+ let op_or:i32=1563699588;
+ let op_ptr_add:i32=1697139769;
+ let op_ptr_eq:i32=376154780;
+ let op_read:i32=-824204347;
+ let op_rem_s:i32=-2091945951;
+ let op_shl:i32=-533861450;
+ let op_shr_s:i32=-1849078538;
+ let op_shr_u:i32=-1815523300;
+ let op_sub:i32=-598853355;
+ let op_trap:i32=1619038978;
+ let op_write:i32=-1104765092;
+ let op_xor:i32=-865346690;
+ // END generated opcode constants
+
+ if operation_id==op_imm {disp(inout out,[184],i.a);}
+ else if operation_id==op_mask_u8 {b::append(inout out,[37,255,0,0,0]);}
+ else if operation_id==op_read {if i.a==8 {disp(inout out,[72,139,128],i.b);}else if i.a==4 {disp(inout out,[139,128],i.b);}else if i.a==1 {disp(inout out,[15,182,128],i.b);}else {b::error("invalid read width");}}
+ else if operation_id==op_write {if i.a==8 {disp(inout out,[73,137,130],i.b);}else if i.a==4 {disp(inout out,[65,137,130],i.b);}else if i.a==1 {disp(inout out,[65,136,130],i.b);}else {b::error("invalid write width");}}
+ else if operation_id==op_ptr_add {b::append(inout out,[77,99,210,76,1,208]);}
+ else if operation_id==op_ptr_eq {b::append(inout out,[76,57,208,15,148,192,15,182,192]);}
+ else if operation_id==op_add {b::append(inout out,[68,1,208]);}
+ else if operation_id==op_sub {b::append(inout out,[68,41,208]);}
+ else if operation_id==op_mul {b::append(inout out,[65,15,175,194]);}
+ else if operation_id==op_and {b::append(inout out,[68,33,208]);}
+ else if operation_id==op_or {b::append(inout out,[68,9,208]);}
+ else if operation_id==op_xor {b::append(inout out,[68,49,208]);}
+ else if operation_id==op_shl||operation_id==op_shr_s||operation_id==op_shr_u {let mut opcode:u8=232;if operation_id==op_shl {opcode=224;}if operation_id==op_shr_s {opcode=248;}b::append(inout out,[68,137,209,211,opcode]);}
+ else if operation_id==op_div_s||operation_id==op_rem_s {b::append(inout out,[69,133,210,117,2,15,11,61,0,0,0,128,117,11,65,131,250,255,117,5]);if operation_id==op_div_s {b::append(inout out,[15,11,144,144,144]);}else {b::append(inout out,[49,192,235,7,144]);}b::append(inout out,[153,65,247,250]);if operation_id==op_rem_s {b::append(inout out,[137,208]);}}
+ else if operation_id==op_eq||operation_id==op_ne||operation_id==op_lt_s||operation_id==op_le_s||operation_id==op_gt_s||operation_id==op_ge_s {let mut cc:u8=148;if operation_id==op_ne {cc=149;}if operation_id==op_lt_s {cc=156;}if operation_id==op_le_s {cc=158;}if operation_id==op_gt_s {cc=159;}if operation_id==op_ge_s {cc=157;}b::append(inout out,[68,57,208,15,cc,192,15,182,192]);}
+ else if operation_id==op_address {if i.a< -2147483644 {b::error("native relocation addend overflow");}b::append(inout out,[72,141,5]);array_push::<x::Relocation>(inout relocations,x::Relocation {offset:array_len::<u8>(out),symbol:i.symbol,kind:"pc32",addend:i.a-4});b::word(inout out,0);}
+ else if operation_id==op_call {array_push::<u8>(inout out,232);let mut kind:string="pc32";if i.a==1 {kind="plt32";}array_push::<x::Relocation>(inout relocations,x::Relocation {offset:array_len::<u8>(out),symbol:i.symbol,kind:kind,addend:-4});b::word(inout out,0);}
+ else if operation_id==op_trap {b::append(inout out,[15,11]);}
+ else {b::error("unsupported Windows operation "+i.op);}
+}
+pub fn encode(name:string,instructions:Array<x::Machine>)->Code {return encode_registered(name,instructions,opcodes::registry());}
+pub fn encode_registered(name:string,instructions:Array<x::Machine>,opcode_registry:Map<string,i32>)->Code {
+ // BEGIN generated opcode constants
+ let op_arg_address:i32=1471864344;
+ let op_context:i32=-1937305476;
+ let op_goto:i32=-173862938;
+ let op_label:i32=-157870083;
+ let op_load:i32=-435725847;
+ let op_loc_address:i32=1992971310;
+ let op_nonzero:i32=1790618910;
+ let op_out_address:i32=-216729632;
+ let op_return:i32=-2047985729;
+ let op_save:i32=-855671224;
+ let op_second:i32=-1409755939;
+ let op_slot_address:i32=-1491298942;
+ let op_windows_api:i32=-1118287963;
+ let op_windows_start:i32=-996325371;
+ // END generated opcode constants
+
+
+
+
+ if array_len::<x::Machine>(instructions)==0 {b::error("invalid Windows frame size");}
+ let first:x::Machine=instructions[0];if first.op!="prologue"||first.a<32||first.a%16!=0||first.a>40000 {b::error("invalid Windows frame size");}
+ let mut frame:i32=first.a+32;if frame<128 {frame=128;}let shift:i32=frame-128;
+ let mut out:Bytes=[85];let mut relocs:Array<x::Relocation>=[];let mut labels:Map<string,i32>=map_new::<string,i32>();let mut fixups:Array<Fixup>=[];let mut epilogues:Array<i32>=[];
+ if frame>=4096 {let mut offset:i32=4096;while offset<frame {disp(inout out,[246,132,36],-offset);array_push::<u8>(inout out,0);offset=offset+4096;}disp(inout out,[246,132,36],-frame);array_push::<u8>(inout out,0);}
+ disp(inout out,[72,129,236],frame);let allocation_end:i32=array_len::<u8>(out);
+ disp(inout out,[72,141,172,36],128);let frame_setup_end:i32=array_len::<u8>(out);if frame_setup_end>255 {b::error("Windows prologue exceeds unwind format");}
+ disp(inout out,[72,137,141],slot(-8,first.a,shift));disp(inout out,[72,137,149],slot(-16,first.a,shift));disp(inout out,[76,137,133],slot(-24,first.a,shift));disp(inout out,[76,137,141],slot(-32,first.a,shift));
+ let mut index:i32=1;while index<array_len::<x::Machine>(instructions) {let i:x::Machine=instructions[index];index=index+1;let operation_id:i32=opcodes::identify(i.op,opcode_registry);
+  if operation_id==op_label {match map_get::<string,i32>(labels,i.symbol) {Option::Some(value)=>{b::error("duplicate Windows label");},Option::None=>{}}map_set::<string,i32>(inout labels,i.symbol,array_len::<u8>(out));}
+  else if operation_id==op_goto||operation_id==op_nonzero {if operation_id==op_goto {array_push::<u8>(inout out,233);}else {b::append(inout out,[133,192,15,133]);}array_push::<Fixup>(inout fixups,Fixup {offset:array_len::<u8>(out),label:i.symbol});b::word(inout out,0);}
+  else if operation_id==op_load {disp(inout out,[72,139,133],slot(i.a,first.a,shift));}
+  else if operation_id==op_second {disp(inout out,[76,139,149],slot(i.a,first.a,shift));}
+  else if operation_id==op_save {disp(inout out,[72,137,133],slot(i.a,first.a,shift));}
+  else if operation_id==op_slot_address {disp(inout out,[72,141,133],slot(i.a,first.a,shift));}
+  else if operation_id==op_context {disp(inout out,[72,139,141],slot(-8,first.a,shift));}
+  else if operation_id==op_arg_address {disp(inout out,[72,141,149],slot(i.a,first.a,shift));}
+  else if operation_id==op_loc_address {disp(inout out,[76,141,133],slot(i.a,first.a,shift));}
+  else if operation_id==op_out_address {disp(inout out,[76,141,141],slot(i.a,first.a,shift));}
+  else if operation_id==op_return {if i.a!=0 {disp(inout out,[76,139,149],slot(-32,first.a,shift));if i.a==8 {b::append(inout out,[73,137,2]);}else if i.a==4 {b::append(inout out,[65,137,2]);}else if i.a==1 {b::append(inout out,[65,136,2]);}else {b::error("invalid Windows return width");}}array_push::<i32>(inout epilogues,array_len::<u8>(out));disp(inout out,[72,141,165],shift);b::append(inout out,[93,195]);}
+  else if operation_id==op_windows_api {
+   let signature:ir::Signature=api::get(i.symbol);let mut width:i32=4;if signature.result=="ptr" {width=8;}if signature.result=="void" {width=0;}let mut extra:i32=0;if i.a>4 {extra=(i.a-4)*8;}if i.a!=array_len::<string>(signature.params)||i.b!=width||32+extra>frame-32 {b::error("invalid Win32 mechanism signature or frame");}
+   disp(inout out,[76,139,149],slot(-16,first.a,shift));let mut n:i32=4;while n<i.a {disp(inout out,[73,139,130],n*8);disp(inout out,[72,137,132,36],32+(n-4)*8);n=n+1;}
+   let registers:Array<Bytes>=[[73,139,138],[73,139,146],[77,139,130],[77,139,138]];n=0;while n<i.a&&n<4 {disp(inout out,registers[n],n*8);n=n+1;}
+   array_push::<u8>(inout out,232);array_push::<x::Relocation>(inout relocs,x::Relocation {offset:array_len::<u8>(out),symbol:i.symbol,kind:"plt32",addend:-4});b::word(inout out,0);
+  }
+  else if operation_id==op_windows_start {
+   if i.a!=0||i.b!=0||i.symbol!="k_windows_main"||frame<256 {b::error("invalid Windows startup frame");}
+   disp(inout out,[72,199,132,36],48);b::word(inout out,0);let mut n:i32=0;while n<16 {disp(inout out,[72,199,132,36],64+n*8);b::word(inout out,0);n=n+1;}
+   disp(inout out,[72,141,140,36],64);disp(inout out,[72,141,148,36],48);disp(inout out,[76,141,132,36],48);disp(inout out,[76,141,140,36],48);
+   let targets:Array<string>=["k_windows_main","ExitProcess"];for target in targets {if target=="ExitProcess" {disp(inout out,[139,140,36],48);}array_push::<u8>(inout out,232);array_push::<x::Relocation>(inout relocs,x::Relocation {offset:array_len::<u8>(out),symbol:target,kind:"pc32",addend:-4});b::word(inout out,0);}b::append(inout out,[15,11]);
+  }
+  else {append_shared(inout out,inout relocs,i,operation_id);}
+ }
+ for f in fixups {let label:i32=b::get(labels,f.label);b::patch(inout out,f.offset,label-f.offset-4);}
+ return Code {name:name,bytes:out,relocations:relocs,frame_size:frame,allocation_end:allocation_end,frame_setup_end:frame_setup_end,epilogues:epilogues};
+}
+pub fn encode_program(p:ir::Program)->Array<Code> {
+ if p.platform!="windows"||p.target!="x86_64" {b::error("expected private Windows x86-64 IR");}
+ let mut validated:ir::Program=p;validated.platform="linux";ir::verify(validated);
+ let mut imports:Array<string>=[];for signature in p.imports {array_push::<string>(inout imports,signature.name);}
+ let opcode_registry:Map<string,i32>=opcodes::registry();let mut out:Array<Code>=[];for f in p.functions {array_push::<Code>(inout out,encode_registered(f.name,ir::lower(f,imports),opcode_registry));}return out;
+}

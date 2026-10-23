@@ -1,0 +1,21 @@
+import "../../stdlib/testing.kelft" as testing;
+import "../../stdlib/json-safe.kelft" as safe;
+import "../../selfhost/json.kelft" as j;
+import "../../selfhost/hash.kelft" as hash;
+import "../../selfhost/direct/binary.kelft" as binary;
+pub fn test_json_canonical(inout context:testing::Context)->void {
+ testing::equal_string(inout context,j::canonical(j::parse("{\"z\":-0,\"a\":\"\\uD83D\\uDE00\",\"b\":[null,true,9007199254740991]}")),"{\"a\":\"\u{1f600}\",\"b\":[null,true,9007199254740991],\"z\":0}","strict canonical JSON");
+}
+pub fn test_json_rejections(inout context:testing::Context)->void {
+ let invalid:Array<string>=["{\"a\":1,\"a\":2}","1.0","01","9007199254740992","\"\\uD800\"","[1,]","{\"a\":true,}","NaN"];
+ for source in invalid {match safe::parse(source) {Result::Error(message)=>{testing::equal_string(inout context,message,"INVALID_JSON",source);},Result::Ok(value)=>{testing::expect(inout context,false,"accepted invalid JSON: "+source);}}}
+}
+pub fn test_sha256(inout context:testing::Context)->void {
+ testing::equal_string(inout context,hash::sha256(""),"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","empty SHA-256 vector");testing::equal_string(inout context,hash::sha256("abc"),"sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","abc SHA-256 vector");
+}
+pub fn test_hmac(inout context:testing::Context)->void {
+ let mut key:Bytes=[];let mut i:i32=0;while i<131 {array_push::<u8>(inout key,170);i=i+1;}testing::equal_string(inout context,hash::hmac_sha256(key,string_to_bytes("Test Using Larger Than Block-Size Key - Hash Key First")),"hmac-sha256:60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54","long key HMAC vector");
+}
+pub fn test_binary_words(inout context:testing::Context)->void {
+ let mut bytes:Bytes=[];binary::word(inout bytes,-2147483648);binary::half(inout bytes,65535);binary::signed_wide(inout bytes,-1);testing::equal_bytes(inout context,bytes,[0,0,0,128,255,255,255,255,255,255,255,255,255,255],"little endian signed words");
+}

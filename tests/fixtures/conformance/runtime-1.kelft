@@ -1,0 +1,1 @@
+fn main()->void {println(i32_to_string(1/0));}

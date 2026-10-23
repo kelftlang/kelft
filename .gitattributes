@@ -1,0 +1,6 @@
+# Preserve the exact bytes bound by the publication and bootstrap inventories.
+* -text
+# Retain formatting in dependency notices and recorded seed sources.
+bootstrap/*/notices/** -whitespace
+bootstrap/sources/dependencies/*/notices/** -whitespace
+bootstrap/*/rootfs/source/** -whitespace

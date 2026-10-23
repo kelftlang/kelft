@@ -1,0 +1,12 @@
+import "../../examples/relay/browser-policy.kelft" as client;
+import "../../selfhost/json.kelft" as j;
+fn command(frame:j::Value,kind:string)->j::Value {for item in j::array(j::field(frame,"commands")) {if j::string(j::field(item,"type"))==kind {return item;}}return j::Value::Null();}
+fn main()->i32 {
+ let initial:j::Value=j::parse("{\"sequence\":0,\"auth_epoch\":1,\"pending\":{},\"queue\":[],\"forms\":{},\"data_version\":1,\"persisted_version\":1,\"online\":false,\"vault_enabled\":true,\"vault_unlocked\":true,\"local_authorized\":true,\"workspace\":\"00000000-0000-4000-8000-000000000001\",\"identity\":{\"issuer\":\"https://identity.test\",\"subject\":\"alice\"},\"snapshot\":{\"workspace\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"name\":\"Team\",\"revision\":1},\"tasks\":[{\"id\":\"00000000-0000-4000-8000-000000000002\",\"workspace\":\"00000000-0000-4000-8000-000000000001\",\"title\":\"Plan\",\"state\":\"todo\",\"owner\":null,\"revision\":1}],\"members\":[],\"conflicts\":[]}}");
+ let moved:j::Value=client::transition(initial,j::parse("{\"type\":\"ui.task-move\",\"data\":{\"task\":\"00000000-0000-4000-8000-000000000002\",\"state\":\"doing\",\"workspace\":\"00000000-0000-4000-8000-000000000001\",\"base\":{\"revision\":1,\"title\":\"Plan\",\"state\":\"todo\",\"owner\":null}}}"));
+ let random:j::Value=command(moved,"random.uuid");let mut event:j::Value=j::parse("{\"type\":\"host.complete\",\"ok\":true,\"result\":{\"uuid\":\"00000000-0000-4000-8000-000000000003\"}}");event=j::set(event,"id",j::field(random,"id"));let queued:j::Value=client::transition(j::field(moved,"state"),event);let store:j::Value=command(queued,"vault.store");let items:Array<j::Value>=j::array(j::field(j::field(store,"payload"),"queue"));
+ if array_len::<j::Value>(items)!=1||j::string(j::field(j::field(j::field(items[0],"operation"),"patch"),"state"))!="doing"||j::is_object(command(queued,"http.request"))||array_len::<j::Value>(j::array(j::field(initial,"queue")))!=0 {return 1;}
+ let mut completion:j::Value=j::parse("{\"type\":\"host.complete\",\"ok\":true,\"result\":{\"persisted\":true}}");completion=j::set(completion,"id",j::field(store,"id"));let persisted:j::Value=client::transition(j::field(queued,"state"),completion);
+ if array_len::<j::Value>(j::array(j::field(j::field(persisted,"state"),"queue")))!=1||!j::boolean(j::field(j::field(persisted,"state"),"vault_unlocked"))||j::is_object(command(persisted,"http.request")) {return 1;}
+ println("Relay durable client transitions passed");return 0;
+}

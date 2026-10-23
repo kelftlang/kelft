@@ -1,0 +1,112 @@
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+import "./core.kelft" as core;
+import "./modules.kelft" as modules;
+import "./semantic.kelft" as semantic;
+import "./parser.kelft" as parser;
+import "./intent_domain.kelft" as domain;
+import "./intent_source.kelft" as intent_source;
+import "./intent_public.kelft" as intent_public;
+import "./intent_bindings.kelft" as bindings;
+import "./intent_capabilities.kelft" as capabilities;
+
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+pub fn from_file(program:core::Program,mods:Array<modules::Module>,file:string,root:string)->core::Program {
+    return from_files(program,mods,file,root,"");
+}
+pub fn from_files(program:core::Program,mods:Array<modules::Module>,file:string,root:string,binding_file:string)->core::Program {
+    return enforce(source_graph(file,root,binding_file),program,mods,path_relative(canonical_path(root),canonical_path(file)));
+}
+pub fn source_graph(file:string,root:string,binding_file:string)->j::Value {
+    let relative:string=path_relative(canonical_path(root),canonical_path(file));if relative==".."||s::starts(relative,"../")||s::has(relative,":") {s::error("K0211","Intent outside project root",s::span(file,0,0));}
+    if string_len(file)<6||s::slice(file,string_len(file)-6,string_len(file))!=".kelft" {s::error("K0211","source must use .kelft",s::span(file,0,0));}
+    let mut source:string="";match read_file(file) {Result::Ok(bytes)=>{match utf8_decode(bytes) {Result::Ok(value)=>{source=value;},Result::Error(message)=>{s::error("K0005","source is not valid UTF-8",s::span(file,0,0));}}},Result::Error(message)=>{s::error("K0211",message,s::span(file,0,0));}}
+    let mut graph:j::Value=intent_source::lower(intent_source::parse(source,file));intent_public::extract(graph);capabilities::lower(graph);
+    if binding_file!="" {let rel:string=path_relative(canonical_path(root),canonical_path(binding_file));if rel==".."||s::starts(rel,"../")||s::has(rel,":") {s::error("K0211","bindings outside project root",s::span(binding_file,0,0));}match read_text(binding_file) {Result::Ok(value)=>{graph=bindings::resolve(graph,j::parse(value),relative);},Result::Error(message)=>{s::error("K0211",message,s::span(binding_file,0,0));}}}
+    return graph;
+}
+fn number(v:j::Value)->i32 {return s::number(j::canonical(v));}
+fn location(n:j::Value)->s::Span {let span:j::Value=j::field(n,"span");return s::span(text(span,"file"),number(j::field(span,"start")),number(j::field(span,"end")));}
+fn bad(n:j::Value,message:string)->void {s::error("K0712",message,location(n));}
+fn known(values:Map<string,bool>,key:string)->bool {match map_get::<string,bool>(values,key) {Option::Some(value)=>{return value;},Option::None=>{return false;}}}
+fn find(nodes:Array<core::Node>,name:string)->core::Node {for n in nodes {if n.name==name {return n;}}return core::make("","","",[],s::span("",0,0),false);}
+fn params(f:core::Node)->Array<core::Node> {let mut out:Array<core::Node>=[];for p in f.args {if p.op=="param" {array_push::<core::Node>(inout out,p);}}return out;}
+fn base(name:string)->string {if s::starts(name,"m") {let i:i32=string_find(name,"::",0);if i>=0 {return s::slice(name,i+2,string_len(name));}}return name;}
+struct SameFrame {a:string,b:string,step:i32,index:i32,child_index:i32,left:Array<string>,right:Array<string>,fields:Array<core::Node>,others:Array<core::Node>}
+fn same_frame(a:string,b:string)->SameFrame {return SameFrame {a:a,b:b,step:0,index:0,child_index:0,left:[],right:[],fields:[],others:[]};}
+fn same(a:string,b:string,model:core::Program,program:core::Program,inout mapping:Map<string,string>,inout seen:Map<string,bool>,behavior:j::Value)->void {
+ let mut pending:Array<SameFrame>=[same_frame(a,b)];while array_len::<SameFrame>(pending)>0 {let mut f:SameFrame=same_frame(a,b);match array_pop::<SameFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}
+  if f.step==0 {let ap:(string,Array<string>)=s::type_parts(f.a);let bp:(string,Array<string>)=s::type_parts(f.b);if base(ap.0)!=base(bp.0)||array_len::<string>(ap.1)!=array_len::<string>(bp.1) {bad(behavior,"implementation ABI differs from the declared behavior signature");}match map_get::<string,string>(mapping,f.a) {Option::Some(old)=>{if old!=f.b {bad(behavior,"implementation ABI differs from the declared behavior signature");}},Option::None=>{}}map_set::<string,string>(inout mapping,f.a,f.b);let key:string=f.a+"|"+f.b;if known(seen,key) {continue;}map_set::<string,bool>(inout seen,key,true);f.left=ap.1;f.right=bp.1;f.step=1;}
+  if f.step==1 {if f.index<array_len::<string>(f.left) {let child:SameFrame=same_frame(f.left[f.index],f.right[f.index]);f.index=f.index+1;array_push::<SameFrame>(inout pending,f);array_push::<SameFrame>(inout pending,child);continue;}let at:core::Node=find(model.types,f.a);let bt:core::Node=find(program.types,f.b);if (at.op=="")!=(bt.op=="") {bad(behavior,"implementation ABI differs from the declared behavior signature");}if at.op=="" {continue;}if at.op!=bt.op||array_len::<core::Node>(at.args)!=array_len::<core::Node>(bt.args) {bad(behavior,"implementation ABI differs from the declared behavior signature");}f.fields=at.args;f.others=bt.args;f.index=0;f.step=2;}
+  if f.index>=array_len::<core::Node>(f.fields) {continue;}let field:core::Node=f.fields[f.index];let other:core::Node=find(f.others,field.name);
+  if f.step==2 {if field.op!=other.op {bad(behavior,"implementation ABI differs from the declared behavior signature");}if field.op!="variant" {let child:SameFrame=same_frame(field.ty,other.ty);f.index=f.index+1;array_push::<SameFrame>(inout pending,f);array_push::<SameFrame>(inout pending,child);continue;}if array_len::<core::Node>(field.args)!=array_len::<core::Node>(other.args) {bad(behavior,"implementation ABI differs from the declared behavior signature");}f.child_index=0;f.step=3;}
+  if f.child_index<array_len::<core::Node>(field.args) {let child:SameFrame=same_frame(field.args[f.child_index].ty,other.args[f.child_index].ty);f.child_index=f.child_index+1;array_push::<SameFrame>(inout pending,f);array_push::<SameFrame>(inout pending,child);}else {f.index=f.index+1;f.step=2;array_push::<SameFrame>(inout pending,f);}
+ }
+}
+fn type_mapping(expected:core::Node,model:core::Program,actual:core::Node,program:core::Program,behavior:j::Value)->Map<string,string> {
+    let a:Array<core::Node>=params(expected);let b:Array<core::Node>=params(actual);let mut mapping:Map<string,string>=map_new::<string,string>();let mut seen:Map<string,bool>=map_new::<string,bool>();
+    if array_len::<core::Node>(a)!=array_len::<core::Node>(b) {bad(behavior,"implementation ABI differs from the declared behavior signature");}
+    let mut i:i32=0;for p in a {if p.flag!=b[i].flag {bad(behavior,"implementation ABI differs from the declared behavior signature");}same(p.ty,b[i].ty,model,program,inout mapping,inout seen,behavior);i=i+1;}return mapping;
+}
+fn visit(name:string,model:core::Program,inout needed:Map<string,bool>,behavior:j::Value)->void {
+    if known(needed,name) {return;}map_set::<string,bool>(inout needed,name,true);let f:core::Node=find(model.functions,name);if f.op=="" {bad(behavior,"unresolved contract helper");}walk(f,model,inout needed,behavior);
+}
+fn walk(n:core::Node,model:core::Program,inout needed:Map<string,bool>,behavior:j::Value)->void {
+ let mut pending:Array<core::Node>=[n];while array_len::<core::Node>(pending)>0 {let node:core::Node=pending[array_len::<core::Node>(pending)-1];array_pop::<core::Node>(inout pending);let mut i:i32=array_len::<core::Node>(node.args)-1;while i>=0 {array_push::<core::Node>(inout pending,node.args[i]);i=i-1;}if node.op=="call"&&!known(needed,node.name) {map_set::<string,bool>(inout needed,node.name,true);let f:core::Node=find(model.functions,node.name);if f.op=="" {bad(behavior,"unresolved contract helper");}array_push::<core::Node>(inout pending,f);}}
+}
+fn first(b:i32)->bool {return b>=65&&b<=90||b>=97&&b<=122||b==95;}
+fn next(b:i32)->bool {return first(b)||b>=48&&b<=57;}
+fn rewrite(value:string,mapping:Map<string,string>,behavior:j::Value,strict:bool)->string {
+    let mut out:string="";let mut i:i32=0;
+    while i<string_len(value) {if s::starts(s::slice(value,i,string_len(value)),"m0::")&&i+4<string_len(value)&&first(s::byte(value,i+4)) {
+        let start:i32=i;i=i+5;while i<string_len(value)&&next(s::byte(value,i)) {i=i+1;}let name:string=s::slice(value,start,i);match map_get::<string,string>(mapping,name) {Option::Some(mapped)=>{out=out+mapped;},Option::None=>{if strict {bad(behavior,"unmapped contract domain type "+name);}out=out+name;}}
+    }else {out=out+s::slice(value,i,i+1);i=i+1;}}return out;
+}
+struct CloneFrame {node:core::Node,name:string,index:i32,entered:bool,waiting:bool,args:Array<core::Node>}
+fn clone_frame(n:core::Node)->CloneFrame {return CloneFrame {node:n,name:"",index:0,entered:false,waiting:false,args:[]};}
+fn clone(n:core::Node,prefix:string,mapping:Map<string,string>,behavior:j::Value)->core::Node {
+ let mut pending:Array<CloneFrame>=[clone_frame(n)];let mut result:core::Node=n;
+ while array_len::<CloneFrame>(pending)>0 {let mut f:CloneFrame=clone_frame(n);match array_pop::<CloneFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:core::Node=f.node;
+  if !f.entered {f.name=node.name;if node.op=="call"||node.op=="function" {f.name=prefix+s::slice(node.name,4,string_len(node.name));}else if node.op=="variant"||node.op=="variant_pattern" {f.name=rewrite(node.name,mapping,behavior,false);}f.entered=true;}
+  if f.waiting {array_push::<core::Node>(inout f.args,result);f.waiting=false;}
+  if f.index<array_len::<core::Node>(node.args) {let child:core::Node=node.args[f.index];f.index=f.index+1;f.waiting=true;array_push::<CloneFrame>(inout pending,f);array_push::<CloneFrame>(inout pending,clone_frame(child));}
+  else {result=core::make(node.op,f.name,rewrite(node.ty,mapping,behavior,true),f.args,node.span,node.flag);}
+ }return result;
+}
+fn arguments_for(parameters:Array<core::Node>,span:s::Span)->Array<core::Node> {let mut out:Array<core::Node>=[];for p in parameters {let mut value:core::Node=core::make("local",p.name,p.ty,[],span,false);if p.flag {value=core::make("location","",p.ty,[value],span,false);}array_push::<core::Node>(inout out,value);}return out;}
+fn guard(name:string,args:Array<core::Node>,stage:string,behavior:j::Value)->core::Node {
+    let span:s::Span=location(behavior);let condition:core::Node=core::make("unary","!","bool",[core::make("call",name,"bool",args,span,false)],span,false);
+    let message:core::Node=core::make("literal","error[KRT_CONTRACT]: "+text(behavior,"id")+" "+stage+"\n","string",[],span,false);
+    let output:core::Node=core::make("evaluate","","void",[core::make("intrinsic","eprint","void",[message],span,false)],span,false);
+    let stop:core::Node=core::make("evaluate","","void",[core::make("intrinsic","exit","void",[core::make("literal","1","i32",[],span,false)],span,false)],span,false);
+    return core::make("if","","void",[condition,core::make("block","","void",[output,stop],span,false)],span,false);
+}
+pub fn enforce(graph:j::Value,program:core::Program,mods:Array<modules::Module>,intent_file:string)->core::Program {
+    let source:string=domain::source(graph);let file:string="<intent-domain>";let model:core::Program=semantic::analyze([modules::Module {id:"m0",file:file,full:file,source:source,tree:parser::parse(source,file),imports:map_new::<string,string>()}]);
+    let nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));let mut functions:Array<core::Node>=program.functions;let mut index:i32=0;let mut next_module:i32=array_len::<modules::Module>(mods);
+    for behavior in nodes {
+        if text(behavior,"kind")!="behavior"||text(behavior,"value")=="" {continue;}let sig:domain::Signature=domain::signature(behavior);if !sig.typed {continue;}
+        let number:i32=index;index=index+1;let mut binding:j::Value=j::Value::Null();for n in nodes {if text(n,"scope")==text(behavior,"id")&&text(n,"kind")=="implementation" {binding=n;}}if !j::is_object(binding) {continue;}
+        if sig.result=="" {bad(behavior,"bound behavior requires a complete declared signature");}
+        let parts:Array<string>=string_split(text(binding,"value"),"::");let path:string=path_relative(current_dir(),resolve_path(path_dirname(intent_file),parts[0]));let mut name:string="";for mod in mods {if mod.file==path {name=mod.id+"::"+parts[1];}}
+        if name=="" {continue;}
+        let mut actual:core::Node=find(functions,name);if actual.op=="" {bad(binding,"bound behavior implementation was not loaded");}
+        let pre:core::Node=find(model.functions,"m0::__pre_"+i32_to_string(number));let post:core::Node=find(model.functions,"m0::__contract_"+i32_to_string(number));let mut mapping:Map<string,string>=type_mapping(pre,model,actual,program,behavior);
+        if sig.result=="void" {if actual.ty!="void" {bad(behavior,"implementation ABI differs from the declared behavior signature");}}
+        else {let mut expected:core::Node=pre;let pp:Array<core::Node>=params(post);let mut ep:Array<core::Node>=params(pre);array_push::<core::Node>(inout ep,pp[array_len::<core::Node>(pp)-1]);array_push::<core::Node>(inout ep,pre.args[array_len::<core::Node>(pre.args)-1]);expected.args=ep;
+            let mut output:core::Node=actual;let mut op:Array<core::Node>=params(actual);array_push::<core::Node>(inout op,core::make("param","v"+i32_to_string(array_len::<core::Node>(actual.args)),actual.ty,[],location(behavior),false));array_push::<core::Node>(inout op,actual.args[array_len::<core::Node>(actual.args)-1]);output.args=op;mapping=type_mapping(expected,model,output,program,behavior);
+        }
+        let prefix:string="m"+i32_to_string(next_module)+"::";next_module=next_module+1;let mut needed:Map<string,bool>=map_new::<string,bool>();visit(pre.name,model,inout needed,behavior);visit(post.name,model,inout needed,behavior);
+        for f in model.functions {if known(needed,f.name) {array_push::<core::Node>(inout functions,clone(f,prefix,mapping,behavior));}}
+        let original:string=actual.name;let body_name:string=prefix+"__implementation";actual.name=body_name;let mut fi:i32=0;while fi<array_len::<core::Node>(functions) {if functions[fi].name==original {functions[fi]=actual;break;}fi=fi+1;}
+        let mut parameters:Array<core::Node>=params(actual);let mut pi:i32=0;while pi<array_len::<core::Node>(parameters) {parameters[pi].name="v"+i32_to_string(pi);pi=pi+1;}let span:s::Span=location(behavior);
+        let mut body:Array<core::Node>=[guard(prefix+"__pre_"+i32_to_string(number),arguments_for(parameters,span),"precondition",behavior)];
+        let call:core::Node=core::make("call",body_name,actual.ty,arguments_for(parameters,span),span,false);let result:core::Node=core::make("local","v"+i32_to_string(array_len::<core::Node>(parameters)),actual.ty,[],span,false);
+        if actual.ty=="void" {array_push::<core::Node>(inout body,core::make("evaluate","","void",[call],span,false));}else {array_push::<core::Node>(inout body,core::make("bind",result.name,result.ty,[call],span,false));}
+        let mut args:Array<core::Node>=arguments_for(parameters,span);let mut returned:Array<core::Node>=[];if actual.ty!="void" {array_push::<core::Node>(inout args,result);array_push::<core::Node>(inout returned,result);}
+        array_push::<core::Node>(inout body,guard(prefix+"__contract_"+i32_to_string(number),args,"postcondition",behavior));array_push::<core::Node>(inout body,core::make("return","","void",returned,span,false));
+        array_push::<core::Node>(inout parameters,core::make("block","","void",body,span,false));array_push::<core::Node>(inout functions,core::make("function",original,actual.ty,parameters,actual.span,false));
+    }
+    let mut i:i32=1;while i<array_len::<core::Node>(functions) {let mut k:i32=i;while k>0&&functions[k].name<functions[k-1].name {let value:core::Node=functions[k];functions[k]=functions[k-1];functions[k-1]=value;k=k-1;}i=i+1;}
+    let result:core::Program=core::Program {entry:program.entry,types:program.types,functions:functions,effects:program.effects};core::validate(result);return result;
+}

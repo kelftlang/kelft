@@ -1,0 +1,23 @@
+import "../../stdlib/testing.kelft" as testing;
+import "../../selfhost/toolchain/testing.kelft" as runner;
+import "../../selfhost/json.kelft" as j;
+pub fn test_runner_options(inout context:testing::Context)->void {
+ let options:j::Value=runner::options(j::parse("[\"test\",\"--filter\",\"unicode\",\"--list\",\"--json\"]"));testing::equal_string(inout context,j::string(j::field(options,"filter")),"unicode","filter selection");testing::expect(inout context,j::boolean(j::field(options,"list")),"list mode");testing::equal_string(inout context,j::string(j::field(options,"path")),"tests/kelft","default test path");
+}
+pub fn test_runner_discovery_request(inout context:testing::Context)->void {
+ let action:j::Value=runner::decide(j::parse("{\"schema\":\"kelft.test-request/1\",\"arguments\":[\"test\"],\"target\":\"linux-x86_64\"}"));testing::equal_string(inout context,j::string(j::field(action,"operation")),"discover","initial action requests observations");testing::equal_string(inout context,j::string(j::field(action,"schema")),"kelft.test-action/1","action contract");
+}
+fn corpus_request()->j::Value {
+ let corpus:j::Value=j::parse("{\"schemaVersion\":\"0.1\",\"positive\":[{\"entry\":\"fixtures/ok.kelft\",\"stdout\":\"\\u0000\\u00e9\",\"stderr\":\"\",\"exit\":0}],\"negative\":[{\"entry\":\"fixtures/bad.kelft\",\"code\":\"K0206\"}],\"negativeModules\":[],\"runtime\":[]}");
+ let sources:j::Value=j::set(j::parse("{}"),"tests/conformance.json",j::Value::Text(j::canonical(corpus)));
+ let mut request:j::Value=j::parse("{\"schema\":\"kelft.test-request/1\",\"arguments\":[\"test\",\"--corpus\"],\"target\":\"windows-x86_64\",\"expectations\":{\"schema\":\"kelft.native-conformance/1\",\"cases\":{}},\"builds\":{\"fixtures/bad.kelft\":{\"status\":\"failed\",\"exit\":1,\"error\":null,\"stderrHex\":\"6572726f725b4b303230365d\"},\"fixtures/ok.kelft\":{\"status\":\"success\",\"exit\":0}},\"executions\":{\"positive::fixtures/ok.kelft\":{\"status\":\"exited\",\"exit\":0,\"stdoutHex\":\"00c3a9\",\"stderrHex\":\"\"}}}");request=j::set(request,"sources",sources);return request;
+}
+pub fn test_corpus_exact_bytes_and_diagnostics(inout context:testing::Context)->void {
+ let request:j::Value=corpus_request();let report:j::Value=j::field(runner::decide(request),"report");testing::equal_json(inout context,j::field(report,"totals"),j::parse("{\"passed\":2,\"failed\":0}"),"matching diagnostic and NUL/Unicode bytes");
+ let execution:j::Value=j::parse("{\"positive::fixtures/ok.kelft\":{\"status\":\"exited\",\"exit\":0,\"stdoutHex\":\"00c3a900\",\"stderrHex\":\"\"}}");let changed:j::Value=runner::decide(j::set(request,"executions",execution));testing::equal_json(inout context,j::field(j::field(changed,"report"),"totals"),j::parse("{\"passed\":1,\"failed\":1}"),"extra output byte fails");
+}
+pub fn test_corpus_native_expectation(inout context:testing::Context)->void {
+ let mut request:j::Value=corpus_request();request=j::set(request,"expectations",j::parse("{\"schema\":\"kelft.native-conformance/1\",\"cases\":{\"fixtures/bad.kelft\":{\"code\":\"KRT_RESOURCE\",\"reason\":\"explicit native limit\"}}}"));
+ let report:j::Value=j::field(runner::decide(request),"report");testing::equal_json(inout context,j::field(report,"totals"),j::parse("{\"passed\":1,\"failed\":1}"),"native expectation must match the observation");
+ request=j::set(request,"target",j::Value::Text("javascript-reference"));testing::equal_json(inout context,j::field(j::field(runner::decide(request),"report"),"totals"),j::parse("{\"passed\":2,\"failed\":0}"),"reference retains shared expectation");
+}

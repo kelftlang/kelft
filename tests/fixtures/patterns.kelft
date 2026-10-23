@@ -1,0 +1,15 @@
+fn main() -> void {
+    let values: Array<Option<bool>> = [Option::<bool>::Some(true),Option::<bool>::Some(false),Option::<bool>::None()];
+    for value in values {
+        match value {
+            Option::Some(true) => { println("yes"); },
+            Option::Some(false) => { println("no"); },
+            Option::None => { println("none"); }
+        }
+    }
+    let pair: (bool,bool) = (true,false);
+    match pair {
+        (true,true) => { println("tt"); }, (true,false) => { println("tf"); },
+        (false,_) => { println("f"); }
+    }
+}

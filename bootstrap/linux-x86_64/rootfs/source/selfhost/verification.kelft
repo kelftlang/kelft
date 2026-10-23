@@ -1,0 +1,132 @@
+import "./direct/native-target.kelft" as native_targets;
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+import "./intent.kelft" as intent;
+import "./hash.kelft" as hash;
+import "./modules.kelft" as modules;
+import "./semantic.kelft" as semantic;
+import "./core.kelft" as ir;
+import "./emitter.kelft" as emitter;
+import "./wasm/emitter.kelft" as wasm;
+import "./intent_enforce.kelft" as enforce;
+fn read(path: string) -> string { match read_text(path) { Result::Ok(value) => { return value; }, Result::Error(message) => { s::error("K0503", message, s::span(path, 0, 0)); return ""; } } }
+fn text(v: j::Value, key: string) -> string { return j::string(j::field(v, key)); }
+fn inside(path: string, root: string) -> bool { let relative: string = path_relative(canonical_path(root), canonical_path(path)); return relative != ".." && !s::starts(relative, "../") && !s::has(relative, ":"); }
+pub fn candidate_hash(mods: Array<modules::Module>) -> string {
+    let mut sources: Map<string,string> = map_new::<string,string>(); for mod in mods { map_set::<string,string>(inout sources, mod.file, hash::sha256(mod.source)); }
+    let mut values: Array<j::Value> = []; for (file, source_hash) in sources { let pair: Array<j::Value> = [j::Value::Text(file),j::Value::Text(source_hash)]; array_push::<j::Value>(inout values, j::Value::Array(pair)); }
+    return hash::sha256(j::canonical(j::Value::Array(values)));
+}
+pub fn policy_check(permissions: j::Value, policy: j::Value) -> void {
+    let operations: Array<string> = ["read", "write"];
+    for operation in operations {
+        if !j::is_array(j::field(policy, operation)) { s::error("K0503", "invalid external policy", s::span("<policy>", 0, 0)); }
+        for root in j::array(j::field(policy,operation)) {if !j::is_string(root) {s::error("K0503","invalid external policy",s::span("<policy>",0,0));}}
+        for requested in j::array(j::field(permissions, operation)) {
+            let mut granted: bool = false; for root in j::array(j::field(policy, operation)) { if inside(j::string(requested), j::string(root)) { granted = true; } }
+            if !granted { s::error("K0503", "requested authority exceeds external policy", s::span("<policy>", 0, 0)); }
+        }
+    }
+}
+pub fn verify(value: j::Value, candidate: string, policy: j::Value, fixture_root: string) -> j::Value {
+    return verify_for(value,candidate,policy,fixture_root,"javascript",false,false,j::Value::Null(),"");
+}
+pub fn verify_bound(value:j::Value,candidate:string,policy:j::Value,fixture_root:string,declarations:string,bindings:string)->j::Value {
+    return verify_for_bound(value,candidate,policy,fixture_root,"javascript",false,false,j::Value::Null(),"",declarations,bindings);
+}
+pub fn verify_for(value:j::Value,candidate:string,policy:j::Value,fixture_root:string,target_id:string,external:bool,prepare:bool,evidence:j::Value,output:string)->j::Value {
+    return verify_for_bound(value,candidate,policy,fixture_root,target_id,external,prepare,evidence,output,"","");
+}
+pub fn verify_for_bound(value:j::Value,candidate:string,policy:j::Value,fixture_root:string,target_id:string,external:bool,prepare:bool,evidence:j::Value,output:string,declarations:string,bindings:string)->j::Value {
+    return verify_emitted_for(value,candidate,policy,fixture_root,target_id,external,prepare,evidence,output,declarations,bindings,j::Value::Null());
+}
+pub fn verify_emitted_for(value:j::Value,candidate:string,policy:j::Value,fixture_root:string,target_id:string,external:bool,prepare:bool,evidence:j::Value,output:string,declarations:string,bindings:string,native_artifact:j::Value)->j::Value {
+    if native_targets::is_native(target_id)&&(!external||!j::is_object(native_artifact)) {s::error("K0601","native target requires the trusted external protocol",s::span("<protocol>",0,0));}
+    let mods: Array<modules::Module> = modules::load(candidate, current_dir());
+    let mut report: j::Value = j::parse("{\"schemaVersion\":\"0.1\",\"state\":\"passed\",\"results\":[],\"artifactHash\":\"\"}");
+    report = j::set(report, "intentHash", j::Value::Text(intent::semantic_hash(value))); report = j::set(report, "candidateHash", j::Value::Text(candidate_hash(mods)));
+    let mut dependencies: j::Value = j::Value::Object(map_new::<string,j::Value>());
+    let mut declared: j::Value = j::field(j::field(value,"context"),"dependencyHashes");
+    for assumption in j::array(j::field(value,"assumptions")) {for (key, digest) in j::object(j::field(assumption,"dependencies")) {declared=j::set(declared,key,digest);}}
+    for (key, digest) in j::object(declared) {
+        if inside(key,current_dir()) {match read_file(key) {Result::Ok(source)=>{dependencies=j::set(dependencies,key,j::Value::Text(hash::sha256_bytes(source)));},Result::Error(message)=>{}}}
+    }
+    let mut fixtures: j::Value = j::Value::Object(map_new::<string,j::Value>());
+    for target in j::array(j::field(value,"verificationTargets")) {
+        if text(target,"verifier")=="fixture" {let path:string=resolve_path(fixture_root,text(target,"fixture"));if !inside(path,fixture_root) {s::error("K0503","fixture escapes trusted registry root",s::span(path,0,0));}fixtures=j::set(fixtures,text(target,"fixture"),j::Value::Text(hash::sha256(read(path))));}
+    }
+    report=j::set(report,"policyHash",j::Value::Text(intent::semantic_hash(policy)));report=j::set(report,"fixtureHash",j::Value::Text(intent::semantic_hash(fixtures)));
+    report=j::set(report,"dependencyHashes",dependencies);report=j::set(report,"compilerHash",j::Value::Text(""));
+    if intent::needs_human(j::field(intent::invalidate(value,dependencies),"intent")) { return j::set(report, "state", j::Value::Text("needs-human")); }
+    let permissions: j::Value = j::field(value, "permissions"); policy_check(permissions, policy);
+    let mut program: ir::Program = semantic::analyze(mods);if declarations!="" {program=enforce::from_files(program,mods,declarations,current_dir(),bindings);dependencies=j::set(dependencies,declarations,j::Value::Text(hash::sha256(read(declarations))));if bindings!="" {dependencies=j::set(dependencies,bindings,j::Value::Text(hash::sha256(read(bindings))));}report=j::set(report,"dependencyHashes",dependencies);}else if bindings!="" {s::error("K0713","implementation bindings require --intent",s::span(bindings,0,0));}let mut results: Array<j::Value> = [];
+    let mut denied:bool=false;for effect in program.effects {
+        if effect=="fs.read"&&array_len::<j::Value>(j::array(j::field(permissions,"read")))==0||effect=="fs.write"&&array_len::<j::Value>(j::array(j::field(permissions,"write")))==0||effect=="artifact.execute"||effect=="process.execute" {denied=true;}
+    }
+    if denied {
+        let outcome:j::Value=j::parse("{\"id\":\"compiler\",\"verifier\":\"typecheck\",\"status\":\"failed\",\"detail\":\"host effect denied by capability policy\"}");
+        report=j::set(report,"state",j::Value::Text("failed"));return j::set(report,"results",j::Value::Array([outcome]));
+    }
+    let mut emitted:Bytes=[];if native_targets::is_native(target_id) {let artifact:j::Value=native_artifact;let fields:Array<string>=["artifactHash","objectHash","toolchainIdentity"];for field in fields {if !intent::valid_hash(j::string(j::field(artifact,field))) {s::error("K0601","native adapter artifact identity required",s::span("<protocol>",0,0));}}report=j::set(report,"artifactHash",j::field(artifact,"artifactHash"));report=j::set(report,"objectHash",j::field(artifact,"objectHash"));report=j::set(report,"toolchainIdentity",j::field(artifact,"toolchainIdentity"));}else if target_id=="wasm" {emitted=wasm::emit_with_policy(program,j::canonical(permissions));}else if target_id=="javascript" {emitted=string_to_bytes(emitter::policy(emitter::emit(program),j::canonical(permissions)));}else {s::error("K0601","unsupported execution target",s::span("<protocol>",0,0));}
+    if !native_targets::is_native(target_id) {report=j::set(report,"artifactHash",j::Value::Text(hash::sha256_bytes(emitted)));}
+    let mut requests:Array<j::Value>=[];
+    if prepare&&!native_targets::is_native(target_id) {match write_file(output,emitted) {Result::Ok(ok)=>{},Result::Error(message)=>{s::error("K0601",message,s::span(output,0,0));}}}
+    for target in j::array(j::field(value, "verificationTargets")) {
+        let verifier: string = text(target, "verifier"); let mut status: string = "passed"; let mut detail: string = "";
+        if verifier == "fixture" {
+            let fixture_path: string = resolve_path(fixture_root, text(target, "fixture"));
+            if !inside(fixture_path, fixture_root) { s::error("K0503", "fixture escapes trusted registry root", s::span(fixture_path, 0, 0)); }
+            let fixture: j::Value = j::parse(read(fixture_path)); let mut arguments: Array<string> = [];
+            if !j::is_array(j::field(fixture,"args"))||!j::is_string(j::field(fixture,"stdout"))||!j::is_string(j::field(fixture,"stderr"))||!j::is_number(j::field(fixture,"exit")) {s::error("K0503","invalid fixture",s::span(fixture_path,0,0));}
+            let fixture_exit:i32=s::number(j::canonical(j::field(fixture,"exit")));if fixture_exit<0||fixture_exit>255 {s::error("K0503","invalid fixture",s::span(fixture_path,0,0));}
+            for argument in j::array(j::field(fixture, "args")) { if !j::is_string(argument) { s::error("K0503", "invalid fixture", s::span(fixture_path, 0, 0)); } array_push::<string>(inout arguments, j::string(argument)); }
+            let mut effect_denied: bool = false;
+            for effect in program.effects {
+                if effect == "fs.read" && array_len::<j::Value>(j::array(j::field(permissions, "read"))) == 0 { effect_denied = true; }
+                if effect == "fs.write" && array_len::<j::Value>(j::array(j::field(permissions, "write"))) == 0 { effect_denied = true; }
+                if effect == "artifact.execute"||effect == "process.execute" { effect_denied = true; }
+            }
+            if effect_denied { status = "failed"; detail = "host effect denied by capability policy"; }
+            else if external {
+                let mut request:j::Value=j::Value::Object(map_new::<string,j::Value>());
+                request=j::set(request,"id",j::field(target,"id"));request=j::set(request,"verifier",j::Value::Text("fixture"));request=j::set(request,"fixture",j::field(target,"fixture"));request=j::set(request,"fixtureHash",j::Value::Text(hash::sha256(read(fixture_path))));request=j::set(request,"args",j::field(fixture,"args"));request=j::set(request,"permissions",permissions);request=j::set(request,"artifactHash",j::field(report,"artifactHash"));request=j::set(request,"target",j::Value::Text(target_id));array_push::<j::Value>(inout requests,request);
+                if prepare {status="pending";}else {
+                    let mut found:i32=0;let mut result:j::Value=j::Value::Null();for row in j::array(evidence) {if text(row,"id")==text(target,"id") {found=found+1;result=row;}}
+                    if found!=1||text(result,"verifier")!="fixture"||text(result,"fixtureHash")!=text(request,"fixtureHash")||text(result,"artifactHash")!=text(report,"artifactHash")||text(result,"status")!="exited" {status="failed";detail="missing or invalid execution evidence";}
+                    else if j::canonical(j::field(result,"exit"))!=j::canonical(j::field(fixture,"exit"))||text(result,"stdoutHex")!=hash::bytes_hex(string_to_bytes(text(fixture,"stdout")))||text(result,"stderrHex")!=hash::bytes_hex(string_to_bytes(text(fixture,"stderr"))) {status="failed";detail="fixture behavior mismatch";}
+                    else {let effects:j::Value=j::field(result,"fileEffects");let expected:j::Value=j::field(fixture,"fileEffects");if j::is_object(expected) {if j::canonical(effects)!=j::canonical(expected) {status="failed";detail="file effects mismatch";}}else if j::canonical(j::field(effects,"before"))!=j::canonical(j::field(effects,"after")) {status="failed";detail="undeclared file effects";}}
+                }
+            } else {
+                match artifact_run(emitted, "javascript", arguments, j::canonical(permissions)) {
+                    Result::Ok(result) => {
+                        let expected_exit: i32 = s::number(j::canonical(j::field(fixture, "exit")));
+                        if result.0 != expected_exit || result.1 != text(fixture, "stdout") || result.2 != text(fixture, "stderr") { status = "failed"; detail = "fixture behavior mismatch"; }
+                    },
+                    Result::Error(message) => { status = "failed"; detail = message; }
+                }
+            }
+        } else if verifier == "external" { status = "unverified"; detail = "external assessment required"; }
+        let mut outcome: j::Value = j::Value::Object(map_new::<string,j::Value>());
+        outcome = j::set(outcome, "id", j::field(target, "id")); outcome = j::set(outcome, "verifier", j::Value::Text(verifier));
+        outcome = j::set(outcome, "status", j::Value::Text(status)); outcome = j::set(outcome, "detail", j::Value::Text(detail)); array_push::<j::Value>(inout results, outcome);
+        if j::boolean(j::field(target, "mandatory")) && status != "passed" && status!="pending" { report = j::set(report, "state", j::Value::Text("failed")); }
+    }
+    if external {report=j::set(report,"executionRequests",j::Value::Array(requests));}
+    return j::set(report, "results", j::Value::Array(results));
+}
+fn write(path: string, value: j::Value) -> void { match write_once(path, j::canonical(value) + "\n") { Result::Ok(ok) => {}, Result::Error(message) => { s::error("K0503", message, s::span(path, 0, 0)); } } }
+pub fn accept(value: j::Value, report: j::Value, ledger: string, parent: string) -> j::Value {
+    if parent != "" {
+        if !intent::valid_hash(parent) { s::error("K0503", "invalid ledger parent", s::span(ledger, 0, 0)); }
+        let prior: j::Value = j::parse(read(resolve_path(ledger, s::slice(parent, 7, 71) + ".json")));
+        if intent::semantic_hash(prior) != parent { s::error("K0503", "ledger parent hash mismatch", s::span(ledger, 0, 0)); }
+    }
+    match create_dir(ledger) { Result::Ok(ok) => {}, Result::Error(message) => { s::error("K0503", message, s::span(ledger, 0, 0)); } }
+    let evidence_hash: string = intent::semantic_hash(report); let mut event: j::Value = j::parse("{\"schemaVersion\":\"0.1\",\"action\":\"accept\"}");
+    event = j::set(event, "parent", j::Value::Text(parent)); event = j::set(event, "intentHash", j::field(report, "intentHash")); event = j::set(event, "candidateHash", j::field(report, "candidateHash"));
+    event = j::set(event, "evidenceHash", j::Value::Text(evidence_hash)); event = j::set(event, "actor", j::field(j::field(value, "provenance"), "actor"));
+    let event_hash: string = intent::semantic_hash(event);
+    write(resolve_path(ledger, s::slice(text(report, "intentHash"), 7, 71) + ".intent.json"), value);
+    write(resolve_path(ledger, s::slice(evidence_hash, 7, 71) + ".json"), report); write(resolve_path(ledger, s::slice(event_hash, 7, 71) + ".json"), event);
+    return j::set(report, "eventHash", j::Value::Text(event_hash));
+}

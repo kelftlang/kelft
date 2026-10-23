@@ -1,0 +1,15 @@
+enum Box<T> { Item(T), Empty }
+type Items<T> = Array<T>;
+struct Holder<T> { value: T }
+fn identity<T>(value: T) -> T { return value; }
+fn main() -> void {
+    let x: Box<i32> = Box::<i32>::Item(identity::<i32>(42));
+    match x {
+        Box::Item(value) => { println(i32_to_string(value)); },
+        Box::Empty => { println("empty"); }
+    }
+    let h: Holder<string> = Holder::<string> { value: "generic" };
+    println(h.value);
+    let values: Items<i32> = [1, 2];
+    for x in values { println(i32_to_string(x)); }
+}

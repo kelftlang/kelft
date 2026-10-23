@@ -1,0 +1,36 @@
+// Declared-input pins. No implicit filesystem enumeration or authority grants.
+import "./workspace.kelft" as w;
+import "./toml.kelft" as toml;
+import "../json.kelft" as j;
+import "../syntax.kelft" as s;
+import "../hash.kelft" as h;
+fn need(ok:bool,message:string)->void {if !ok {s::error("K0810",message,s::span("<workspace-pins>",0,0));}}
+fn identities()->Array<string> {return ["compiler-sha256","coordinator-sha256","boundary-sha256","workspace-policy-sha256"];}
+fn fields(value:j::Value,allowed:Array<string>)->void {need(j::is_object(value),"pin table required");for (name,child) in j::object(value) {let mut found:bool=false;for item in allowed {if item==name {found=true;}}need(found,"unsupported pin field: "+name);}}
+fn digest(value:j::Value)->void {
+ let raw:string=j::string(value);let mut valid:bool=j::is_string(value)&&string_len(raw)==71&&s::starts(raw,"sha256:");let mut n:i32=7;while n<string_len(raw) {let b:i32=s::byte(raw,n);if !((b>=48&&b<=57)||(b>=97&&b<=102)) {valid=false;}n=n+1;}need(valid,"pin requires lowercase SHA-256");
+}
+pub fn toolchain(raw:j::Value,observed:j::Value)->j::Value {
+ need(j::is_string(raw),"toolchain manifest must contain UTF-8 text");let manifest:j::Value=toml::parse(j::string(raw),"kelft-toolchain.toml");fields(manifest,["toolchain-version","hosts"]);need(j::field(manifest,"toolchain-version")==j::Value::Number("1"),"toolchain-version = 1 required");let hosts:j::Value=j::field(manifest,"hosts");need(j::is_object(hosts)&&map_len::<string,j::Value>(j::object(hosts))>0&&map_len::<string,j::Value>(j::object(hosts))<=2,"declare Windows/Linux x64 toolchain pins");
+ for (host,pin) in j::object(hosts) {need(host=="linux-x86_64"||host=="windows-x86_64","unsupported pinned host");fields(pin,identities());for key in identities() {digest(j::field(pin,key));}}
+ let current:j::Value=j::field(hosts,j::string(j::field(observed,"host")));need(j::is_object(current),"running host is absent from toolchain pins");for key in identities() {digest(j::field(observed,key));need(j::field(current,key)==j::field(observed,key),"installed toolchain differs: "+key);}
+ let mut out:j::Value=j::parse("{\"toolchainVerified\":true}");out=j::set(out,"toolchainManifestSHA256",j::Value::Text(h::sha256(j::string(raw))));return j::set(out,"toolchainHosts",hosts);
+}
+fn lower(value:string)->string {let mut out:Bytes=[];for byte in string_to_bytes(value) {let mut b:i32=i32_from_u8(byte);if b>=65&&b<=90 {b=b+32;}array_push::<u8>(inout out,u8_from_i32(b));}return bytes_to_string(out);}
+pub fn paths(data:j::Value)->Array<j::Value> {
+ let mut names:Map<string,string>=map_new::<string,string>();let mut requested:Map<string,string>=map_new::<string,string>();
+ for node in j::array(j::field(data,"packages")) {let files:j::Value=j::field(node,"sources");need(j::is_array(files)&&array_len::<j::Value>(j::array(files))>0,"pinned packages require explicit [sources] files");for file in j::array(files) {let path:string=w::local(w::directory(j::string(j::field(node,"manifest"))),j::string(file));let folded:string=lower(path);match map_get::<string,string>(names,folded) {Option::Some(previous)=>{need(false,"source ownership overlaps or case-collides");},Option::None=>{}}map_set::<string,string>(inout names,folded,path);map_set::<string,string>(inout requested,path,path);need(map_len::<string,string>(names)<=1024,"workspace source count exceeds 1024");}}
+ let mut out:Array<j::Value>=[];for (path,unused) in requested {array_push::<j::Value>(inout out,j::Value::Text(path));}return out;
+}
+pub fn sources(data:j::Value,snapshots:j::Value)->j::Value {
+ let required:Array<j::Value>=paths(data);need(j::is_object(snapshots),"source observations required");for (path,item) in j::object(snapshots) {let mut found:bool=false;for value in required {if value==j::Value::Text(path) {found=true;}}need(found,"undeclared source observation");}
+ let mut packages:Array<j::Value>=[];let mut total:i32=0;
+ for node in j::array(j::field(data,"packages")) {let mut files:j::Value=j::parse("{}");for file in j::array(j::field(node,"sources")) {let name:string=j::string(file);let path:string=w::local(w::directory(j::string(j::field(node,"manifest"))),name);let value:j::Value=j::field(snapshots,path);fields(value,["size","sha256"]);let raw:j::Value=j::field(value,"size");let mut size:i32=-1;if j::is_number(raw) {match string_to_i32(j::canonical(raw)) {Result::Ok(n)=>{size=n;},Result::Error(message)=>{}}}need(size>=0&&size<=16777216,"source exceeds 16 MiB or has invalid size");digest(j::field(value,"sha256"));total=total+size;need(total<=67108864,"workspace sources exceed 64 MiB");files=j::set(files,name,value);}
+  let mut identity:j::Value=j::parse("{}");identity=j::set(identity,"manifestSHA256",j::field(node,"manifestSHA256"));identity=j::set(identity,"files",files);let mut pinned:j::Value=j::set(node,"sourceFiles",files);pinned=j::set(pinned,"sourceSHA256",j::Value::Text(h::sha256(j::canonical(identity))));array_push::<j::Value>(inout packages,pinned);
+ }
+ let mut out:j::Value=j::set(data,"packages",j::Value::Array(packages));out=j::set(out,"sourceFilesChecked",j::Value::Bool(true));out=j::set(out,"sourceClosureChecked",j::Value::Bool(false));out=j::set(out,"sourceContentPinned",j::Value::Text("declared-files"));out=j::set(out,"lockContract",j::Value::Text("kelft-local-lock/2"));return j::set(out,"lockScope",j::Value::Text("local-declared-inputs"));
+}
+pub fn lock_header(data:j::Value)->string {
+ let mut out:string="# Generated by Kelft. Declared sources and exact toolchain identities.\nschema = 2\ncontract = \"kelft-local-lock/2\"\nroot-manifest-sha256 = "+s::json_quote(j::string(j::field(data,"rootManifestSHA256")))+"\n\n[resolution]\nalgorithm = \"kelft-local-paths/1\"\nsource-edition = \"0.1\"\n\n[toolchain]\nmanifest-sha256 = "+s::json_quote(j::string(j::field(data,"toolchainManifestSHA256")))+"\n";
+ for (host,pin) in j::object(j::field(data,"toolchainHosts")) {let mut values:Array<string>=[];for (key,value) in j::object(pin) {array_push::<string>(inout values,key+" = "+s::json_quote(j::string(value)));}out=out+host+" = { "+s::join(values,", ")+" }\n";}return out;
+}

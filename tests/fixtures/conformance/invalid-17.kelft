@@ -1,0 +1,1 @@
+fn main()->void { map_new::<Array<i32>,i32>(); }

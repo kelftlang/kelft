@@ -1,0 +1,6 @@
+fn step(inout n:i32)->i32 {n=n+1;return n;}
+fn main()->void {
+    let mut n:i32=0;let pair:(i32,i32)=(step(inout n),step(inout n));
+    println(i32_to_string(pair.0));println(i32_to_string(pair.1));
+    let mut array:Array<i32>=[0,0,0,0];array[step(inout n)]=step(inout n);println(i32_to_string(array[3]));
+}

@@ -1,0 +1,76 @@
+import "./syntax.kelft" as s;
+fn alpha(c: i32) -> bool { return c >= 65 && c <= 90 || c >= 97 && c <= 122 || c == 95; }
+fn digit(c: i32) -> bool { return c >= 48 && c <= 57; }
+fn width(c: i32) -> i32 { if c < 128 { return 1; } if c < 224 { return 2; } if c < 240 { return 3; } return 4; }
+fn token(kind: string, text: string, file: string, start: i32, end: i32) -> s::Token {
+    return s::Token { kind: kind, text: text, span: s::span(file, start, end) };
+}
+pub fn lex(source: string, file: string) -> Array<s::Token> {
+    let mut out: Array<s::Token> = []; let mut i: i32 = 0; let n: i32 = string_len(source);
+    while i < n {
+        let start: i32 = i; let c: i32 = s::byte(source, i);
+        if c == 32 || c == 9 || c == 10 || c == 13 || c == 11 || c == 12 { i = i + 1; continue; }
+        if c >= 128 { s::error("K0004", "invalid source character", s::span(file, start, i + width(c))); }
+        if c==47 && i + 1 < n && s::byte(source,i+1)==47 {
+            while i < n && s::byte(source, i) != 10 { i = i + width(s::byte(source, i)); } continue;
+        }
+        if c==47 && i + 1 < n && s::byte(source,i+1)==42 {
+            i = i + 2;
+            while i < n { if s::byte(source,i)==42 && i + 1 < n && s::byte(source,i+1)==47 { break; } i = i + width(s::byte(source, i)); }
+            if i + 1 >= n { s::error("K0001", "unterminated comment", s::span(file, start, i)); }
+            i = i + 2; continue;
+        }
+        if alpha(c) {
+            i = i + 1; while i < n && (alpha(s::byte(source, i)) || digit(s::byte(source, i))) { i = i + 1; }
+            array_push::<s::Token>(inout out, token("id", s::slice(source, start, i), file, start, i)); continue;
+        }
+        if digit(c) {
+            i = i + 1; while i < n && digit(s::byte(source, i)) { i = i + 1; }
+            array_push::<s::Token>(inout out, token("int", s::slice(source, start, i), file, start, i)); continue;
+        }
+        if c == 34 {
+            i = i + 1; let mut text: string = ""; let mut closed: bool = false;
+            while i < n {
+                let code: i32 = s::byte(source, i);
+                if code == 34 { i = i + 1; closed = true; break; }
+                if code == 10 || code == 13 { s::error("K0002", "newline in string", s::span(file, start, i + 1)); }
+                if code != 92 { let w: i32 = width(code); text = text + s::slice(source, i, i + w); i = i + w; continue; }
+                i = i + 1;
+                if i >= n { s::error("K0002", "unterminated string", s::span(file, start, i)); }
+                let e: i32 = s::byte(source, i); i = i + 1;
+                if e == 110 { text = text + "\n"; } else if e == 114 { text = text + "\r"; }
+                else if e == 116 { text = text + "\t"; } else if e == 48 { text = text + "\0"; }
+                else if e == 34 { text = text + "\""; } else if e == 92 { text = text + "\\"; }
+                else if e == 117 && i < n && s::byte(source, i) == 123 {
+                    i = i + 1; let mut value: i32 = 0; let mut count: i32 = 0;
+                    while i < n && s::byte(source, i) != 125 {
+                        let h: i32 = s::byte(source, i); let mut d: i32 = -1;
+                        if h >= 48 && h <= 57 { d = h - 48; }
+                        if h >= 65 && h <= 70 { d = h - 65 + 10; }
+                        if h >= 97 && h <= 102 { d = h - 97 + 10; }
+                        if d < 0 || count >= 6 { s::error("K0003", "invalid Unicode escape", s::span(file, start, i)); }
+                        value = value * 16 + d; count = count + 1; i = i + 1;
+                    }
+                    if i >= n || count == 0 || value > 1114111 || value >= 55296 && value <= 57343 { s::error("K0003", "invalid Unicode scalar", s::span(file, start, i)); }
+                    i = i + 1; text = text + string_from_codepoint(value);
+                } else { s::error("K0003", "invalid string escape", s::span(file, start, i)); }
+            }
+            if !closed { s::error("K0002", "unterminated string", s::span(file, start, i)); }
+            array_push::<s::Token>(inout out, token("string", text, file, start, i)); continue;
+        }
+        let mut op: string = "";
+        let operators: Array<string> = [">>>", "::", "->", "=>", "==", "!=", "<=", ">=", "&&", "||", "<<", ">>"];
+        for candidate in operators {
+            let size: i32 = string_len(candidate);
+            if c!=s::byte(candidate,0) {continue;}
+            if i + size <= n {
+                let mut matching:bool=true;let mut j:i32=1;while j<size {if s::byte(source,i+j)!=s::byte(candidate,j) {matching=false;}j=j+1;}
+                if matching {op=candidate;break;}
+            }
+        }
+        if op == "" && c < 128 && s::has("{}()[];,:.+-*/%<>=!&|^~", s::slice(source, i, i + 1)) { op = s::slice(source, i, i + 1); }
+        if op == "" { s::error("K0004", "invalid source character", s::span(file, start, i + width(c))); }
+        i = i + string_len(op); array_push::<s::Token>(inout out, token("symbol", op, file, start, i));
+    }
+    array_push::<s::Token>(inout out, token("eof", "<eof>", file, n, n)); return out;
+}

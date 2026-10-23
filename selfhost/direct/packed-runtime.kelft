@@ -1,0 +1,34 @@
+// Packed Array<u8>: header 36 stores ~capacity. Other arrays use nonnegative capacity.
+import "./builder.kelft" as g;
+import "./ir.kelft" as ir;
+pub fn functions()->Array<ir::Function> {return [shift(),allocate(),copy(),push()];}
+fn shift()->ir::Function {
+ let mut b:g::Builder=g::builder("k_array_shift",["ptr"],0,"i32");let array:i32=g::argument(inout b,0);
+ let marker:i32=g::load(inout b,array,36,"i32");let bits:i32=g::c(inout b,31);let packed:i32=g::binary(inout b,"shr_u",marker,bits);let one:i32=g::c(inout b,1);let wide:i32=g::binary(inout b,"xor",packed,one);let three:i32=g::c(inout b,3);let out:i32=g::binary(inout b,"mul",wide,three);g::ret(inout b,out);return g::finish(b);
+}
+fn allocate()->ir::Function {
+ let mut b:g::Builder=g::builder("k_bytes_alloc",["i32"],0,"ptr");let length:i32=g::argument(inout b,0);
+ let z:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",length,z);g::guard(inout b,negative);let ceiling:i32=g::c(inout b,268435400);let large:i32=g::binary(inout b,"gt_s",length,ceiling);g::guard(inout b,large);
+ let one:i32=g::c(inout b,1);let seven:i32=g::c(inout b,7);let nine:i32=g::c(inout b,9);let small:i32=g::binary(inout b,"le_s",length,nine);let extra:i32=g::binary(inout b,"mul",seven,small);let scale:i32=g::binary(inout b,"add",one,extra);let reserved:i32=g::binary(inout b,"mul",length,scale);
+ let count:i32=g::c(inout b,0);let mode:i32=g::c(inout b,0);let nil:i32=g::nil(inout b);let out:i32=g::call(inout b,"k_heap_alloc",[reserved,count,mode,nil],"ptr",[]);g::store(inout b,out,8,length);let mask:i32=g::c(inout b,-1);let capacity:i32=g::binary(inout b,"xor",reserved,mask);g::store(inout b,out,36,capacity);g::ret(inout b,out);return g::finish(b);
+}
+fn copy()->ir::Function {
+ // The caller checks start/end and extra (0 or 1).
+ let mut b:g::Builder=g::builder("k_bytes_copy",["ptr","i32","i32","i32"],0,"ptr");let source:i32=g::argument(inout b,0);let start:i32=g::argument(inout b,1);let end:i32=g::argument(inout b,2);let extra:i32=g::argument(inout b,3);let size:i32=g::binary(inout b,"sub",end,start);let total:i32=g::binary(inout b,"add",size,extra);let out:i32=g::call(inout b,"k_bytes_alloc",[total],"ptr",[]);let index:i32=g::c(inout b,0);
+ let test:string=g::label(inout b);let body:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);let more:i32=g::binary(inout b,"lt_s",index,size);g::branch(inout b,more,body,done);g::begin(inout b,body);
+ let header:i32=g::c(inout b,40);let position:i32=g::binary(inout b,"add",start,index);let offset:i32=g::binary(inout b,"add",header,position);let address:i32=g::pointer(inout b,source,offset);let value:i32=g::load(inout b,address,0,"u8");let base:i32=g::c(inout b,40);let displacement:i32=g::binary(inout b,"add",base,index);let destination:i32=g::pointer(inout b,out,displacement);g::store(inout b,destination,0,value);let one:i32=g::c(inout b,1);let next:i32=g::binary(inout b,"add",index,one);g::assign(inout b,index,next);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,out);return g::finish(b);
+}
+fn push()->ir::Function {
+ let mut b:g::Builder=g::builder("k_bytes_push",["ptr","ptr"],0,"void");let cell:i32=g::argument(inout b,0);let value:i32=g::argument(inout b,1);let old:i32=g::load(inout b,cell,0,"ptr");let bytes:i32=g::load(inout b,old,8,"i32");
+ let limit:i32=g::c(inout b,268435399);let large:i32=g::binary(inout b,"gt_s",bytes,limit);g::guard(inout b,large);
+ let one:i32=g::c(inout b,1);let next:i32=g::binary(inout b,"add",bytes,one);let marker:i32=g::load(inout b,old,36,"i32");let mask:i32=g::c(inout b,-1);let capacity:i32=g::binary(inout b,"xor",marker,mask);let out:i32=g::copy(inout b,old);let reuse:string=g::label(inout b);let grow:string=g::label(inout b);let store:string=g::label(inout b);
+ let rc:i32=g::load(inout b,old,0,"i32");let single:i32=g::c(inout b,1);let unique:i32=g::binary(inout b,"eq",rc,single);let fits:i32=g::binary(inout b,"le_s",next,capacity);let inplace:i32=g::binary(inout b,"and",unique,fits);g::branch(inout b,inplace,reuse,grow);g::begin(inout b,reuse);g::jump(inout b,store);g::begin(inout b,grow);
+ let two:i32=g::c(inout b,2);let reserved:i32=g::binary(inout b,"mul",bytes,two);
+ // Above 1 MiB, quarter growth bounds the transient old+new reservation.
+ let compact:string=g::label(inout b);let sized:string=g::label(inout b);let threshold:i32=g::c(inout b,1048576);let large_buffer:i32=g::binary(inout b,"ge_s",bytes,threshold);g::branch(inout b,large_buffer,compact,sized);g::begin(inout b,compact);let shift:i32=g::c(inout b,2);let extra:i32=g::binary(inout b,"shr_u",bytes,shift);let size:i32=g::binary(inout b,"add",bytes,extra);g::assign(inout b,reserved,size);g::jump(inout b,sized);g::begin(inout b,sized);
+ let minimum:string=g::label(inout b);let maximum:string=g::label(inout b);let allocate:string=g::label(inout b);let low:i32=g::c(inout b,1);let small:i32=g::binary(inout b,"lt_s",reserved,low);g::branch(inout b,small,minimum,maximum);g::begin(inout b,minimum);let initial:i32=g::c(inout b,1);g::assign(inout b,reserved,initial);g::jump(inout b,maximum);g::begin(inout b,maximum);
+ let clamp:string=g::label(inout b);let high:i32=g::c(inout b,268435400);let excessive:i32=g::binary(inout b,"gt_s",reserved,high);g::branch(inout b,excessive,clamp,allocate);g::begin(inout b,clamp);let ceiling:i32=g::c(inout b,268435400);g::assign(inout b,reserved,ceiling);g::jump(inout b,allocate);g::begin(inout b,allocate);
+ let created:i32=g::call(inout b,"k_bytes_alloc",[reserved],"ptr",[]);g::assign(inout b,out,created);let index:i32=g::c(inout b,0);let test:string=g::label(inout b);let body:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);let more:i32=g::binary(inout b,"lt_s",index,bytes);g::branch(inout b,more,body,done);g::begin(inout b,body);
+ let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,index);let source:i32=g::pointer(inout b,old,offset);let item:i32=g::load(inout b,source,0,"u8");let base:i32=g::c(inout b,40);let displacement:i32=g::binary(inout b,"add",base,index);let destination:i32=g::pointer(inout b,out,displacement);g::store(inout b,destination,0,item);let step:i32=g::c(inout b,1);let increment:i32=g::binary(inout b,"add",index,step);g::assign(inout b,index,increment);g::jump(inout b,test);g::begin(inout b,done);g::store(inout b,out,8,bytes);g::store(inout b,cell,0,out);g::call(inout b,"k_heap_release",[old],"void",[]);g::jump(inout b,store);g::begin(inout b,store);
+ let appended:i32=g::load(inout b,value,0,"u8");let prefix:i32=g::c(inout b,40);let at:i32=g::binary(inout b,"add",prefix,bytes);let slot:i32=g::pointer(inout b,out,at);g::store(inout b,slot,0,appended);g::store(inout b,out,8,next);g::ret(inout b,-1);return g::finish(b);
+}

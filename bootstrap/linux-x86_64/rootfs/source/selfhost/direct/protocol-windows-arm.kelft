@@ -1,0 +1,27 @@
+// Backend-dependent protocol adapter; ordinary JS/Wasm compilers do not import it.
+import "../driver-native.kelft" as driver;
+import "../json.kelft" as j;
+import "../hash.kelft" as h;
+import "../intent.kelft" as intent;
+import "../modules.kelft" as modules;
+import "../semantic.kelft" as semantic;
+import "../core.kelft" as core;
+import "../syntax.kelft" as s;
+import "./verification-artifact-windows-arm.kelft" as artifact;
+fn fail(message:string)->void {s::error("K0601",message,s::span("<native-protocol>",0,0));}
+fn read(file:string)->string {match read_text(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return "";}
+fn emit(request:j::Value,prepare:bool)->j::Value {
+ let mods:Array<modules::Module>=modules::load(j::string(j::field(request,"entry")),current_dir());let program:core::Program=semantic::analyze(mods);let mut permissions:j::Value=j::field(request,"permissions");
+ if j::string(j::field(request,"action"))!="run" {let value:j::Value=intent::parse(read(j::string(j::field(request,"intentPath"))));permissions=j::field(value,"permissions");}
+ return artifact::emit(program,j::canonical(permissions),prepare,j::string(j::field(request,"artifactPath")),j::string(j::field(request,"nativeToolchain")));
+}
+pub fn command(arguments:Array<string>,request:j::Value)->void {
+ driver::checked(request,true);if j::string(j::field(request,"target"))!="native-windows-arm64-v1" {fail("native compiler target differs");}let phase:string=arguments[1];if phase!="prepare"&&phase!="finalize" {fail("unknown protocol phase");}
+ if phase=="prepare" {
+  // Check source effects, Intent and external policy before any linker or output
+  // operation. These temporary hashes are never returned as an execution plan.
+  let mut provisional:j::Value=j::Value::Null();let digest:j::Value=j::Value::Text(h::sha256(""));provisional=j::set(provisional,"artifactHash",digest);provisional=j::set(provisional,"objectHash",digest);provisional=j::set(provisional,"toolchainIdentity",digest);
+  let preflight:j::Value=driver::prepare_artifact(request,provisional);let state:string=j::string(j::field(j::field(preflight,"report"),"state"));if state!="passed" {println(j::canonical(preflight));if state=="needs-human" {exit(2);}exit(1);}
+ }
+ let measured:j::Value=emit(request,phase=="prepare");driver::command_with_artifact(arguments,measured);
+}

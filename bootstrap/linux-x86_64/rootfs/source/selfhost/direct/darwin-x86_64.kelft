@@ -1,0 +1,95 @@
+import "./opcodes.kelft" as opcodes;
+// Private Darwin x64 encoder. Linux syscall and Windows operations are rejected.
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./ir.kelft" as ir;
+import "./darwin-api.kelft" as api;
+pub struct Code {name:string,bytes:Bytes,relocations:Array<x::Relocation>,frame_size:i32,returns:Array<i32>}
+struct Fixup {offset:i32,name:string}
+fn disp(inout out:Bytes,prefix:Bytes,value:i32)->void {b::append(inout out,prefix);b::word(inout out,value);}
+fn call(inout out:Bytes,inout relocations:Array<x::Relocation>,symbol:string,external:bool)->void {array_push::<u8>(inout out,232);let mut kind:string="pc32";if external {kind="plt32";}array_push::<x::Relocation>(inout relocations,x::Relocation {offset:array_len::<u8>(out),symbol:symbol,kind:kind,addend:-4});b::word(inout out,0);}
+fn contains(values:Array<string>,value:string)->bool {for item in values {if item==value {return true;}}return false;}
+fn shared(operation_id:i32)->bool {
+ // BEGIN generated opcode constants
+ let op_add:i32=993596020;
+ let op_address:i32=745154899;
+ let op_and:i32=254395046;
+ let op_arg_address:i32=1471864344;
+ let op_call:i32=-1276017495;
+ let op_context:i32=-1937305476;
+ let op_div_s:i32=-332448462;
+ let op_eq:i32=1142581827;
+ let op_ge_s:i32=1804211731;
+ let op_gt_s:i32=-585182360;
+ let op_imm:i32=2129075090;
+ let op_le_s:i32=699435220;
+ let op_load:i32=-435725847;
+ let op_loc_address:i32=1992971310;
+ let op_lt_s:i32=1404448415;
+ let op_mask_u8:i32=-285466473;
+ let op_mul:i32=-343609983;
+ let op_ne:i32=1479958588;
+ let op_or:i32=1563699588;
+ let op_out_address:i32=-216729632;
+ let op_prologue:i32=-656573192;
+ let op_ptr_add:i32=1697139769;
+ let op_ptr_eq:i32=376154780;
+ let op_read:i32=-824204347;
+ let op_rem_s:i32=-2091945951;
+ let op_return:i32=-2047985729;
+ let op_save:i32=-855671224;
+ let op_second:i32=-1409755939;
+ let op_shl:i32=-533861450;
+ let op_shr_s:i32=-1849078538;
+ let op_shr_u:i32=-1815523300;
+ let op_slot_address:i32=-1491298942;
+ let op_sub:i32=-598853355;
+ let op_trap:i32=1619038978;
+ let op_write:i32=-1104765092;
+ let op_xor:i32=-865346690;
+ // END generated opcode constants
+
+return (operation_id==op_prologue||operation_id==op_imm||operation_id==op_mask_u8||operation_id==op_load||operation_id==op_second||operation_id==op_save||operation_id==op_context||operation_id==op_arg_address||operation_id==op_loc_address||operation_id==op_out_address||operation_id==op_slot_address||operation_id==op_read||operation_id==op_write||operation_id==op_ptr_add||operation_id==op_ptr_eq||operation_id==op_add||operation_id==op_sub||operation_id==op_mul||operation_id==op_and||operation_id==op_or||operation_id==op_xor||operation_id==op_shl||operation_id==op_shr_s||operation_id==op_shr_u||operation_id==op_div_s||operation_id==op_rem_s||operation_id==op_eq||operation_id==op_ne||operation_id==op_lt_s||operation_id==op_le_s||operation_id==op_gt_s||operation_id==op_ge_s||operation_id==op_address||operation_id==op_call||operation_id==op_trap||operation_id==op_return);}
+pub fn encode(name:string,instructions:Array<x::Machine>)->Code {return encode_registered(name,instructions,opcodes::registry());}
+pub fn encode_registered(name:string,instructions:Array<x::Machine>,opcode_registry:Map<string,i32>)->Code {
+ // BEGIN generated opcode constants
+ let op_arg_address:i32=1471864344;
+ let op_darwin_api:i32=-1956410691;
+ let op_darwin_start:i32=1059693933;
+ let op_goto:i32=-173862938;
+ let op_label:i32=-157870083;
+ let op_load:i32=-435725847;
+ let op_loc_address:i32=1992971310;
+ let op_nonzero:i32=1790618910;
+ let op_out_address:i32=-216729632;
+ let op_prologue:i32=-656573192;
+ let op_return:i32=-2047985729;
+ let op_save:i32=-855671224;
+ let op_second:i32=-1409755939;
+ let op_slot_address:i32=-1491298942;
+ // END generated opcode constants
+
+
+
+
+ if array_len::<x::Machine>(instructions)==0 {b::error("invalid Darwin native frame");}let first:x::Machine=instructions[0];if first.op!="prologue"||first.a<32||first.a>40000||first.a%16!=0 {b::error("invalid Darwin native frame");}
+ let frame:i32=first.a;let mut out:Bytes=[];let mut relocations:Array<x::Relocation>=[];let mut returns:Array<i32>=[];let mut labels:Map<string,i32>=map_new::<string,i32>();let mut fixups:Array<Fixup>=[];let mut index:i32=0;
+ for i in instructions {let operation_id:i32=opcodes::identify(i.op,opcode_registry);
+  if operation_id==op_prologue&&index!=0 {b::error("nested Darwin prologue");}index=index+1;
+  if (operation_id==op_load||operation_id==op_second||operation_id==op_save||operation_id==op_arg_address||operation_id==op_loc_address||operation_id==op_out_address||operation_id==op_slot_address)&&(i.a> -8||i.a< -frame) {b::error("invalid Darwin frame slot");}
+  if operation_id==op_label {match map_get::<string,i32>(labels,i.symbol) {Option::Some(value)=>{b::error("duplicate Darwin label");},Option::None=>{}}map_set::<string,i32>(inout labels,i.symbol,array_len::<u8>(out));}
+  else if operation_id==op_goto||operation_id==op_nonzero {if operation_id==op_goto {array_push::<u8>(inout out,233);}else {b::append(inout out,[133,192,15,133]);}array_push::<Fixup>(inout fixups,Fixup {offset:array_len::<u8>(out),name:i.symbol});b::word(inout out,0);}
+  else if operation_id==op_darwin_api {
+   let a:ir::Signature=api::get(i.symbol);let mut width:i32=4;if a.result=="void" {width=0;}if a.result=="ptr" {width=8;}if i.a!=array_len::<string>(a.params)||i.a>6||i.b!=width {b::error("invalid Darwin mechanism signature");}disp(inout out,[76,139,157],-16);
+   let registers:Array<i32>=[187,179,147,139,131,139];let mut n:i32=0;while n<i.a {let mut rex:i32=65;if n>=4 {rex=69;}if a.params[n]=="ptr" {rex=rex+8;}disp(inout out,[u8_from_i32(rex),139,u8_from_i32(registers[n])],n*8);n=n+1;}if api::variadic_start(i.symbol)>=0 {b::append(inout out,[49,192]);}call(inout out,inout relocations,i.symbol,true);
+  }else if operation_id==op_darwin_start {
+   if frame<256||i.a!=0||i.b!=0||i.symbol!="k_darwin_main" {b::error("invalid Darwin startup frame");}let base:i32=-192;let mut positions:Array<i32>=[-208,-200];let mut n:i32=0;while n<16 {array_push::<i32>(inout positions,base+n*8);n=n+1;}for at in positions {disp(inout out,[72,199,133],at);b::word(inout out,0);}
+   let from:Array<i32>=[-8,-16,-24];let to:Array<i32>=[64,72,80];n=0;while n<3 {disp(inout out,[72,139,133],from[n]);disp(inout out,[72,137,133],base+to[n]);n=n+1;}
+   let prefixes:Array<Bytes>=[[72,141,189],[72,141,181],[72,141,149],[72,141,141]];let at:Array<i32>=[base,-208,-208,-200];n=0;while n<4 {disp(inout out,prefixes[n],at[n]);n=n+1;}call(inout out,inout relocations,i.symbol,false);disp(inout out,[139,189],-200);call(inout out,inout relocations,"_exit",true);b::append(inout out,[15,11]);
+  }else {
+   if !shared(operation_id) {b::error("unsupported Darwin operation "+i.op);}let encoded:x::Code=x::encode_registered(name,[i],opcode_registry);let offset:i32=array_len::<u8>(out);b::append(inout out,encoded.bytes);for r in encoded.relocations {array_push::<x::Relocation>(inout relocations,x::Relocation {offset:r.offset+offset,symbol:r.symbol,kind:r.kind,addend:r.addend});}if operation_id==op_return {array_push::<i32>(inout returns,array_len::<u8>(out)-1);}
+  }
+ }
+ for f in fixups {let target:i32=b::get(labels,f.name);b::patch(inout out,f.offset,target-f.offset-4);}return Code {name:name,bytes:out,relocations:relocations,frame_size:frame,returns:returns};
+}
+pub fn encode_program(p:ir::Program)->Array<Code> {if p.platform!="macos"||p.target!="x86_64" {b::error("expected private macOS x86-64 IR");}let mut validated:ir::Program=p;validated.platform="linux";ir::verify(validated);let mut imports:Array<string>=[];for a in p.imports {array_push::<string>(inout imports,a.name);}let opcode_registry:Map<string,i32>=opcodes::registry();let mut out:Array<Code>=[];for f in p.functions {array_push::<Code>(inout out,encode_registered(f.name,ir::lower(f,imports),opcode_registry));}return out;}

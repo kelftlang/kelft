@@ -1,0 +1,4 @@
+fn factorial(n: i32) -> i32 { if n == 0 { return 1; } return n * factorial(n - 1); }
+fn forward(inout n: i32) -> void { next(inout n); }
+fn next(inout n: i32) -> void { n = n + 1; }
+fn main() -> void { println(i32_to_string(factorial(6))); let mut n: i32 = 0; forward(inout n); println(i32_to_string(n)); }

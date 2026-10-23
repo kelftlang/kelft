@@ -1,0 +1,438 @@
+{
+  "schema": "kelft.public-linux-source-review/1",
+  "profile": "linux-arm64",
+  "configurationIdentity": "sha256:962359515afe4cd7bc9097c16d10e23fd6dcdeb396585688e00c3f6dad7d04ef",
+  "hostReportSHA256": "sha256:3103b7337924f600f57654eb6f30d270bc7e369a97931438ff37cb188f481eb8",
+  "files": [
+    {
+      "path": "/usr/bin/aarch64-linux-gnu-ld.bfd",
+      "sha256": "sha256:1e4d3369b76845fa8e099b83513bf28f6f722e046f9b2cde1378c9e27f96d19c",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "binutils-aarch64-linux-gnu",
+        "source": "binutils",
+        "version": "2.42-4ubuntu2.10",
+        "binaryVersion": "2.42-4ubuntu2.10",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/etc/ld.so.cache",
+      "sha256": "sha256:520ae01978f6a0c33b19862c68f97b726a5907335585c87e41929b2d6d995543",
+      "role": "generated loader cache; no software source package"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+      "sha256": "sha256:390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libc6:arm64",
+        "source": "glibc",
+        "version": "2.39-0ubuntu8.9",
+        "binaryVersion": "2.39-0ubuntu8.9",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libbfd-2.42-system.so",
+      "sha256": "sha256:d9d9cc536c3a752ce0fd09e554ce2e31f98a5d42201984a608ed1e577e4ad0de",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libbinutils:arm64",
+        "source": "binutils",
+        "version": "2.42-4ubuntu2.10",
+        "binaryVersion": "2.42-4ubuntu2.10",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libc.so.6",
+      "sha256": "sha256:0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libc6:arm64",
+        "source": "glibc",
+        "version": "2.39-0ubuntu8.9",
+        "binaryVersion": "2.39-0ubuntu8.9",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libctf.so.0.0.0",
+      "sha256": "sha256:be124ffe36abc3d3068092e5a05300aee0c7b9fa6f59acbb289aedae788ddbae",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libctf0:arm64",
+        "source": "binutils",
+        "version": "2.42-4ubuntu2.10",
+        "binaryVersion": "2.42-4ubuntu2.10",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libjansson.so.4.14.0",
+      "sha256": "sha256:ec0e6c38dd7f4979d61563777872de4c9983b0cfb15bbba9b0d9d90e4d736907",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libjansson4:arm64",
+        "source": "jansson",
+        "version": "2.14-2build2",
+        "binaryVersion": "2.14-2build2",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libsframe.so.1.0.0",
+      "sha256": "sha256:c56f579c7f266b5bfcbdc9d448d2a8f1a8223483b390d98e311526598bf29a5d",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libsframe1:arm64",
+        "source": "binutils",
+        "version": "2.42-4ubuntu2.10",
+        "binaryVersion": "2.42-4ubuntu2.10",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libz.so.1.3",
+      "sha256": "sha256:e3bc90ee8cce46778c2f46c2a3e580d3b930f7b455910f25ea400a0b797fb9dc",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "zlib1g:arm64",
+        "source": "zlib",
+        "version": "1:1.3.dfsg-3.1ubuntu2.2",
+        "binaryVersion": "1:1.3.dfsg-3.1ubuntu2.2",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.5",
+      "sha256": "sha256:fe726238b170b83aa83bf1f8a79109b8b61b9eb45234304511d093bbe5f5fb20",
+      "role": "bundled linker/runtime",
+      "package": {
+        "binary": "libzstd1:arm64",
+        "source": "libzstd",
+        "version": "1.5.5+dfsg2-2build1.1",
+        "binaryVersion": "1.5.5+dfsg2-2build1.1",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libc.a",
+      "sha256": "sha256:c3af740b6fb3c926807bb267d366bb848ace6e6b8d48ac366287083b708695ea",
+      "role": "static native host libc",
+      "package": {
+        "binary": "libc6-dev:arm64",
+        "source": "glibc",
+        "version": "2.39-0ubuntu8.9",
+        "binaryVersion": "2.39-0ubuntu8.9",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/gcc/aarch64-linux-gnu/13/libgcc.a",
+      "sha256": "sha256:4bc354241987926aa0489ba1d925e8b10356556323307944f08209f370a28ad6",
+      "role": "static compiler runtime with GCC Runtime Library Exception",
+      "package": {
+        "binary": "libgcc-13-dev:arm64",
+        "source": "gcc-13",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "binaryVersion": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "arm64"
+      }
+    },
+    {
+      "path": "/usr/lib/gcc/aarch64-linux-gnu/13/libgcc_eh.a",
+      "sha256": "sha256:ba85797b21e8eb241afccce977b0b2ca607a9764e3ae15bb966415824a8ee8a4",
+      "role": "static compiler runtime with GCC Runtime Library Exception",
+      "package": {
+        "binary": "libgcc-13-dev:arm64",
+        "source": "gcc-13",
+        "version": "13.3.0-6ubuntu2~24.04.1",
+        "binaryVersion": "13.3.0-6ubuntu2~24.04.1",
+        "architecture": "arm64"
+      }
+    }
+  ],
+  "licenses": [
+    {
+      "path": "notices/licenses/GPL-2",
+      "sha256": "sha256:8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+    },
+    {
+      "path": "notices/licenses/GPL-3",
+      "sha256": "sha256:3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "path": "notices/licenses/LGPL-2",
+      "sha256": "sha256:681e386e44a19d7d0674b4320272c90e66b6610b741e7e6305f8219c42e85366"
+    },
+    {
+      "path": "notices/licenses/LGPL-2.1",
+      "sha256": "sha256:dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+    },
+    {
+      "path": "notices/licenses/LGPL-3",
+      "sha256": "sha256:e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+    }
+  ],
+  "packages": [
+    {
+      "source": "binutils",
+      "version": "2.42-4ubuntu2.10",
+      "binaries": [
+        {
+          "binary": "binutils-aarch64-linux-gnu",
+          "source": "binutils",
+          "version": "2.42-4ubuntu2.10",
+          "binaryVersion": "2.42-4ubuntu2.10",
+          "architecture": "arm64"
+        },
+        {
+          "binary": "libbinutils:arm64",
+          "source": "binutils",
+          "version": "2.42-4ubuntu2.10",
+          "binaryVersion": "2.42-4ubuntu2.10",
+          "architecture": "arm64"
+        },
+        {
+          "binary": "libctf0:arm64",
+          "source": "binutils",
+          "version": "2.42-4ubuntu2.10",
+          "binaryVersion": "2.42-4ubuntu2.10",
+          "architecture": "arm64"
+        },
+        {
+          "binary": "libsframe1:arm64",
+          "source": "binutils",
+          "version": "2.42-4ubuntu2.10",
+          "binaryVersion": "2.42-4ubuntu2.10",
+          "architecture": "arm64"
+        }
+      ],
+      "notices": [
+        {
+          "path": "notices/binutils-aarch64-linux-gnu/copyright",
+          "sha256": "sha256:a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+        },
+        {
+          "path": "notices/libbinutils_arm64/copyright",
+          "sha256": "sha256:a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+        },
+        {
+          "path": "notices/libctf0_arm64/copyright",
+          "sha256": "sha256:a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+        },
+        {
+          "path": "notices/libsframe1_arm64/copyright",
+          "sha256": "sha256:a81bdd422c2c015deca84bf6ad249bf0d7d19885fc01d1894463291b0b7313e1"
+        }
+      ],
+      "archives": [
+        {
+          "path": "source/binutils-2.42-4ubuntu2.10/binutils_2.42.orig.tar.xz",
+          "bytes": 27567160,
+          "sha256": "sha256:f6e4d41fd5fc778b06b7891457b3620da5ecea1006c6a4a41ae998109f85a800"
+        },
+        {
+          "path": "source/binutils-2.42-4ubuntu2.10/binutils_2.42-4ubuntu2.10.debian.tar.xz",
+          "bytes": 196552,
+          "sha256": "sha256:6acc777971890cb1efaeeb33a0a5358651c71067ced69dcfd59da7d0977f7530"
+        }
+      ],
+      "sourceRequired": true,
+      "descriptor": {
+        "path": "source/binutils-2.42-4ubuntu2.10/binutils_2.42-4ubuntu2.10.dsc",
+        "sha256": "sha256:a14a8e2efdb3566955476bccd2248cebed5cf2a2f5d28e223d08200ec1a18d75"
+      }
+    },
+    {
+      "source": "glibc",
+      "version": "2.39-0ubuntu8.9",
+      "binaries": [
+        {
+          "binary": "libc6:arm64",
+          "source": "glibc",
+          "version": "2.39-0ubuntu8.9",
+          "binaryVersion": "2.39-0ubuntu8.9",
+          "architecture": "arm64"
+        },
+        {
+          "binary": "libc6-dev:arm64",
+          "source": "glibc",
+          "version": "2.39-0ubuntu8.9",
+          "binaryVersion": "2.39-0ubuntu8.9",
+          "architecture": "arm64"
+        }
+      ],
+      "notices": [
+        {
+          "path": "notices/libc6_arm64/copyright",
+          "sha256": "sha256:d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+        },
+        {
+          "path": "notices/libc6-dev_arm64/copyright",
+          "sha256": "sha256:d3c95b56fa33e28b57860580f0baf4e4f4de2a268a2b80f1d031a5191bade265"
+        }
+      ],
+      "archives": [
+        {
+          "path": "source/glibc-2.39-0ubuntu8.9/glibc_2.39.orig.tar.xz",
+          "bytes": 18520988,
+          "sha256": "sha256:f77bd47cf8170c57365ae7bf86696c118adb3b120d3259c64c502d3dc1e2d926"
+        },
+        {
+          "path": "source/glibc-2.39-0ubuntu8.9/glibc_2.39.orig.tar.xz.asc",
+          "bytes": 833,
+          "sha256": "sha256:2cce427ef7933c17379f5514e4f0ccf8dffae5bf8c72f0f7e0bf8b8401f34be5"
+        },
+        {
+          "path": "source/glibc-2.39-0ubuntu8.9/glibc_2.39-0ubuntu8.9.debian.tar.xz",
+          "bytes": 491440,
+          "sha256": "sha256:d6114f2302896a3c8612453e1bf1d0e61603e3029ba4a7c246fbb1ab4c48d2b0"
+        }
+      ],
+      "sourceRequired": true,
+      "descriptor": {
+        "path": "source/glibc-2.39-0ubuntu8.9/glibc_2.39-0ubuntu8.9.dsc",
+        "sha256": "sha256:1b73a89e0910eb3e5920cde639ac7eb606256d8ee809688ff9b5912b67002711"
+      }
+    },
+    {
+      "source": "jansson",
+      "version": "2.14-2build2",
+      "binaries": [
+        {
+          "binary": "libjansson4:arm64",
+          "source": "jansson",
+          "version": "2.14-2build2",
+          "binaryVersion": "2.14-2build2",
+          "architecture": "arm64"
+        }
+      ],
+      "notices": [
+        {
+          "path": "notices/libjansson4_arm64/copyright",
+          "sha256": "sha256:29347e2528ab31d20e8582b09aa89cd878d306c59a273541141c9aede1903cb8"
+        }
+      ],
+      "archives": [
+        {
+          "path": "source/jansson-2.14-2build2/jansson_2.14.orig.tar.gz",
+          "bytes": 141500,
+          "sha256": "sha256:c739578bf6b764aa0752db9a2fdadcfe921c78f1228c7ec0bb47fa804c55d17b"
+        },
+        {
+          "path": "source/jansson-2.14-2build2/jansson_2.14-2build2.debian.tar.xz",
+          "bytes": 5580,
+          "sha256": "sha256:93fb8b5f8c4a8b098622d6865f36f0711a9ee42e104f34457c8503f218078e68"
+        }
+      ],
+      "sourceRequired": true,
+      "descriptor": {
+        "path": "source/jansson-2.14-2build2/jansson_2.14-2build2.dsc",
+        "sha256": "sha256:79f56ca657a0d680549bf9b0c4fdcf2fe824221bee7462c0ecad56baaeca0a21"
+      }
+    },
+    {
+      "source": "zlib",
+      "version": "1:1.3.dfsg-3.1ubuntu2.2",
+      "binaries": [
+        {
+          "binary": "zlib1g:arm64",
+          "source": "zlib",
+          "version": "1:1.3.dfsg-3.1ubuntu2.2",
+          "binaryVersion": "1:1.3.dfsg-3.1ubuntu2.2",
+          "architecture": "arm64"
+        }
+      ],
+      "notices": [
+        {
+          "path": "notices/zlib1g_arm64/copyright",
+          "sha256": "sha256:9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+        }
+      ],
+      "archives": [
+        {
+          "path": "source/zlib-1_1.3.dfsg-3.1ubuntu2.2/zlib_1.3.dfsg.orig.tar.xz",
+          "bytes": 1128572,
+          "sha256": "sha256:5eea0322c1c21c75cad3b607ac1c43ff5c71e014b8ac4a34300b5e2b80d02e70"
+        },
+        {
+          "path": "source/zlib-1_1.3.dfsg-3.1ubuntu2.2/zlib_1.3.dfsg-3.1ubuntu2.2.debian.tar.xz",
+          "bytes": 61316,
+          "sha256": "sha256:de1c2d532ecb7caf99ccb905fb03c37fe0c8117fbdc79d05be4474b71e6398c2"
+        }
+      ],
+      "sourceRequired": true,
+      "descriptor": {
+        "path": "source/zlib-1_1.3.dfsg-3.1ubuntu2.2/zlib_1.3.dfsg-3.1ubuntu2.2.dsc",
+        "sha256": "sha256:56a7cd029863cbddafce831e4e63cccfa84017f93617929cb7c02f80bb5a122a",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/main/z/zlib/zlib_1.3.dfsg-3.1ubuntu2.2.dsc",
+        "authentication": "official Ubuntu HTTPS publisher; archive hashes from exact-version descriptor"
+      }
+    },
+    {
+      "source": "libzstd",
+      "version": "1.5.5+dfsg2-2build1.1",
+      "binaries": [
+        {
+          "binary": "libzstd1:arm64",
+          "source": "libzstd",
+          "version": "1.5.5+dfsg2-2build1.1",
+          "binaryVersion": "1.5.5+dfsg2-2build1.1",
+          "architecture": "arm64"
+        }
+      ],
+      "notices": [
+        {
+          "path": "notices/libzstd1_arm64/copyright",
+          "sha256": "sha256:35e85e8e9bbb71492c5f5dddf39ed65b68775a02ad8d710c25d097b497f06c49"
+        }
+      ],
+      "archives": [
+        {
+          "path": "source/libzstd-1.5.5+dfsg2-2build1.1/libzstd_1.5.5+dfsg2.orig.tar.xz",
+          "bytes": 1784164,
+          "sha256": "sha256:d7cf3c10d416fd999cb8fcf7685d9268ba7bec8eb78121fc2d0d916fa393d22b"
+        },
+        {
+          "path": "source/libzstd-1.5.5+dfsg2-2build1.1/libzstd_1.5.5+dfsg2-2build1.1.debian.tar.xz",
+          "bytes": 21288,
+          "sha256": "sha256:c1df6d2628b26d085259b8e7ac020eb060e4c1feca98d6103058eda5ded725bc"
+        }
+      ],
+      "sourceRequired": true,
+      "descriptor": {
+        "path": "source/libzstd-1.5.5+dfsg2-2build1.1/libzstd_1.5.5+dfsg2-2build1.1.dsc",
+        "sha256": "sha256:c190a5dff9e7c5b5b1399f0d701bb2c173bc7cbdf14d5e05970f5ac066c25570"
+      }
+    },
+    {
+      "source": "gcc-13",
+      "version": "13.3.0-6ubuntu2~24.04.1",
+      "binaries": [
+        {
+          "binary": "libgcc-13-dev:arm64",
+          "source": "gcc-13",
+          "version": "13.3.0-6ubuntu2~24.04.1",
+          "binaryVersion": "13.3.0-6ubuntu2~24.04.1",
+          "architecture": "arm64"
+        }
+      ],
+      "notices": [
+        {
+          "path": "notices/libgcc-13-dev_arm64/copyright",
+          "sha256": "sha256:08c6f3dee4c19aa1e57eb7d4ad45829b2e99656313bd07fa0922e2553f500be5"
+        }
+      ],
+      "archives": [],
+      "sourceRequired": false,
+      "exception": "GCC Runtime Library Exception 3.1; preserve vendor notices and source package identity"
+    }
+  ],
+  "blockers": [],
+  "sourcesFetched": true,
+  "qualified": false,
+  "releaseEligible": false
+}

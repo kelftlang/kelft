@@ -1,0 +1,1 @@
+fn main() -> void { let b: bool = true; match b { true => {} } }

@@ -1,0 +1,10 @@
+fn main() -> void {
+    println(i32_to_string(2147483647 + 1));
+    println(i32_to_string(100000 * 100000));
+    println(i32_to_string(-7 / 3));
+    println(i32_to_string(-7 % 3));
+    println(i32_to_string(-2147483648 % -1));
+    println(i32_to_string(-1 >>> 1));
+    println(i32_to_string(1 << 33));
+    if false && 1 / 0 == 1 { println("bad"); }
+}

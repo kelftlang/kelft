@@ -1,0 +1,101 @@
+import "../core.kelft" as ir;
+import "../syntax.kelft" as s;
+import "./runtime.kelft" as runtime;
+
+struct State {count:i32,serial:i32,lines:Array<string>,locals:Map<string,i32>,locations:Map<string,string>,functions:Map<string,string>}
+pub fn quote(text:string)->string {let mut out:string="\"";let mut i:i32=0;while i<string_len(text) {let b:i32=s::byte(text,i);out=out+"\\"+i32_to_string(b/64)+i32_to_string(b/8%8)+i32_to_string(b%8);i=i+1;}return out+"\"";}
+fn line(inout state:State,text:string)->void {array_push::<string>(inout state.lines,text);}
+fn slot(inout state:State)->string {let value:string="s["+i32_to_string(state.count)+"]";state.count=state.count+1;return value;}
+fn local(inout state:State,name:string)->string {let mut index:i32=0;match map_get::<string,i32>(state.locals,name) {Option::Some(value)=>{index=value;},Option::None=>{index=state.count;state.count=state.count+1;map_set::<string,i32>(inout state.locals,name,index);}}return "s["+i32_to_string(index)+"]";}
+fn put(inout state:State,code:string)->string {let value:string=slot(inout state);line(inout state,"ktake(&"+value+","+code+");");return value;}
+fn serial(inout state:State,prefix:string)->string {let value:string=prefix+i32_to_string(state.serial);state.serial=state.serial+1;return value;}
+struct ExpressionFrame {node:ir::Node,place:bool,step:i32,index:i32,values:Array<string>,name:string}
+fn expression_frame(n:ir::Node,place:bool)->ExpressionFrame {return ExpressionFrame {node:n,place:place,step:0,index:0,values:[],name:""};}
+fn location(inout state:State,n:ir::Node)->string {return evaluate(inout state,n,true);}
+
+fn supported(name:string)->bool {let names:Array<string>=["args","print","println","eprint","exit","i32_to_string","string_to_i32","i32_from_u8","u8_from_i32","string_len","string_byte","string_slice","string_find","string_replace","string_split","string_from_codepoint","string_to_bytes","bytes_to_string","utf8_decode","array_len","array_push","array_pop","array_slice","map_new","map_len","map_get","map_set","map_remove","read_file","read_text","write_file","write_text","write_once","create_dir","resolve_path","path_dirname","canonical_path","path_relative","current_dir","artifact_run"];for n in names {if n==name {return true;}}return false;}
+fn expression(inout state:State,n:ir::Node)->string {return evaluate(inout state,n,false);}
+fn reduce(inout state:State,n:ir::Node,args:Array<string>)->string {
+ if n.op=="literal" {let mut code:string="ki("+n.name+")";if n.ty=="string" {code="kstr("+quote(n.name)+","+i32_to_string(string_len(n.name))+")";}else if n.ty=="bool" {code="kb("+n.name+")";}return put(inout state,code);}
+ if n.op=="local" {let mut code:string="";match map_get::<string,string>(state.locations,n.name) {Option::Some(value)=>{code="klget("+value+")";},Option::None=>{code="kcopy("+local(inout state,n.name)+")";}}return put(inout state,code);}
+ if n.op=="location" {return args[0];}
+ if n.op=="unary" {return put(inout state,"kunary("+quote(n.name)+","+args[0]+")");}
+ if n.op=="binary" {return put(inout state,"kbinary("+quote(n.name)+","+args[0]+","+args[1]+")");}
+ if n.op=="field" {return put(inout state,"kfield("+args[0]+","+quote(n.name)+")");}
+ if n.op=="index" {return put(inout state,"kindex("+args[0]+","+args[1]+")");}
+ if n.op=="record" {let mut fields:Array<string>=[];let mut i:i32=0;for f in n.args {array_push::<string>(inout fields,"{"+quote(f.name)+","+args[i]+"}");i=i+1;}let mut values:string="NULL";if array_len::<string>(fields)>0 {values="(KField[]){"+s::join(fields,",")+"}";}return put(inout state,"krecord("+i32_to_string(array_len::<ir::Node>(n.args))+","+values+")");}
+ let mut values:string="NULL";if array_len::<string>(args)>0 {values="(V[]){"+s::join(args,",")+"}";}
+ if n.op=="array"||n.op=="tuple" {let mut tag:string="KARRAY";if n.op=="tuple" {tag="KTUPLE";}return put(inout state,"kvector("+tag+","+i32_to_string(array_len::<string>(args))+","+values+")");}
+ if n.op=="variant" {return put(inout state,"kvariant("+quote(n.name)+","+i32_to_string(array_len::<string>(args))+","+values+")");}
+ if n.op=="call" {let mut name:string="";match map_get::<string,string>(state.functions,n.name) {Option::Some(value)=>{name=value;},Option::None=>{}}return put(inout state,name+"("+s::join(args,",")+")");}
+ if n.op=="intrinsic" {if !supported(n.name) {s::error("K0403","native host intrinsic is not implemented: "+n.name,n.span);}return put(inout state,"k_"+n.name+"("+s::join(args,",")+")");}
+ s::error("K0301","invalid C expression",n.span);return "";
+}
+fn evaluate(inout state:State,n:ir::Node,place:bool)->string {
+ let mut pending:Array<ExpressionFrame>=[expression_frame(n,place)];let mut result:string="";
+ while array_len::<ExpressionFrame>(pending)>0 {let mut f:ExpressionFrame=expression_frame(n,false);match array_pop::<ExpressionFrame>(inout pending) {Option::Some(value)=>{f=value;},Option::None=>{}}let node:ir::Node=f.node;
+  if f.step==1 {array_push::<string>(inout f.values,result);f.step=0;}
+  if f.place&&f.name=="" {f.name=serial(inout state,"l");}
+  let mut count:i32=array_len::<ir::Node>(node.args);if f.place&&node.op=="local" {count=0;}
+  if f.index<count {let index:i32=f.index;
+   if !f.place&&node.op=="binary"&&(node.name=="&&"||node.name=="||")&&index==1 {f.name=put(inout state,"kb("+f.values[0]+".number)");let mut inverse:string="";if node.name=="||" {inverse="!";}line(inout state,"if("+inverse+f.values[0]+".number){");}
+   let mut child:ir::Node=node.args[index];let mut child_place:bool=false;
+   if f.place {child_place=index==0;}else if node.op=="location" {child_place=true;}else if node.op=="record" {child=child.args[0];}
+   f.index=index+1;f.step=1;array_push::<ExpressionFrame>(inout pending,f);array_push::<ExpressionFrame>(inout pending,expression_frame(child,child_place));
+  }else if f.place {let mut code:string="";if node.op=="local" {match map_get::<string,string>(state.locations,node.name) {Option::Some(value)=>{code=value;},Option::None=>{code="klocal(&"+local(inout state,node.name)+")";}}}else {let mut key:string="(KKey){"+quote(node.name)+",0,false}";if node.op!="field" {key="(KKey){NULL,"+f.values[1]+".number,true}";}code="kchild(&"+f.values[0]+","+key+")";}line(inout state,"KLoc "+f.name+"="+code+";");result=f.name;
+  }else if node.op=="binary"&&(node.name=="&&"||node.name=="||") {line(inout state,"ktake(&"+f.name+",kb("+f.values[1]+".number));}");result=f.name;
+  }else {result=reduce(inout state,node,f.values);}
+ }return result;
+}
+
+struct PatternFrame {node:ir::Node,value:string,text:string}
+fn bindings(inout state:State,p:ir::Node,value:string)->void {
+ let mut pending:Array<PatternFrame>=[PatternFrame {node:p,value:value,text:""}];
+ while array_len::<PatternFrame>(pending)>0 {let mut f:PatternFrame=PatternFrame {node:p,value:value,text:""};match array_pop::<PatternFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}
+  if f.node.op=="pattern" {if f.node.name!="_"&&f.node.name!="true"&&f.node.name!="false" {let target:string=local(inout state,f.node.name);line(inout state,"ktake(&"+target+",kcopy("+f.value+"));");}}
+  else {let mut i:i32=array_len::<ir::Node>(f.node.args)-1;while i>=0 {array_push::<PatternFrame>(inout pending,PatternFrame {node:f.node.args[i],value:"kborrowindex("+f.value+","+i32_to_string(i)+")",text:""});i=i-1;}}
+ }
+}
+fn condition(p:ir::Node,value:string)->string {
+ let mut pending:Array<PatternFrame>=[PatternFrame {node:p,value:value,text:""}];let mut chunks:Array<string>=[];
+ while array_len::<PatternFrame>(pending)>0 {let mut f:PatternFrame=PatternFrame {node:p,value:value,text:""};match array_pop::<PatternFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}
+  if f.text!="" {array_push::<string>(inout chunks,f.text);}else if f.node.op=="variant_pattern"||f.node.op=="tuple_pattern" {
+   array_push::<string>(inout chunks,"(");let variant:bool=f.node.op=="variant_pattern";if variant {array_push::<string>(inout chunks,"kvariantis("+f.value+","+quote(f.node.name)+")");}
+   if !variant&&array_len::<ir::Node>(f.node.args)==0 {array_push::<string>(inout chunks,"true");}
+   array_push::<PatternFrame>(inout pending,PatternFrame {node:p,value:"",text:")"});let mut i:i32=array_len::<ir::Node>(f.node.args)-1;while i>=0 {array_push::<PatternFrame>(inout pending,PatternFrame {node:f.node.args[i],value:"kborrowindex("+f.value+","+i32_to_string(i)+")",text:""});if i>0||variant {array_push::<PatternFrame>(inout pending,PatternFrame {node:p,value:"",text:"&&"});}i=i-1;}
+  }else if f.node.name=="true" {array_push::<string>(inout chunks,"("+f.value+").number");}else if f.node.name=="false" {array_push::<string>(inout chunks,"!("+f.value+").number");}else {array_push::<string>(inout chunks,"true");}
+ }return s::join(chunks,"");
+}
+struct StatementFrame {node:ir::Node,step:i32,index:i32,value:string}
+fn statement_frame(n:ir::Node)->StatementFrame {return StatementFrame {node:n,step:0,index:0,value:""};}
+fn statement(inout state:State,n:ir::Node)->void {
+ let mut pending:Array<StatementFrame>=[statement_frame(n)];
+ while array_len::<StatementFrame>(pending)>0 {let mut f:StatementFrame=statement_frame(n);match array_pop::<StatementFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:ir::Node=f.node;let a:Array<ir::Node>=node.args;
+  if node.op=="block" {if f.step==0 {line(inout state,"{");f.step=1;}if f.index<array_len::<ir::Node>(a) {let child:ir::Node=a[f.index];f.index=f.index+1;array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(child));}else {line(inout state,"}");}}
+  else if node.op=="if" {if f.step==0 {let value:string=expression(inout state,a[0]);line(inout state,"if("+value+".number){");f.step=1;array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(a[1]));}else if f.step==1 {line(inout state,"}");if array_len::<ir::Node>(a)>2 {line(inout state,"else {");f.step=2;array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(a[2]));}}else {line(inout state,"}");}}
+  else if node.op=="while"||node.op=="for" {if f.step==0 {if node.op=="while" {line(inout state,"while(true){");let value:string=expression(inout state,a[0]);line(inout state,"if(!"+value+".number)break;");}else {let value:string=expression(inout state,a[1]);let snapshot:string=put(inout state,"kiter("+value+")");let index:string=serial(inout state,"i");line(inout state,"for(size_t "+index+"=0;"+index+"<"+snapshot+".obj->len;"+index+"++){");bindings(inout state,a[0],snapshot+".obj->values["+index+"]");}f.step=1;let mut child:ir::Node=a[1];if node.op=="for" {child=a[2];}array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(child));}else {line(inout state,"}");}}
+  else if node.op=="match" {if f.step==0 {f.value=expression(inout state,a[0]);f.index=1;f.step=1;}else {line(inout state,"}");}if f.index<array_len::<ir::Node>(a) {let arm:ir::Node=a[f.index];let mut prefix:string="";if f.index>1 {prefix="else ";}line(inout state,prefix+"if("+condition(arm.args[0],f.value)+"){");bindings(inout state,arm.args[0],f.value);f.index=f.index+1;array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(arm.args[1]));}}
+  else {simple_statement(inout state,node);}
+ }
+}
+fn simple_statement(inout state:State,n:ir::Node)->void {
+ let a:Array<ir::Node>=n.args;
+ if n.op=="bind" {let value:string=expression(inout state,a[0]);let target:string=local(inout state,n.name);line(inout state,"ktake(&"+target+",kcopy("+value+"));");return;}
+ if n.op=="store" {let place:string=location(inout state,a[0]);let value:string=expression(inout state,a[1]);line(inout state,"klset("+place+","+value+");");return;}
+ if n.op=="evaluate" {expression(inout state,a[0]);return;}
+ if n.op=="return" {let mut value:string="kv()";if array_len::<ir::Node>(a)>0 {value=expression(inout state,a[0]);}line(inout state,"return kleave(frame,"+value+");");return;}
+ if n.op=="break"||n.op=="continue" {line(inout state,n.op+";");return;}
+ s::error("K0301","invalid C statement",n.span);
+}
+fn declaration(f:ir::Node,name:string)->string {let mut params:Array<string>=[];let mut i:i32=0;for p in f.args {if p.op=="param" {let mut ty:string="V";if p.flag {ty="KLoc";}array_push::<string>(inout params,ty+" p"+i32_to_string(i));i=i+1;}}let mut values:string=s::join(params,",");if values=="" {values="void";}return "static V "+name+"("+values+")";}
+pub fn emit(program:ir::Program,profile:string,policy:string)->string {
+    if profile!="native-posix-v1" {s::error("K0402","unsupported C host profile",s::span("",0,0));}ir::validate(program);
+    let mut functions:Map<string,string>=map_new::<string,string>();let mut prototypes:Array<string>=[];let mut emitted:Array<string>=[];let mut index:i32=0;let mut entry:string="";
+    for f in program.functions {let name:string="kf"+i32_to_string(index);map_set::<string,string>(inout functions,f.name,name);if f.name==program.entry {entry=name;}array_push::<string>(inout prototypes,declaration(f,name)+";");index=index+1;}
+    index=0;for f in program.functions {let mut state:State=State {count:0,serial:0,lines:[],locals:map_new::<string,i32>(),locations:map_new::<string,string>(),functions:functions};let mut i:i32=0;
+        for p in f.args {if p.op=="param" {let name:string="p"+i32_to_string(i);if p.flag {map_set::<string,string>(inout state.locations,p.name,name);}else {let target:string=local(inout state,p.name);line(inout state,"ktake(&"+target+",kcopy("+name+"));");}i=i+1;}}
+        statement(inout state,f.args[array_len::<ir::Node>(f.args)-1]);array_push::<string>(inout emitted,declaration(f,"kf"+i32_to_string(index))+"{\nKFrame *frame=kenter("+i32_to_string(state.count)+");V *s=frame->slots;\n"+s::join(state.lines,"\n")+"\nreturn kleave(frame,kv());\n}");index=index+1;
+    }
+    let mut maximum:string="";if policy!="" {maximum="#define KELFT_MAX_POLICY "+quote(policy)+"\n";}
+    return maximum+runtime::source()+"\n"+s::join(prototypes,"\n")+"\n"+s::join(emitted,"\n")+"\nint main(int argc,char **argv){atexit(kcleanup);khostinit();kargc=argc-1;kargv=argv+1;V result="+entry+"();int code=result.tag==KINT?result.number:0;kdrop(result);if(code<0||code>255)ktrap(\"KRT_EXIT\");return code;}\n";
+}

@@ -1,0 +1,32 @@
+// Bounded synchronous host execution. The broker supplies OS enforcement.
+import "../selfhost/json.kelft" as j;
+import "../selfhost/toolchain/host-capabilities.kelft" as policy;
+pub struct Limits {timeout_ms:i32,memory_bytes:string,stdout_bytes:i32,stderr_bytes:i32}
+pub struct Authority {read:Array<string>,write:Array<string>}
+pub struct Request {executable:string,sha256:string,arguments:Array<string>,cwd:string,environment:Map<string,string>,stdin:Bytes,limits:Limits,authority:Authority}
+pub enum Outcome {Exited,Signaled,LaunchError,Timeout,ResourceError}
+pub struct Output {outcome:Outcome,exit_status:Option<i32>,signal:Option<i32>,stdout:Bytes,stderr:Bytes,error:string}
+pub fn default_limits()->Limits {return Limits {timeout_ms:30000,memory_bytes:"268435456",stdout_bytes:1048576,stderr_bytes:1048576};}
+fn values(items:Array<string>)->j::Value {let mut out:Array<j::Value>=[];for item in items {array_push::<j::Value>(inout out,j::Value::Text(item));}return j::Value::Array(out);}
+pub fn hex(bytes:Bytes)->string {let digits:string="0123456789abcdef";let mut out:Bytes=[];for byte in bytes {let n:i32=i32_from_u8(byte);array_push::<u8>(inout out,string_byte(digits,n/16));array_push::<u8>(inout out,string_byte(digits,n%16));}return bytes_to_string(out);}
+pub fn unhex(raw:string)->Result<Bytes,string> {if string_len(raw)%2!=0 {return Result::<Bytes,string>::Error("INVALID_HOST_RESPONSE");}let mut out:Bytes=[];let mut at:i32=0;while at<string_len(raw) {let mut value:i32=0;let mut n:i32=0;while n<2 {let c:i32=i32_from_u8(string_byte(raw,at+n));let mut digit:i32=-1;if c>=48&&c<=57 {digit=c-48;}if c>=97&&c<=102 {digit=c-87;}if digit<0 {return Result::<Bytes,string>::Error("INVALID_HOST_RESPONSE");}value=value*16+digit;n=n+1;}array_push::<u8>(inout out,u8_from_i32(value));at=at+2;}return Result::<Bytes,string>::Ok(out);}
+pub fn encode(request:Request)->j::Value {
+ let mut out:j::Value=j::parse("{\"schema\":\"kelft.process-request/1\"}");out=j::set(out,"executable",j::Value::Text(request.executable));out=j::set(out,"sha256",j::Value::Text(request.sha256));out=j::set(out,"args",values(request.arguments));out=j::set(out,"cwd",j::Value::Text(request.cwd));let mut environment:j::Value=j::parse("{}");for (key,value) in request.environment {environment=j::set(environment,key,j::Value::Text(value));}out=j::set(out,"environment",environment);out=j::set(out,"stdinHex",j::Value::Text(hex(request.stdin)));out=j::set(out,"read",values(request.authority.read));out=j::set(out,"write",values(request.authority.write));
+ let mut limits:j::Value=j::parse("{}");limits=j::set(limits,"timeoutMs",j::Value::Number(i32_to_string(request.limits.timeout_ms)));limits=j::set(limits,"memoryBytes",j::Value::Number(request.limits.memory_bytes));limits=j::set(limits,"stdoutBytes",j::Value::Number(i32_to_string(request.limits.stdout_bytes)));limits=j::set(limits,"stderrBytes",j::Value::Number(i32_to_string(request.limits.stderr_bytes)));return j::set(out,"limits",limits);
+}
+pub fn run(request:Request)->Result<Output,string> {
+ let input:j::Value=encode(request);let error:string=policy::validate_process_request(input);if error!="" {return Result::<Output,string>::Error(error);}
+ return decode_output(j::parse(process_run(j::canonical(input))),request.limits);
+}
+pub fn decode_output(response:j::Value,limits:Limits)->Result<Output,string> {
+ let mut has_exit:bool=false;let mut has_signal:bool=false;for (key,value) in j::object(response) {if key=="exit" {has_exit=true;}if key=="signal" {has_signal=true;}}
+ let failure:string=j::string(j::field(response,"error"));if !j::is_string(j::field(response,"error"))||!j::is_string(j::field(response,"status"))||!j::is_string(j::field(response,"stdoutHex"))||!j::is_string(j::field(response,"stderrHex")) {return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}if j::field(response,"schema")!=j::Value::Text("kelft.process-result/1") {return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}
+ let status:string=j::string(j::field(response,"status"));let mut outcome:Outcome=Outcome::Exited();if status=="signaled" {outcome=Outcome::Signaled();}else if status=="launch-error" {outcome=Outcome::LaunchError();}else if status=="timeout" {outcome=Outcome::Timeout();}else if status=="resource-error" {outcome=Outcome::ResourceError();}else if status!="exited" {if (status=="rejected"||status=="unsupported")&&failure!="" {return Result::<Output,string>::Error(failure);}return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}
+ if !has_exit||!has_signal {return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}
+ let mut exit_status:Option<i32>=Option::<i32>::None();let mut signal:Option<i32>=Option::<i32>::None();match j::field(response,"exit") {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(n)=>{exit_status=Option::<i32>::Some(n);},Result::Error(message)=>{return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}}},j::Value::Null()=>{},_=>{return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}}
+ match j::field(response,"signal") {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(n)=>{signal=Option::<i32>::Some(n);},Result::Error(message)=>{return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}}},j::Value::Null()=>{},_=>{return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}}
+ if (status=="exited"&&(exit_status==Option::<i32>::None()||signal!=Option::<i32>::None()))||(status=="signaled"&&(signal==Option::<i32>::None()||exit_status!=Option::<i32>::None()))||((status=="timeout"||status=="resource-error"||status=="launch-error")&&(exit_status!=Option::<i32>::None()||signal!=Option::<i32>::None())) {return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}
+ if string_len(j::string(j::field(response,"stdoutHex")))>limits.stdout_bytes*2||string_len(j::string(j::field(response,"stderrHex")))>limits.stderr_bytes*2 {return Result::<Output,string>::Error("INVALID_HOST_RESPONSE");}
+ let mut stdout:Bytes=[];let mut stderr:Bytes=[];match unhex(j::string(j::field(response,"stdoutHex"))) {Result::Ok(bytes)=>{stdout=bytes;},Result::Error(message)=>{return Result::<Output,string>::Error(message);}}match unhex(j::string(j::field(response,"stderrHex"))) {Result::Ok(bytes)=>{stderr=bytes;},Result::Error(message)=>{return Result::<Output,string>::Error(message);}}
+ return Result::<Output,string>::Ok(Output {outcome:outcome,exit_status:exit_status,signal:signal,stdout:stdout,stderr:stderr,error:failure});
+}

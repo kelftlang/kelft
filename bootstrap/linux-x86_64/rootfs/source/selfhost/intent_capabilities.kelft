@@ -1,0 +1,36 @@
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+import "./core.kelft" as core;
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+fn bad(n:j::Value,message:string)->void {let span:j::Value=j::field(n,"span");s::error("K0714",message,s::span(text(span,"file"),s::number(j::canonical(j::field(span,"start"))),s::number(j::canonical(j::field(span,"end")))));}
+pub fn default_browser()->j::Value {return j::parse("{\"dom\":false,\"timers\":false,\"vault\":false,\"random\":false,\"clock\":false,\"navigation\":false,\"network\":{\"sameOrigin\":false,\"paths\":[],\"methods\":[]}}");}
+pub fn lower(graph:j::Value)->j::Value {
+    let mut browser:j::Value=default_browser();let mut services:j::Value=j::parse("{\"http\":false,\"database\":false,\"oidc\":false,\"random\":false,\"clock\":false,\"assets\":false}");let mut lowered:Array<string>=[];let mut unsupported:Array<string>=[];let mut seen:Map<string,bool>=map_new::<string,bool>();let nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));
+    for capability in nodes {if text(capability,"kind")!="capability" {continue;}let mut complete:bool=true;
+        for n in nodes {if text(n,"scope")!=text(capability,"id") {continue;}
+            let allow:bool=text(n,"kind")=="allow";let deny:bool=text(n,"kind")=="deny";let mut profile:string="";let name:string=text(capability,"name");if name=="browser" {profile="browser";}if name=="server" {profile="services";}let value:string=text(n,"value");let mut key:string="";
+            if profile=="browser" {if value=="dom within application_root" {key="dom";}if value=="network only same_origin_api" {key="network";}if value=="storage only identity_scoped_encrypted_vault" {key="vault";}if value=="timers" {key="timers";}if value=="randomness" {key="random";}if value=="clock" {key="clock";}if value=="navigation only same_origin_auth" {key="navigation";}}
+            if profile=="services" {if value=="http within configured_listener" {key="http";}if value=="database only relay_store" {key="database";}if value=="oidc only configured_provider" {key="oidc";}if value=="randomness" {key="random";}if value=="clock" {key="clock";}if value=="assets only public_static" {key="assets";}}
+            let keys:Array<string>=["dom","timers","vault","random","clock","navigation","network","http","database","oidc","assets"];if deny&&profile!="" {for candidate in keys {if value==candidate {key=candidate;}}}
+            let mut selected:j::Value=browser;if profile=="services" {selected=services;}
+            if (allow||deny)&&profile!=""&&key!=""&&text(n,"form")=="prose"&&j::field(selected,key)!=j::Value::Null() {
+                let id:string=profile+"."+key;match map_get::<string,bool>(seen,id) {Option::Some(old)=>{if old!=allow {bad(n,"contradictory capability restrictions for "+id);}},Option::None=>{}}map_set::<string,bool>(inout seen,id,allow);
+                let mut setting:j::Value=j::Value::Bool(allow);if key=="network" {setting=j::parse("{\"sameOrigin\":false,\"paths\":[],\"methods\":[]}");if allow {setting=j::parse("{\"sameOrigin\":true,\"paths\":[\"/api\"],\"methods\":[\"GET\",\"POST\",\"PUT\",\"PATCH\",\"DELETE\"]}");}}
+                if profile=="browser" {browser=j::set(browser,key,setting);}else {services=j::set(services,key,setting);}array_push::<string>(inout lowered,text(n,"id"));
+            }else if deny&&text(n,"form")=="prose"&&(value=="arbitrary_code_execution"||value=="identity_secrets in browser"||value=="session_tokens in logs")&&(name=="browser"||name=="server"||name=="capability") {array_push::<string>(inout lowered,text(n,"id"));}
+            else {array_push::<string>(inout unsupported,text(n,"id"));complete=false;}
+        }
+        if complete {array_push::<string>(inout lowered,text(capability,"id"));}else {array_push::<string>(inout unsupported,text(capability,"id"));}
+    }
+    core::sort_strings(inout lowered);core::sort_strings(inout unsupported);let mut a:Array<j::Value>=[];let mut b:Array<j::Value>=[];for id in lowered {array_push::<j::Value>(inout a,j::Value::Text(id));}for id in unsupported {array_push::<j::Value>(inout b,j::Value::Text(id));}
+    let mut out:j::Value=j::parse("{\"schemaVersion\":\"0.2\"}");out=j::set(out,"browser",browser);out=j::set(out,"services",services);out=j::set(out,"lowered",j::Value::Array(a));return j::set(out,"unsupported",j::Value::Array(b));
+}
+fn invalid()->void {s::error("K0714","invalid browser host restrictions",s::span("<host-policy>",0,0));}
+pub fn browser(value:j::Value)->j::Value {
+    if !j::is_object(value)||map_len::<string,j::Value>(j::object(value))!=7 {invalid();}let keys:Array<string>=["dom","timers","vault","random","clock","navigation"];for key in keys {if !j::is_bool(j::field(value,key)) {invalid();}}
+    let network:j::Value=j::field(value,"network");let paths:j::Value=j::field(network,"paths");let methods:j::Value=j::field(network,"methods");
+    if !j::is_object(network)||map_len::<string,j::Value>(j::object(network))!=3||!j::is_bool(j::field(network,"sameOrigin"))||!j::is_array(paths)||!j::is_array(methods)||array_len::<j::Value>(j::array(paths))>32||array_len::<j::Value>(j::array(methods))>5 {invalid();}
+    for item in j::array(paths) {let path:string=j::string(item);if !j::is_string(item)||!s::starts(path,"/") {invalid();}if path=="/" {continue;}let pieces:Array<string>=string_split(s::slice(path,1,string_len(path)),"/");let mut pi:i32=0;for piece in pieces {if piece=="."||piece==".."||piece==""&&pi!=array_len::<string>(pieces)-1 {invalid();}let mut i:i32=0;while i<string_len(piece) {let b:i32=s::byte(piece,i);if !(b>=65&&b<=90||b>=97&&b<=122||b>=48&&b<=57||b==95||b==46||b==126||b==45) {invalid();}i=i+1;}pi=pi+1;}}
+    for method in j::array(methods) {let name:string=j::string(method);if !j::is_string(method)||name!="GET"&&name!="POST"&&name!="PUT"&&name!="PATCH"&&name!="DELETE" {invalid();}}
+    return value;
+}
