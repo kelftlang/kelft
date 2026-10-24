@@ -5049,6 +5049,10 @@
       "path": "scripts/release-github.mjs"
     },
     {
+      "source": "tools/compiler-release/scripts/release-http.mjs",
+      "path": "scripts/release-http.mjs"
+    },
+    {
       "source": "tools/compiler-release/scripts/release-identities.mjs",
       "path": "scripts/release-identities.mjs"
     },
@@ -5063,6 +5067,10 @@
     {
       "source": "tools/compiler-release/scripts/release-package.mjs",
       "path": "scripts/release-package.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-recovery.mjs",
+      "path": "scripts/release-recovery.mjs"
     },
     {
       "source": "tools/compiler-release/scripts/release-retained.mjs",
@@ -5979,6 +5987,10 @@
     {
       "source": "tools/compiler-release/tests/release-pipeline.test.mjs",
       "path": "tests/release-pipeline.test.mjs"
+    },
+    {
+      "source": "tools/compiler-release/tests/release-recovery.test.mjs",
+      "path": "tests/release-recovery.test.mjs"
     },
     {
       "source": "tools/compiler-release/tests/release.test.mjs",

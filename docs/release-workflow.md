@@ -1,12 +1,13 @@
 # Preparing an alpha release
 
-The **Native compiler release** workflow has four manual operations:
+The **Native compiler release** workflow has five manual operations:
 
 | Operation | Result |
 | --- | --- |
 | `refresh-seeds` | Refresh changed native components and open a seed-only PR against the dispatch branch, `dev` or `main`. |
 | `verify` | Assemble selected native distributions and check extracted installations, retaining reports without creating a release. |
 | `prepare` | Verify all six distributions, attest assets, create the version tag and a draft prerelease, and verify downloaded draft bytes. |
+| `resume-draft` | Authenticate a previous prepare run and finish its draft using the original signed assets, without rebuilding or repackaging. |
 | `publish` | Revalidate a specified draft and publish those same assets without rebuilding. |
 
 Native jobs have maximum concurrency two. Release engineering uses pinned tools;
@@ -150,6 +151,16 @@ be uploaded. Altered, unexpected, published, or immutable releases are rejected.
 Every release update includes `tag_name` and validates response/readback identity.
 Complete draft assets are downloaded and authenticated against checksums and
 attestations. Alpha.1's tag, draft, assets, and historical evidence are preserved.
+
+## Recover an interrupted draft
+
+If a draft job repeatedly fails, preserve its signed-assets artifact. After reviewing and merging any tooling correction, dispatch **resume-draft** from **main**, target **all**, with the original **source_run_id** and **candidate_sha**. Approve **compiler-release-draft** when prompted. A rerun of the old workflow uses its old code; the recovery operation uses the reviewed tooling on current main.
+
+Recovery requires a completed prepare run from this repository's main release workflow with successful preflight, assembly and attestation jobs. It authenticates the unique unexpired signed-assets ZIP, verifies the manifest's original-candidate attestation before reading its inventory, and verifies every asset. It preserves the original candidate, version, signatures and bytes. The recovery workflow must be a verified descendant of the candidate; its identity is recorded separately in the draft-recovery-evidence artifact. Ordinary prepare still requires its workflow commit to equal its candidate.
+
+For the existing alpha.2 preparation, use source run **40104842787** and candidate **6e1606242363becf595b8abaa5f8391ee38d7a7f**. Leave release_id empty. Recovery performs no native builds, packaging or new attestations, and never publishes.
+
+Network errors identify the operation, safe endpoint, attempt, elapsed time, status and error code without credentials or signed URL queries. Reads have at most three attempts with bounded delays and deadlines covering response bodies. Interrupted downloads restart into exclusive files; incomplete files are removed. Authentication, integrity and attestation failures stop immediately. Ambiguous writes are reconciled against the exact remote tag, draft or complete uploaded asset; conflicting or incomplete assets require review and are never silently replaced.
 
 ## Publish separately
 

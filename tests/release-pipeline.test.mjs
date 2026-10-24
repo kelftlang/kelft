@@ -77,12 +77,12 @@ test('asset downloads confine remote names, use exclusive files and enforce exac
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'kelft-download-bounds-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));let body=Buffer.from('abc'),requests=0;
  const transport=releaseTransport('test-token',root,{fetcher:async(url,options)=>{requests++;assert.ok(url.startsWith('https://api.github.com/repos/kelftlang/kelft/'));assert.equal(options.headers.Authorization,'Bearer test-token');return new Response(body);}});
  for(const [i,name]of ['../../escape.json','..\\..\\escape.jsonl','/absolute.json','C:\\escape.json','evil.exe','file.json/../evil.sh','file.JSON'].entries()){
-  const file=await transport.download({id:i+1,name,size:3});assert.equal(path.dirname(file),root);assert.match(path.basename(file),/^download-\d+-\d+(?:\.jsonl?)?$/);assert.deepEqual(fs.readFileSync(file),body);
+  const file=await transport.download({id:i+1,name,size:3});assert.equal(path.dirname(file),root);assert.match(path.basename(file),/^download-[a-f0-9-]{36}(?:\.jsonl?)?$/);assert.deepEqual(fs.readFileSync(file),body);
  }
  const before=requests;for(const asset of [{id:0,size:3},{id:1,size:0},{id:1,size:2*1024**3+1},{id:1.5,size:3},{id:1,size:NaN}])await assert.rejects(transport.download(asset),/Invalid asset/);assert.equal(requests,before);
  await assert.rejects(transport.download({id:30,name:'short.json',size:4}),/truncated/);body=Buffer.from('oversized');await assert.rejects(transport.download({id:31,name:'large.json',size:3}),/exceeds recorded bound/);
- const collision=path.join(root,'download-99-0.json');fs.writeFileSync(collision,'keep existing bytes');const fresh=releaseTransport('test-token',root,{fetcher:async()=>new Response('abc')});await assert.rejects(fresh.download({id:99,name:'bundle.json',size:3}),/EEXIST/);assert.equal(fs.readFileSync(collision,'utf8'),'keep existing bytes');
- const denied=releaseTransport('test-token',root,{fetcher:async()=>new Response('',{status:403})});await assert.rejects(denied.download({id:50,size:3}),/download failed/);
+ const collision=path.join(root,'download-99-0.json');fs.writeFileSync(collision,'keep existing bytes');const fresh=releaseTransport('test-token',root,{nameID:()=>'99-0',fetcher:async()=>new Response('abc')});await assert.rejects(fresh.download({id:99,name:'bundle.json',size:3}),/EEXIST/);assert.equal(fs.readFileSync(collision,'utf8'),'keep existing bytes');
+ const denied=releaseTransport('test-token',root,{fetcher:async()=>new Response('',{status:403})});await assert.rejects(denied.download({id:50,size:3}),/HTTP 403/);
 });
 
 test('verifier failures identify artifacts and bounded process diagnostics without tokens',t=>{
