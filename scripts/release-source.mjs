@@ -28,8 +28,10 @@ export async function versionTag(api,tag,candidate,{required=false}={}){
   requireThat(ref.ref==='refs/tags/'+tag,'Unexpected version tag reference');let object=ref.object;for(let depth=0;object?.type==='tag'&&depth<8;depth++)object=(await api('GET','/repos/'+repository+'/git/tags/'+object.sha)).object;
   requireThat(object?.type==='commit'&&object.sha===candidate,'Version tag identifies a different commit; it will not be moved');return ref;
 }
-export async function ensureVersionTag(api,tag,candidate){
-  if(!await versionTag(api,tag,candidate)){try{await api('POST','/repos/'+repository+'/git/refs',{ref:'refs/tags/'+tag,sha:candidate});}catch(error){if(!error.ambiguous&&![409,422].includes(error.status))throw error;}}
+export async function ensureVersionTag(api,tag,candidate,{requireMainHead=false}={}){
+  if(!await versionTag(api,tag,candidate)){
+    if(requireMainHead){const head=await api('GET','/repos/'+repository+'/git/ref/heads/main');requireThat(head?.ref==='refs/heads/main'&&head.object?.type==='commit'&&head.object.sha===candidate,'Main changed before tag creation; prepare the current main commit. No tag was created.');}
+    try{await api('POST','/repos/'+repository+'/git/refs',{ref:'refs/tags/'+tag,sha:candidate});}catch(error){if(!error.ambiguous&&![409,422].includes(error.status))throw error;}}
   return versionTag(api,tag,candidate,{required:true});
 }
 export async function releaseContext(api,candidate,version,{publish=false,env=process.env,fetcher=fetch,run=spawnSync}={}){

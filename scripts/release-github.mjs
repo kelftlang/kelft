@@ -35,7 +35,7 @@ export async function prepareDraft({context,api,manifest,directory,upload,downlo
   // All local assets and signatures are checked before creating a remote draft.
   for(const row of expected){const file=safeFile(directory,row.file);requireThat(fileIdentity(file).sha256===row.sha256,'Local release asset changed');if(row.file!=='attestations.json')await verify(file,safeFile(directory,'attestations.json'),context.candidate);}
   const body=(notes?notes+'\n\n':'')+'Experimental Kelft '+manifest.version+'. Windows binaries are unsigned; macOS binaries use ad-hoc signatures and are not notarized. Verify provenance and SHA256SUMS before use.';
-  await ensureVersionTag(api,manifest.tag,context.candidate);
+  await ensureVersionTag(api,manifest.tag,context.candidate,{requireMainHead:!recovery});
   if(!release){try{release=await api('POST','/repos/'+repository+'/releases',{tag_name:manifest.tag,target_commitish:context.candidate,name:'Kelft v'+manifest.version,body,draft:true,prerelease:true,make_latest:'false'});}catch(error){if(!error.ambiguous)throw error;release=await findDraft(api,manifest.tag);requireThat(release,'Ambiguous draft creation; no matching draft found; rerun to reconcile');await versionTag(api,manifest.tag,context.candidate,{required:true});}}
   requireThat(Number.isSafeInteger(release.id)&&release.id>0&&release.draft===true&&release.prerelease===true&&release.tag_name===manifest.tag,'Created draft identity differs');
   const previous=await api('GET','/repos/'+repository+'/releases/'+release.id+'/assets?per_page=100'),seen=new Set();requireThat(Array.isArray(previous)&&previous.length<=expected.length,'Unexpected draft assets');

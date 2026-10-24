@@ -118,7 +118,10 @@ an artifact name alone is never enough to execute downloaded files.
 Merge the seed PR into `dev`, then merge the reviewed `dev` → `main` PR through
 GitHub. Select that resulting `main` commit. Dispatch `prepare` from `main`,
 target `all`, with the exact candidate SHA. No private qualification cycle or
-separate host-readiness proof is required.
+separate host-readiness proof is required. Keep `main` unchanged until preparation
+finishes. Before creating an absent tag, ordinary preparation confirms that
+`main` still identifies the triggering candidate; drift stops tag creation.
+An initial tag lookup returning 404 is expected for a new version.
 
 `release.json` is the compiler version authority. The changelog must contain
 exactly one nonempty matching tag section, such as `## v0.1.0-alpha.2`. Archive
@@ -158,9 +161,9 @@ If a draft job repeatedly fails, preserve its signed-assets artifact. After revi
 
 Recovery requires a completed prepare run from this repository's main release workflow with successful preflight, assembly and attestation jobs. It authenticates the unique unexpired signed-assets ZIP, verifies the manifest's original-candidate attestation before reading its inventory, and verifies every asset. It preserves the original candidate, version, signatures and bytes. The recovery workflow must be a verified descendant of the candidate; its identity is recorded separately in the draft-recovery-evidence artifact. Ordinary prepare still requires its workflow commit to equal its candidate.
 
-For the existing alpha.2 preparation, use source run **40104842787** and candidate **6e1606242363becf595b8abaa5f8391ee38d7a7f**. Leave release_id empty. Recovery performs no native builds, packaging or new attestations, and never publishes.
+Recovery performs no native builds, packaging or new attestations, and never publishes. Creating a tag at an older candidate can be denied by GitHub even with Contents write permission. For a fresh preparation, dispatch `prepare` from the final merged `main` commit with target `all` and that exact candidate; leave recovery and release-ID inputs empty. Existing conflicting tags or drafts must be resolved by review, never overwritten. Preserve the earlier run artifacts and attestations; fresh assets receive attestations for the new candidate.
 
-Network errors identify the operation, safe endpoint, attempt, elapsed time, status and error code without credentials or signed URL queries. Reads have at most three attempts with bounded delays and deadlines covering response bodies. Interrupted downloads restart into exclusive files; incomplete files are removed. Authentication, integrity and attestation failures stop immediately. Ambiguous writes are reconciled against the exact remote tag, draft or complete uploaded asset; conflicting or incomplete assets require review and are never silently replaced.
+Network errors identify the operation, safe endpoint, attempt, elapsed time, status, GitHub request ID, bounded error response and error code without credentials or signed URL queries. Reads have at most three attempts with bounded delays and deadlines covering response bodies. Interrupted downloads restart into exclusive files; incomplete files are removed. Authentication, integrity and attestation failures stop immediately. Ambiguous writes are reconciled against the exact remote tag, draft or complete uploaded asset; conflicting or incomplete assets require review and are never silently replaced.
 
 ## Publish separately
 
