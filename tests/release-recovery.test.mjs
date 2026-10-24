@@ -20,11 +20,71 @@ test('recovery workflow has a separate protected path without native dependencie
 test('recovery ZIP is digest bound and safely materialized',async t=>{const dir=scratch(t),bytes=zip([{path:'release-manifest.json',data:Buffer.from('{}')},{path:'attestations.json',data:Buffer.from('{}')}]),archive=path.join(dir,'proof.zip'),out=path.join(dir,'out');fs.writeFileSync(archive,bytes);fs.mkdirSync(out);await assert.rejects(extractSignedAssets(archive,sha256('wrong'),out),/differs/);assert.equal((await extractSignedAssets(archive,sha256(bytes),out)).length,2);});
 test('ambiguous draft creation reconciles by tag without duplicating or accepting a conflict',async t=>{
  for(const kind of ['matching','missing','conflict']){const f=assetFixture(t),tag=f.manifest.tag,context={repository:repo,ref:'refs/heads/main',candidate,workflowCommit:candidate,version:f.manifest.version,tag,tagCommit:null,onMain:true,sourceVerified:true};let ref=null,release=null,writes=0;const assets=[];
- const api=async(method,url,body)=>{if(url.includes('/environments/'))return {protection_rules:[{type:'required_reviewers',reviewers:[{}]}]};if(method==='GET'){if(url.includes('/git/ref/'))return ref;if(url.includes('/releases?'))return release?[release]:[];if(url.includes('/assets?'))return assets;return release;}if(url.endsWith('/git/refs')){ref={ref:'refs/tags/'+tag,object:{type:'commit',sha:candidate}};return ref;}writes++;if(kind!=='missing')release={id:7,draft:kind!=='conflict',prerelease:true,tag_name:tag};throw Object.assign(socket(),{ambiguous:true});};
+ const api=async(method,url,body)=>{if(url.includes('/environments/'))return {protection_rules:[{type:'required_reviewers',reviewers:[{}]}]};if(method==='GET'){if(url.endsWith('/git/ref/heads/main'))return {ref:'refs/heads/main',object:{type:'commit',sha:candidate}};if(url.includes('/git/ref/'))return ref;if(url.includes('/releases?'))return release?[release]:[];if(url.includes('/assets?'))return assets;return release;}if(url.endsWith('/git/refs')){ref={ref:'refs/tags/'+tag,object:{type:'commit',sha:candidate}};return ref;}writes++;if(kind!=='missing')release={id:7,draft:kind!=='conflict',prerelease:true,tag_name:tag};throw Object.assign(socket(),{ambiguous:true});};
  const args={context,api,manifest:f.manifest,directory:f.directory,verify:async()=>{},upload:async(r,file,name)=>assets.push({id:assets.length+1,name,size:fs.statSync(file).size,digest:fileIdentity(file).sha256}),download:async row=>path.join(f.directory,row.name)};
  if(kind==='matching')assert.equal((await prepareDraft(args)).status,'passed');else await assert.rejects(prepareDraft(args),/Ambiguous draft|cannot be replaced/);assert.equal(writes,1);
  }
 });
 test('ZIP recovery rejects traversal, duplicate members and broken archives',async t=>{
  for(const kind of ['traversal','duplicate','truncated']){const dir=scratch(t),archive=path.join(dir,'proof.zip'),out=path.join(dir,'out');let bytes=zip([{path:'safe.json',data:Buffer.from('{}')},{path:'next.json',data:Buffer.from('{}')}]);if(kind==='traversal')bytes=Buffer.from(bytes.toString('latin1').replaceAll('safe.json','../x.json'),'latin1');if(kind==='duplicate')bytes=Buffer.from(bytes.toString('latin1').replaceAll('next.json','safe.json'),'latin1');if(kind==='truncated')bytes=bytes.subarray(0,bytes.length-30);fs.writeFileSync(archive,bytes);fs.mkdirSync(out);await assert.rejects(extractSignedAssets(archive,sha256(bytes),out));assert.equal(fs.readdirSync(out).length,0);}
+});
+
+
+test('real transport handles missing, matching, conflicting and concurrently created tags',async()=>{
+ for(const kind of ['missing','matching','conflict','race','race-conflict','drift','denied']){
+  const tag='v0.1.0-alpha.2',calls=[];let ref=['matching','conflict'].includes(kind)?{ref:'refs/tags/'+tag,object:{type:'commit',sha:kind==='conflict'?current:candidate}}:null;
+  const api=githubClient('secret-token',async(url,init)=>{calls.push(init.method+' '+new URL(url).pathname);
+   if(url.endsWith('/heads/main'))return Response.json({ref:'refs/heads/main',object:{type:'commit',sha:kind==='drift'?current:candidate}});
+   if(init.method==='GET')return ref?Response.json(ref):Response.json({message:'Not Found'},{status:404});
+   assert.deepEqual(JSON.parse(init.body),{ref:'refs/tags/'+tag,sha:candidate});
+   if(kind==='denied')return Response.json({message:'Resource not accessible by integration secret-token Bearer abc https://example.test/key?signature=hidden'},{status:403,headers:{'x-github-request-id':'ABCD:1234'}});
+   ref={ref:'refs/tags/'+tag,object:{type:'commit',sha:kind==='race-conflict'?current:candidate}};
+   return kind.startsWith('race')?Response.json({message:'Reference already exists'},{status:422}):Response.json(ref,{status:201});
+  });
+  const action=ensureVersionTag(api,tag,candidate,{requireMainHead:true});
+  if(kind==='denied')await assert.rejects(action,e=>e.status===403&&/Resource not accessible by integration/.test(e.message)&&/ABCD:1234/.test(e.message)&&! /secret-token|abc|hidden/.test(e.message));
+  else if(['conflict','race-conflict'].includes(kind))await assert.rejects(action,/different commit/);
+  else if(kind==='drift')await assert.rejects(action,/Main changed/);
+  else await action;
+  assert.equal(calls.filter(c=>c.startsWith('POST')).length,['matching','conflict','drift'].includes(kind)?0:1);
+  if(kind==='missing')assert.deepEqual(calls.map(c=>c.split(' ')[0]),['GET','GET','POST','GET']);
+ }
+});
+
+test('error response diagnostics are bounded and redact JSON, plaintext and request IDs',async()=>{
+ for(const body of [JSON.stringify({message:'Authorization: Bearer abc token-secret https://host/path?sig=hidden '+ 'x'.repeat(10000)}),'token-secret https://host/path?sig=hidden '+ 'x'.repeat(10000)]){
+  const logs=[];await assert.rejects(request(url,{method:'POST'},r=>r.json(),{log:s=>logs.push(s),secrets:['token-secret'],fetcher:async()=>new Response(body,{status:403,headers:{'x-github-request-id':'ABCD:1234'}})}),e=>e.status===403&&e.message.length<=2048&&/ABCD:1234/.test(e.message)&&! /token-secret|hidden|Bearer abc/.test(e.message));assert.equal(logs.length,1);
+ }
+ let pulls=0;await assert.rejects(request(url,{method:'POST'},r=>r.json(),{...settings,fetcher:async()=>new Response(new ReadableStream({pull(c){pulls++;c.enqueue(new Uint8Array(4096).fill(120));}}),{status:403})}),/HTTP 403/);assert.ok(pulls<=4,'Error stream consumption must be bounded');
+ await assert.rejects(request(url,{method:'POST'},r=>r.json(),{...settings,timeout:10,fetcher:async()=>new Response(new ReadableStream({start(){}}),{status:403})}),/RELEASE_TIMEOUT/);
+});
+
+test('fresh preparation uses actual transport for complete drafts and interrupted-upload continuation',async t=>{
+ for(const interrupted of [false,true]){
+  const f=assetFixture(t),downloads=scratch(t),tag=f.manifest.tag,context={repository:repo,ref:'refs/heads/main',candidate,workflowCommit:candidate,version:f.manifest.version,tag,tagCommit:null,onMain:true,sourceVerified:true};
+  let ref=null,release=null,tagWrites=0,draftWrites=0,failed=false;const assets=[],bytes=new Map(),verified=[];
+  const transport=releaseTransport('test-token',downloads,{fetcher:async(u,init={})=>{
+   const address=new URL(u),route=address.pathname,method=init.method??'GET';
+   if(address.hostname==='uploads.github.com'){
+    const name=address.searchParams.get('name');if(interrupted&&!failed&&assets.length===1){failed=true;throw socket();}
+    const data=Buffer.from(await new Response(init.body).arrayBuffer());assert.deepEqual(data,fs.readFileSync(path.join(f.directory,name)));const row={id:assets.length+1,name,size:data.length,digest:sha256(data),state:'uploaded'};assets.push(row);bytes.set(row.id,data);return Response.json(row,{status:201});
+   }
+   if(route.includes('/environments/'))return Response.json({protection_rules:[{type:'required_reviewers',reviewers:[{}]}]});
+   if(route.endsWith('/git/ref/heads/main'))return Response.json({ref:'refs/heads/main',object:{type:'commit',sha:candidate}});
+   if(route.includes('/git/ref/tags/'))return ref?Response.json(ref):Response.json({message:'Not Found'},{status:404});
+   if(route.endsWith('/git/refs')){assert.ok(verified.length>=2);tagWrites++;ref={ref:'refs/tags/'+tag,object:{type:'commit',sha:candidate}};return Response.json(ref,{status:201});}
+   if(route.endsWith('/releases')&&method==='POST'){draftWrites++;assert.equal(JSON.parse(init.body).tag_name,tag);release={id:7,draft:true,prerelease:true,tag_name:tag,upload_url:'https://uploads.github.com/repos/'+repo+'/releases/7/assets{?name}'};return Response.json(release,{status:201});}
+   if(route.endsWith('/releases'))return Response.json(release?[release]:[]);
+   if(route.endsWith('/releases/7/assets'))return Response.json(assets);
+   if(route.includes('/releases/assets/'))return new Response(bytes.get(Number(route.split('/').at(-1))));
+   if(route.endsWith('/releases/7'))return Response.json(release);
+   throw Error('Unexpected test request '+method+' '+route);
+  }});
+  const verify=async(file,bundle,sha)=>{assert.equal(sha,candidate);assert.equal(fs.readFileSync(bundle,'utf8'),'bundle');assert.ok(bundle.endsWith('.json'));const data=fs.readFileSync(file);assert.ok(['compiler.zip','release-manifest.json'].some(name=>data.equals(fs.readFileSync(path.join(f.directory,name)))));verified.push(file);};
+  const args={...transport,verify,context,manifest:f.manifest,directory:f.directory};
+  if(interrupted){await assert.rejects(prepareDraft(args),/Ambiguous upload/);assert.equal(assets.length,1);}
+  assert.equal((await prepareDraft(args)).status,'passed');assert.equal(assets.length,3);assert.equal(tagWrites,1);assert.equal(draftWrites,1);
+  assert.ok(verified.some(file=>path.dirname(file)===downloads),'Downloaded bytes must reach attestation verification');
+  assert.equal((await prepareDraft(args)).status,'passed');assert.equal(assets.length,3);assert.equal(tagWrites,1);assert.equal(draftWrites,1);
+ }
 });

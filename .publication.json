@@ -1,7 +1,7 @@
 {
   "schema": "kelft.public-export/1",
   "kind": "compiler",
-  "sourceRevision": "8902ead23ed7ed3a797a6517d55689c9b85f2a5c",
+  "sourceRevision": "6ad922226b253a702f288ddbf479d66174c40cf2",
   "sourceDirty": true,
   "publication": "prepared-not-published",
   "files": [
@@ -5652,8 +5652,8 @@
     },
     {
       "path": "docs/release-workflow.md",
-      "sha256": "sha256:05af95781ed164f9d6af6919a652a31e84ec0db9c85c8bbb5f058d3b17d164fa",
-      "bytes": 11833
+      "sha256": "sha256:445b5694c128782e6ce28ca2731493ba09319e91b86ff76af6c7536c73bb4fde",
+      "bytes": 12441
     },
     {
       "path": "examples/hello.kelft",
@@ -6337,13 +6337,13 @@
     },
     {
       "path": "scripts/release-github.mjs",
-      "sha256": "sha256:40a2627dbaa6029bce8a361bbb4a7499418389538deeff664b9f932c1f52f62f",
-      "bytes": 12228
+      "sha256": "sha256:83dc0e28093382acdc1a0a2820681b6c46738baeff77f6dce874d06f0631a5b8",
+      "bytes": 12256
     },
     {
       "path": "scripts/release-http.mjs",
-      "sha256": "sha256:2d386cb085e7e226a62ada50f9659f89d78d29010016e333bb6d4dd9b559c90b",
-      "bytes": 4146
+      "sha256": "sha256:8d5b234184493427b6ee5718674eacbe0df28e4301eafbbff5ea26ebe8ef850a",
+      "bytes": 4966
     },
     {
       "path": "scripts/release-identities.mjs",
@@ -6387,8 +6387,8 @@
     },
     {
       "path": "scripts/release-source.mjs",
-      "sha256": "sha256:5fee36b086c38079c7388086c357e9f2e67cfd301adfbf97bc418d2ff4978d78",
-      "bytes": 5303
+      "sha256": "sha256:0e37669125e74779fb0d5a1b2cccc0c9f4704d98118855c72c25229f2518c635",
+      "bytes": 5623
     },
     {
       "path": "scripts/release.mjs",
@@ -7647,8 +7647,8 @@
     },
     {
       "path": "tests/release-alpha2.test.mjs",
-      "sha256": "sha256:b28d45fb7162ad6d7d8ae03ba36103dc657ed7984094028563f71f887ad73872",
-      "bytes": 18265
+      "sha256": "sha256:67efb01bd15231f663985cb440df7b1ab98c1bdebd05dec00f05ae25c4ed4dc7",
+      "bytes": 18372
     },
     {
       "path": "tests/release-pipeline.test.mjs",
@@ -7657,8 +7657,8 @@
     },
     {
       "path": "tests/release-recovery.test.mjs",
-      "sha256": "sha256:9dd58fe303af516c13edba3dff2f7422848404403fb792dfe2713039346aefe5",
-      "bytes": 12785
+      "sha256": "sha256:7e68c5f42ca2a6fe07e7d170acea20c32acbf94fab9e4d46637d888190a95a0e",
+      "bytes": 19344
     },
     {
       "path": "tests/release.test.mjs",
