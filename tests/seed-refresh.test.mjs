@@ -1,7 +1,7 @@
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import os from 'node:os';import zlib from 'node:zlib';import {createHash} from 'node:crypto';
 import {staticRuntimeInputs} from '../scripts/seed-host.mjs';
-import {json,sha256,inventory} from '../scripts/common.mjs';import {refreshContext,sourceBundle,policyProbes} from '../scripts/seed-refresh.mjs';import {makeUpdate,validateUpdate,deriveFiles,hash,splitUpdate} from '../scripts/seed-update.mjs';import {createSeedPR,maintenanceClient,seedOnlyPaths} from '../scripts/seed-pull-request.mjs';import {tarGzip,readTar,zip} from '../scripts/archive.mjs';import {inputClosure} from '../scripts/release-identities.mjs';import {BASELINE,adoptCompiler} from '../scripts/release-baseline.mjs';import {authenticateRemoteArtifact} from '../scripts/release-artifact.mjs';import {TARGETS,validateQualification} from '../scripts/release-contracts.mjs';
+import {json,sha256,inventory} from '../scripts/common.mjs';import {refreshContext,sourceBundle,policyProbes,metadataChecks} from '../scripts/seed-refresh.mjs';import {makeUpdate,validateUpdate,deriveFiles,hash,splitUpdate} from '../scripts/seed-update.mjs';import {createSeedPR,maintenanceClient,seedOnlyPaths} from '../scripts/seed-pull-request.mjs';import {tarGzip,readTar,zip} from '../scripts/archive.mjs';import {inputClosure} from '../scripts/release-identities.mjs';import {BASELINE,adoptCompiler} from '../scripts/release-baseline.mjs';import {authenticateRemoteArtifact} from '../scripts/release-artifact.mjs';import {TARGETS,validateQualification} from '../scripts/release-contracts.mjs';
 const oid=bytes=>createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),h=sha256('fixture'),candidate='a'.repeat(40),target='linux-x86_64';
 function scratch(t){const root=fs.mkdtempSync(path.join(os.tmpdir(),'kelft seed PR Ω '));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));return root;}
 function put(root,name,data){const file=path.join(root,name);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,Buffer.isBuffer(data)||typeof data==='string'?data:json(data));}
@@ -64,8 +64,38 @@ test('PR readback tampering and unexpected automation branches are rejected with
 test('split refresh inventory rejects unaccounted policy and producer changes',t=>{
  for(const kind of ['policy','producer','extra','destination']){const f=fixture(t),updates=delta(f),name='bootstrap/'+target+'/seed.json',seed=JSON.parse(updates.get(name).data);if(kind==='producer')seed.producer.coordinatorSHA256=h;if(kind==='policy')seed.files.push({path:'rootfs/policies/rebuild',sha256:h,bytes:7,mode:493});if(kind==='extra')updates.set('bootstrap/'+target+'/parts/'+h.slice(7),{data:Buffer.from('unlisted'),mode:420});updates.set(name,{data:json(seed),mode:420});const report=makeUpdate({...f,target,updates,...f.context});if(kind==='destination')put(f.directory,'bootstrap/'+target+'/bin/kelft','locally altered');assert.throws(()=>validateUpdate(report,name=>updates.get(name).data,f.directory,f.identity));}
 });
-test('policy decision probes use confined explicit reads and inspect action errors',t=>{
- const project=scratch(t),installation=scratch(t),policy=path.join(project,'policy');fs.writeFileSync(policy,'native policy');let calls=0;const result=policyProbes({installation,policy,target,project,logs:project,run:(file,args,cwd,logs,name,exit)=>{assert.equal(exit,0);assert.equal(args[args.indexOf('--read')+1],path.join(project,'request.json'));assert.equal(args.at(-1),'/project/request.json');const request=readJSONFixture(project,'request.json');calls++;return {stdout:JSON.stringify(calls===3?{exit:1,error:{code:'REBUILD_INPUT'}}:{release:request.sourceRelease??request.installedRelease})};}});assert.equal(result.cases,3);
+
+for(const profile of TARGETS)test('policy probes use native grant contracts and file capabilities: '+profile,t=>{
+ const project=scratch(t),installation=scratch(t),policy=path.join(installation,'policy');fs.writeFileSync(policy,'native policy');
+ const execute=(bad=false)=>{let calls=0;const result=policyProbes({installation,policy,target:profile,project,logs:project,run:(file,args,cwd,logs,name,exit)=>{
+  assert.equal(exit,0);assert.equal(file,path.join(installation,'bin/kelft-boundary'+(profile.startsWith('windows')?'.exe':'')));
+  assert.equal(args.includes('--installed-root'),!profile.startsWith('linux'));assert.equal(args.includes('--write'),false);
+  const grant=args[args.indexOf('--read')+1],guest=args.at(-1);const input=path.join(project,'policy-input');assert.ok(fs.statSync(input).isDirectory());assert.equal(grant,profile.startsWith('linux')?input:path.join(input,'request.json'));assert.equal(fs.statSync(grant).isDirectory(),profile.startsWith('linux'));assert.deepEqual(fs.readdirSync(input),['request.json']);assert.equal(guest,'/project/policy-input/request.json');
+  assert.deepEqual(JSON.parse(args[args.indexOf('--policy')+1]),{read:[guest],write:[],execute:false});assert.equal(path.dirname(args[args.indexOf('--result')+1]),project);
+  const request=readJSONFixture(input,'request.json');calls++;return {stdout:JSON.stringify(calls===3?{exit:bad?0:1,error:{code:'REBUILD_INPUT'}}:{release:request.sourceRelease??request.installedRelease})};
+ }});assert.equal(result.cases,3);assert.equal(calls,3);};execute();assert.throws(()=>execute(true),/Native metadata policy differs/);
+});
+function metadataFixture(t,profile,{failure,wrongExit,wrongDiagnostic}={}){
+ const installation=scratch(t),directory=scratch(t),project=scratch(t),release={schema:'kelft.compiler-version/1',version:'0.1.0-alpha.2',coreVersion:'0.1',intentVersion:'0.2'},file=path.join(installation,'release.json');put(directory,'release.json',release);put(installation,'release.json',release);const original=fs.readFileSync(file),calls=[];
+ const run=(cli,args,cwd,logs,name,expected=0)=>{
+  calls.push(name);assert.equal(cli,path.join(installation,'bin/kelft'+(profile.startsWith('windows')?'.exe':'')));assert.equal(cwd,project);
+  if(name===failure)throw Error('injected '+name);
+  if(['version','doctor','malformed','oversized','legacy-version'].includes(name))assert.equal(readJSONFixture(project,'release.json').version,'9.9.9');
+  if(name==='version'){assert.deepEqual(readJSONFixture(installation,'release.json'),release);return {stdout:'kelft 0.1.0-alpha.2; native\n'};}
+  if(name==='doctor')return {stdout:JSON.stringify({release})};
+  if(name==='malformed'||name==='oversized'){
+   assert.equal(expected,125);assert.equal(fs.readFileSync(file,'utf8'),name==='malformed'?'{':'x'.repeat(65537));return {status:wrongExit?1:125,stderr:wrongDiagnostic?'error[K0600]: unrelated failure\n':'error[K0600]: invalid compiler release metadata\r\n'};
+  }
+  if(name==='legacy-version'){assert.equal(fs.existsSync(file),false);return {stdout:'kelft 0.1.0-alpha.1; legacy\n'};}
+  assert.deepEqual(fs.readFileSync(file),original);assert.equal(fs.existsSync(path.join(project,'release.json')),false);
+  if(name==='rebuild-rejected'){assert.equal(expected,64);assert.deepEqual(args,['rebuild','--unknown']);return {status:64};}
+  assert.equal(name,'hello');assert.deepEqual(args,['run','hello.kelft','--project-root',project]);assert.match(fs.readFileSync(path.join(project,'hello.kelft'),'utf8'),/Hello, Kelft!/);return {stdout:'Hello, Kelft!\n'};
+ };return {run,installation,directory,project,file,original,calls};
+}
+for(const profile of TARGETS)test('complete metadata checks and restoration: '+profile,t=>{
+ const f=metadataFixture(t,profile),result=metadataChecks(f.installation,f.directory,f.project,f.project,{run:f.run,target:profile});assert.equal(result.status,'passed');assert.deepEqual(f.calls,['version','doctor','malformed','oversized','legacy-version','rebuild-rejected','hello']);assert.deepEqual(fs.readFileSync(f.file),f.original);
+ for(const failure of ['version','doctor','malformed','oversized','legacy-version','rebuild-rejected','hello']){const f=metadataFixture(t,profile,{failure});assert.throws(()=>metadataChecks(f.installation,f.directory,f.project,f.project,{run:f.run,target:profile}),/injected/);assert.deepEqual(fs.readFileSync(f.file),f.original);assert.equal(fs.existsSync(path.join(f.project,'release.json')),false);}
+ for(const bad of [{wrongExit:true},{wrongDiagnostic:true}]){const f=metadataFixture(t,profile,bad);assert.throws(()=>metadataChecks(f.installation,f.directory,f.project,f.project,{run:f.run,target:profile}),/Metadata rejection/);assert.deepEqual(fs.readFileSync(f.file),f.original);}
 });
 test('corresponding source bundles retain the original archive and current inputs',t=>{
  const f=fixture(t),original=tarGzip([{path:'host/old.rs',data:Buffer.from('original host')},{path:'selfhost/core.kelft',data:Buffer.from('original compiler')},{path:'NOTICE',data:Buffer.from('required notice')}]),name='bootstrap/sources/'+target+'.tar.gz';put(f.directory,name,original);f.seed.sources={file:'../sources/'+target+'.tar.gz',sha256:sha256(original)};const first=sourceBundle(f.directory,target,f.seed,null),second=sourceBundle(f.directory,target,f.seed,null);assert.deepEqual(first,second);const rows=readTar(zlib.gunzipSync(first)),retained=rows.find(row=>row.path.startsWith('retained-seed/'));assert.deepEqual(retained.data,original);assert.equal(rows.find(row=>row.path==='host/driver/src/installed_cli.rs').data.toString(),'metadata implementation');assert.equal(rows.find(row=>row.path==='NOTICE').data.toString(),'required notice');assert.deepEqual(sourceBundle(f.directory,target,f.seed,null,{hostBuilt:false}),original);

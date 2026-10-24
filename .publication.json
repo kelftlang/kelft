@@ -1,7 +1,7 @@
 {
   "schema": "kelft.public-export/1",
   "kind": "compiler",
-  "sourceRevision": "799993bcce9cb52d58b783dcd5561b41c4f2ff36",
+  "sourceRevision": "de80968f2415eb9e3f6dec4f94fd4a557fc229ce",
   "sourceDirty": true,
   "publication": "prepared-not-published",
   "files": [
@@ -6312,8 +6312,8 @@
     },
     {
       "path": "scripts/seed-refresh.mjs",
-      "sha256": "sha256:1951a3ca01ee5ca7e921ad1c261808c8b5a06ef16a9d8de230176587eb2dad81",
-      "bytes": 14756
+      "sha256": "sha256:2dea3ff47be55630cabc467a2392af698367d69b4493d06ee5de74ed596884d7",
+      "bytes": 15207
     },
     {
       "path": "scripts/seed-update.mjs",
@@ -7562,8 +7562,8 @@
     },
     {
       "path": "tests/seed-refresh.test.mjs",
-      "sha256": "sha256:efa1d496a438de5d63ba10f344d7f0bea24bcb03ec46514bbd98b2a7981e356b",
-      "bytes": 27092
+      "sha256": "sha256:a9a515c9020309fa2e2e48bfb1a9ddab9a9e8afd53a69dddcf19a9c6f98ea95a",
+      "bytes": 31110
     },
     {
       "path": "tests/source-archive.test.mjs",
