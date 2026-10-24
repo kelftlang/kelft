@@ -1,5 +1,28 @@
 //! Informational commands do not initialize project authority or launch workers.
 use crate::native_target::Target;
+use std::{fs,io::Read,path::Path};
+
+fn valid_version(value:&str)->bool {
+    if value.is_empty()||value.len()>128{return false;}
+    fn identifiers(value:&str,pre:bool)->bool {value.split('.').all(|part|!part.is_empty()&&part.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-')&&!(pre&&part.len()>1&&part.starts_with('0')&&part.bytes().all(|b|b.is_ascii_digit())))}
+    let mut build=value.split('+');let first=build.next().unwrap();if let Some(extra)=build.next(){if !identifiers(extra,false)||build.next().is_some(){return false;}}
+    let (core,pre)=first.split_once('-').map_or((first,None),|(a,b)|(a,Some(b)));if pre.is_some_and(|p|!identifiers(p,true)){return false;}
+    let parts:Vec<_>=core.split('.').collect();parts.len()==3&&parts.iter().all(|part|!part.is_empty()&&part.len()<=8&&part.bytes().all(|b|b.is_ascii_digit())&&(part.len()==1||!part.starts_with('0')))
+}
+pub fn embedded_release()->serde_json::Value {serde_json::from_str(include_str!("../release.json")).expect("embedded release identity")}
+pub fn read_release(root:&Path)->Result<Option<serde_json::Value>,&'static str> {
+    let file=root.join("release.json");let stat=match fs::symlink_metadata(&file){Ok(value)=>value,Err(error)if error.kind()==std::io::ErrorKind::NotFound=>return Ok(None),Err(_)=>return Err("cannot read installed release metadata")};
+    if !stat.is_file()||stat.len()>65536{return Err("invalid compiler release metadata");}
+    let mut bytes=Vec::new();fs::File::open(file).map_err(|_|"cannot read compiler release metadata")?.take(65537).read_to_end(&mut bytes).map_err(|_|"cannot read compiler release metadata")?;
+    if bytes.len()>65536{return Err("invalid compiler release metadata");}let value:serde_json::Value=serde_json::from_slice(&bytes).map_err(|_|"invalid compiler release metadata")?;
+    if !matches!(value["schema"].as_str(),Some("kelft.compiler-release/1"|"kelft.compiler-version/1"))||!value["version"].as_str().is_some_and(valid_version){return Err("invalid compiler release metadata");}
+    if value["coreVersion"]!="0.1"||value["intentVersion"]!="0.2"{return Err("unsupported compiler language versions");}Ok(Some(value))
+}
+pub fn installed_release()->Result<serde_json::Value,&'static str>{
+    let exe=std::env::current_exe().map_err(|_|"installed executable unavailable")?;let exe=fs::canonicalize(exe).map_err(|_|"installed executable unavailable")?;
+    if let Some(bin)=exe.parent(){if bin.file_name().and_then(|name|name.to_str())==Some("bin"){if let Some(root)=bin.parent(){if let Some(value)=read_release(root)?{return Ok(value);}}}}
+    Ok(embedded_release())
+}
 
 const USAGE: &str = "Usage: kelft COMMAND [OPTIONS]\n\
 Commands:\n\
@@ -38,15 +61,13 @@ pub fn information(args: &[String]) -> Result<Option<String>, &'static str> {
                 let pinned=option_env!("KELFT_LINUX_WINDOWS_CROSS_SHA256");
                 cross.push(serde_json::json!({"target":"windows-x86_64","emit":if pinned.is_some(){vec!["object","executable"]}else{vec!["object"]},"linkerProfile":if pinned.is_some(){Some("lld-coff/1")}else{None},"profileSHA256":pinned,"readiness":"not-evaluated","certification":"not-evaluated"}));
             }
-            Ok(Some(format!("{}\n",serde_json::json!({"schema":"kelft.capabilities/1","host":host.id(),"certification":"not-evaluated","commands":["build","check","tokens","ast","ir","native-build","run","intent verify","intent accept","engine-run","help","version","capabilities","doctor"],"build":{"defaultTarget":host.id(),"defaultProjectRoot":"current-directory","targetSyntax":["ARCH-PLATFORM","--target ARCH --platform PLATFORM"],"profiles":[{"target":host.id(),"emit":["object","executable"]}],"crossProfiles":cross,"downloadsDuringBuild":false},"optionalEngines":"separately-prepared"}))))
+            Ok(Some(format!("{}\n",serde_json::json!({"schema":"kelft.capabilities/1","host":host.id(),"hostFeatures":["release-metadata/1"],"certification":"not-evaluated","commands":["build","check","tokens","ast","ir","native-build","run","intent verify","intent accept","engine-run","help","version","capabilities","doctor"],"build":{"defaultTarget":host.id(),"defaultProjectRoot":"current-directory","targetSyntax":["ARCH-PLATFORM","--target ARCH --platform PLATFORM"],"profiles":[{"target":host.id(),"emit":["object","executable"]}],"crossProfiles":cross,"downloadsDuringBuild":false},"optionalEngines":"separately-prepared"}))))
         }
         "version" | "--version" => {
             if args.len() != 1 {
                 return Err("version accepts no arguments");
             }
-            let package: serde_json::Value =
-                serde_json::from_str(include_str!("../release.json"))
-                    .map_err(|_| "invalid embedded package identity")?;
+            let package = installed_release()?;
             let version = package["version"]
                 .as_str()
                 .ok_or("embedded version missing")?;
@@ -110,6 +131,19 @@ The policy grants filesystem reads and writes and cannot delegate execution.\n"
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn metadata_is_bounded_and_confined_to_the_named_installation() {
+        let root=std::env::temp_dir().join(format!("kelft version λ {}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));fs::create_dir(&root).unwrap();
+        assert!(read_release(&root).unwrap().is_none());
+        let value=serde_json::json!({"schema":"kelft.compiler-release/1","version":"0.1.0-alpha.2","coreVersion":"0.1","intentVersion":"0.2"});fs::write(root.join("release.json"),value.to_string()).unwrap();assert_eq!(read_release(&root).unwrap().unwrap()["version"],"0.1.0-alpha.2");
+        for text in ["{", "{}", &"x".repeat(65537)]{fs::write(root.join("release.json"),text).unwrap();assert!(read_release(&root).is_err());}
+        fs::remove_file(root.join("release.json")).unwrap();fs::remove_dir(root).unwrap();
+    }
+    #[test]
+    fn version_metadata_uses_canonical_semver() {
+        for version in ["0.1.0-alpha.2","1.2.3","1.2.3-rc.1+build.01"]{assert!(valid_version(version));}
+        for version in ["","01.2.3","1.2","1.2.3-01","1.2.3-","1.2.3+x+y","1.2.3\n"]{assert!(!valid_version(version));}
+    }
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|s| (*s).into()).collect()
     }

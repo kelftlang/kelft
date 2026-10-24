@@ -1,0 +1,14 @@
+import "../json.kelft" as j;
+fn identifiers(value:string,prerelease:bool)->bool {
+ for part in string_split(value,".") {if part=="" {return false;}let mut numeric:bool=true;let mut at:i32=0;while at<string_len(part) {let b:i32=i32_from_u8(string_byte(part,at));if b<48||b>57 {numeric=false;}if !((b>=48&&b<=57)||(b>=65&&b<=90)||(b>=97&&b<=122)||b==45) {return false;}at=at+1;}if prerelease&&numeric&&string_len(part)>1&&i32_from_u8(string_byte(part,0))==48 {return false;}}return true;
+}
+fn semver(value:string)->bool {
+ if value==""||string_len(value)>128 {return false;}let parts:Array<string>=string_split(value,"+");if array_len::<string>(parts)>2 {return false;}if array_len::<string>(parts)==2&&!identifiers(parts[1],false) {return false;}
+ let before:string=parts[0];let mut at:i32=0;while at<string_len(before)&&i32_from_u8(string_byte(before,at))!=45 {at=at+1;}let core:string=string_slice(before,0,at);if at<string_len(before)&&!identifiers(string_slice(before,at+1,string_len(before)),true) {return false;}
+ let numbers:Array<string>=string_split(core,".");if array_len::<string>(numbers)!=3 {return false;}for part in numbers {if part==""||string_len(part)>8||(string_len(part)>1&&i32_from_u8(string_byte(part,0))==48) {return false;}let mut i:i32=0;while i<string_len(part) {let b:i32=i32_from_u8(string_byte(part,i));if b<48||b>57 {return false;}i=i+1;}}return true;
+}
+pub fn validate(value:j::Value)->Result<j::Value,string> {
+ let schema:string=j::string(j::field(value,"schema"));let version:j::Value=j::field(value,"version");if (schema!="kelft.compiler-release/1"&&schema!="kelft.compiler-version/1")||!j::is_string(version)||!semver(j::string(version)) {return Result::<j::Value,string>::Error("invalid compiler release metadata");}
+ if j::field(value,"coreVersion")!=j::Value::Text("0.1")||j::field(value,"intentVersion")!=j::Value::Text("0.2") {return Result::<j::Value,string>::Error("unsupported compiler language versions");}
+ let out:j::Value=j::parse("{\"schema\":\"kelft.compiler-version/1\",\"coreVersion\":\"0.1\",\"intentVersion\":\"0.2\"}");return Result::<j::Value,string>::Ok(j::set(out,"version",version));
+}

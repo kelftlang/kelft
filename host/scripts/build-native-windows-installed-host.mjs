@@ -3,7 +3,7 @@ import {treeHash} from './build-inputs.mjs';
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
 import {repo,hash,writeJson} from './ai/common.mjs';
 import {inventorySDK,nativeFileHash} from './direct-toolchain.mjs';
-export function buildWindowsInstalledHost({directory,packageRoot,compiler,configuration,run,targetCatalog=null,componentPolicy=null,workspacePolicy=null,testingPolicy=null,rebuildPolicy=null,hostSystemInputs=false}){
+export function buildWindowsInstalledHost({directory,packageRoot,compiler,configuration,run,targetCatalog=null,componentPolicy=null,workspacePolicy=null,testingPolicy=null,rebuildPolicy=null,hostSystemInputs=false,retainedBoundary=null}){
  assert.equal(process.platform,'win32');assert.ok(['x64','arm64'].includes(process.arch));fs.mkdirSync(directory,{recursive:true});
  const workspacePolicySHA256=workspacePolicy?hash(fs.readFileSync(workspacePolicy)):null;
  const hostInputs=['driver/Cargo.toml','driver/Cargo.lock','driver/build.rs','driver/release.json'],sourceHash=treeHash(repo,['driver/src'],hostInputs),rebuildPolicySHA256=rebuildPolicy?hash(fs.readFileSync(rebuildPolicy)):null;
@@ -31,7 +31,7 @@ export function buildWindowsInstalledHost({directory,packageRoot,compiler,config
  if(hostSystemInputs)run('rustup',[...cargo,'test',...base,'--release','--target',triple,'--lib','windows_linker::tests','--','--test-threads=1'],'development-linker-controls',{env,timeout:300000});
  const bin=path.join(packageRoot,'bin');fs.mkdirSync(bin,{recursive:true});
  const build=(name)=>{run('rustup',[...cargo,'build',...base,'--release','--target',triple,'--bin',name],'build-'+name,{env,timeout:300000});return path.join(directory,'target',triple,'release',name+'.exe');};
- const boundary=build('kelft-windows-installed-boundary'),boundaryHash=hash(fs.readFileSync(boundary));fs.copyFileSync(boundary,path.join(bin,'kelft-boundary.exe'));
+ const boundary=retainedBoundary??build('kelft-windows-installed-boundary'),boundaryHash=hash(fs.readFileSync(boundary));if(path.resolve(boundary)!==path.resolve(path.join(bin,'kelft-boundary.exe')))fs.copyFileSync(boundary,path.join(bin,'kelft-boundary.exe'));
  fs.writeFileSync(pins,prefix+'pub(crate) const BOUNDARY_SHA256:&str='+JSON.stringify(boundaryHash)+';\n');
  const coordinator=build('kelft-native-host');fs.copyFileSync(coordinator,path.join(bin,'kelft.exe'));assert.equal(hash(fs.readFileSync(compiler)),compilerHash);assert.equal(hash(fs.readFileSync(configuration)),configurationHash);
  if(engineProfilesHash)assert.equal(hash(fs.readFileSync(engineManifest)),engineProfilesHash);
@@ -39,5 +39,6 @@ export function buildWindowsInstalledHost({directory,packageRoot,compiler,config
  if(workspacePolicy)assert.equal(hash(fs.readFileSync(workspacePolicy)),workspacePolicySHA256);
  assert.equal(nativeFileHash(rustc),rustcSHA256);assert.equal(nativeFileHash(cargoPath),cargoSHA256);assert.deepEqual(inventorySDK(path.join(sysroot,'lib')),rustLibraries);assert.equal(nativeFileHash(path.join(repo,'driver/Cargo.lock')),lockSHA256);
  assert.equal(treeHash(repo,['driver/src'],hostInputs),sourceHash,'native host sources changed');if(rebuildPolicy)assert.equal(hash(fs.readFileSync(rebuildPolicy)),rebuildPolicySHA256);
- const record={sourceHash,rebuildPolicySHA256,schema:'kelft-windows-installed-host-build/1',triple,version,cargo:{path:cargoPath,sha256:cargoSHA256},rustLibraries,lockSHA256,rustc:{path:rustc,sha256:hash(fs.readFileSync(rustc))},compilerHash,configurationHash,boundaryHash,coordinatorHash:hash(fs.readFileSync(coordinator)),workspacePolicySHA256,engineProfilesHash,crossProfileHash,systemInputBinding:hostSystemInputs?'development-host-system32/1':'package-sha256/1',wasmEngineLinked:false,dependencyTree:tree};writeJson(path.join(directory,'report.json'),record);return record;
+ assert.equal(hash(fs.readFileSync(path.join(bin,'kelft-boundary.exe'))),boundaryHash,'retained boundary changed');
+ const record={sourceHash,rebuildPolicySHA256,boundaryReused:retainedBoundary!==null,schema:'kelft-windows-installed-host-build/1',triple,version,cargo:{path:cargoPath,sha256:cargoSHA256},rustLibraries,lockSHA256,rustc:{path:rustc,sha256:hash(fs.readFileSync(rustc))},compilerHash,configurationHash,boundaryHash,coordinatorHash:hash(fs.readFileSync(coordinator)),workspacePolicySHA256,engineProfilesHash,crossProfileHash,systemInputBinding:hostSystemInputs?'development-host-system32/1':'package-sha256/1',wasmEngineLinked:false,dependencyTree:tree};writeJson(path.join(directory,'report.json'),record);return record;
 }

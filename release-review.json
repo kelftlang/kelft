@@ -396,9 +396,10 @@
     },
     {
       "path": "bootstrap/assets.json",
-      "sha256": "sha256:03fc5ac6c2efb3df0e17cf349a82303b830d69599d0d8fb36b98ed60f926b19d",
+      "sha256": "sha256:cd0e67d96190b4fc9f0699e56a8c83d1e8ad3aaf8dcf4ce00d2f28b1d99b3ce5",
       "decision": "satisfied",
-      "basis": "Reviewed native-only allowlist binds executable bytes, notices, corresponding sources, split payloads and recorded modes."
+      "basis": "Reviewed native-only allowlist binds executable bytes, notices, corresponding sources, split payloads and recorded modes.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/linux-arm64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -924,9 +925,10 @@
     },
     {
       "path": "bootstrap/linux-arm64/seed.json",
-      "sha256": "sha256:efaafe7cabec21095e444f16d372313642b922a7c828db69b6d0dc911e211ac3",
+      "sha256": "sha256:d6bfd59dbe60ec79f36846c6827f674fae07cffd0817d391b24d842717606a94",
       "decision": "satisfied",
-      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification."
+      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/linux-x86_64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -1452,9 +1454,10 @@
     },
     {
       "path": "bootstrap/linux-x86_64/seed.json",
-      "sha256": "sha256:abb3f7bf0b139c80f784828bc38f3cb6ae3340a8d7631838445e47d1f8cfb3e7",
+      "sha256": "sha256:59148f3a0f38fd19f868d9acd7992d202598a46b9876395087350f5f38ed7ddd",
       "decision": "satisfied",
-      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification."
+      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/macos-arm64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -1914,9 +1917,10 @@
     },
     {
       "path": "bootstrap/macos-arm64/seed.json",
-      "sha256": "sha256:3964975719f36055171101a69338b85b978828a66ef94fcf6a4db49005905a3d",
+      "sha256": "sha256:abccd7d6c8dd3218a1bbad5846726e0ce8d57d8dd0ac5fd455d4ee5e536c8cbb",
       "decision": "satisfied",
-      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification."
+      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/macos-x86_64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -2376,9 +2380,10 @@
     },
     {
       "path": "bootstrap/macos-x86_64/seed.json",
-      "sha256": "sha256:0ff2be6fdeeec8b018a18d6ad5187232faa3c1258c7f3f5ba7f476cfa60b050a",
+      "sha256": "sha256:d4b9740927d094d1fa80a4427d16c33c901a1ba1d20c7ef8a62c9c43717b6c96",
       "decision": "satisfied",
-      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification."
+      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/sources/dependencies/cargo/adler2-2.0.1.crate",
@@ -3366,39 +3371,45 @@
     },
     {
       "path": "bootstrap/sources/linux-arm64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
+      "sha256": "sha256:dc2ae2dd6b65dd4286f8aa25e30468ed7d31234bc9ff44446b0d8807cde7023e",
       "decision": "satisfied",
-      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions."
+      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/sources/linux-x86_64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
+      "sha256": "sha256:23eb53e425064ce1f38af7f0092b8b97daa2187262c3181fa08e5d4b8bdb717c",
       "decision": "satisfied",
-      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions."
+      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/sources/macos-arm64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
+      "sha256": "sha256:90a055bc1c6776eb55a60fe7bb93a0f71e87ddb391ddf328ce52d20d41c6de38",
       "decision": "satisfied",
-      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions."
+      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/sources/macos-x86_64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
+      "sha256": "sha256:a0446f932a285e7d09f11a6943b3b3955749c613d5e943db3caafe879823a258",
       "decision": "satisfied",
-      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions."
+      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/sources/windows-arm64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
+      "sha256": "sha256:95570171617ae6ce9eb286ccd484a3fead914b2777ccfd967d08a02715f2c075",
       "decision": "satisfied",
-      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions."
+      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/sources/windows-x86_64.tar.gz",
-      "sha256": "sha256:611aab42ebdea5a59b8111ee606c81bdad4d47b67d3afbb1b40510a6ca366349",
+      "sha256": "sha256:8dc9b49bdf680d4419341d81cde02cb2cbf9f31f9e282cdd8344201a7b6087c2",
       "decision": "satisfied",
-      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions."
+      "basis": "Offer the authenticated corresponding first-party, locked Cargo and GNU source inputs with the same access as binary assets; preserve original descriptors, patches, license files and modification/relink instructions.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/windows-arm64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -3858,9 +3869,10 @@
     },
     {
       "path": "bootstrap/windows-arm64/seed.json",
-      "sha256": "sha256:3c83a09d46760084965897b61f00aaae1f0bd8b3d31e64cced73376e36a2d59b",
+      "sha256": "sha256:0669a6777ae6598fb9b98e5da292aee1fdbb10ce13ce73597f17a236c68b52da",
       "decision": "satisfied",
-      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification."
+      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     },
     {
       "path": "bootstrap/windows-x86_64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -4320,9 +4332,10 @@
     },
     {
       "path": "bootstrap/windows-x86_64/seed.json",
-      "sha256": "sha256:c3fc62741bda1729b6eae7c9ff0acc5b6fe5ca9a82118a46502e0fc815b215c7",
+      "sha256": "sha256:7fd9dbbb93aa4f3b0be17007d52d79df09ae8b1f17b96c5b0d34f5cd7f415e2d",
       "decision": "satisfied",
-      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification."
+      "basis": "Initial binary trust is disclosed. The exact reviewed host, compiler and permitted platform inputs have inventories and corresponding source archives; preparation evidence does not imply release certification.; unchanged dependency/license/notice inputs authenticated by seed-refresh delta",
+      "carriedForwardFrom": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9"
     }
   ],
   "relink": [
@@ -4342,5 +4355,42 @@
       "modifiedSource": "release-evidence/linux-arm64-strlen.c",
       "modifiedSourceSHA256": "sha256:b9f65f3e31e80e87025c294ee015b1113581e3c880f270a43e4ff121d292069c"
     }
-  ]
+  ],
+  "seedRefresh": {
+    "schema": "kelft.seed-review-carry-forward/1",
+    "priorReviewSHA256": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9",
+    "obligationsSHA256": "sha256:c2b001589ec0e1eafe0296c3b15f6e7788c7f3b536d8e23cf945d788ad1cf2ba",
+    "reports": [
+      {
+        "target": "linux-x86_64",
+        "id": "sha256:bc9f7f3c2a13996d8a46b3abd82e69558adf7013b4a5950b87178f1c001ed841",
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+      },
+      {
+        "target": "linux-arm64",
+        "id": "sha256:c9c857c1a9726a9f667d4b3efa99fdafd84cf9e23252419a8ad4186fddd309c2",
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+      },
+      {
+        "target": "windows-x86_64",
+        "id": "sha256:cd4b8ffa5dd3018b87318eede5c46a67278ca0cbe1df7601c60a07c1dacd8f00",
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+      },
+      {
+        "target": "windows-arm64",
+        "id": "sha256:4348df5758ebebc5c03d538231184597c0a7d76128df28a68a20e24695c0c99c",
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+      },
+      {
+        "target": "macos-x86_64",
+        "id": "sha256:d00b0efae6adf07deb4b3168c82fb8b6f85e7032995bce97309f86988050deda",
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+      },
+      {
+        "target": "macos-arm64",
+        "id": "sha256:a68dd26ac6f20fff4b83ae735766c5fbf7427209664f5ae425037d0694a67126",
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+      }
+    ]
+  }
 }

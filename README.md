@@ -5,7 +5,7 @@ in Kelft and includes source checking, deterministic object emission, and
 capability-controlled execution. Core describes executable programs; Intent
 describes outcomes, constraints, and verification contracts.
 
-The compiler version is **0.1.0-alpha.1**, an experimental alpha. Compiler, Core,
+The compiler version is **0.1.0-alpha.2**, an experimental alpha. Compiler, Core,
 Intent, and specification versions identify separate contracts. See the
 [changelog](CHANGELOG.md) and [release information](RELEASES.md).
 

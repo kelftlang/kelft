@@ -11,18 +11,25 @@ jobs:
   source:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    outputs:
+      seed_only: ${{ steps.scope.outputs.seed_only }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24'
           package-manager-cache: false
       - run: node scripts/check.mjs
-      - run: node --test tests/release.test.mjs
+      - run: node --test tests/release.test.mjs tests/release-pipeline.test.mjs tests/release-alpha2.test.mjs tests/seed-refresh.test.mjs
+      - id: scope
+        if: github.event_name == 'pull_request'
+        run: node --input-type=module -e "import fs from 'node:fs';import {execFileSync} from 'node:child_process';import {seedOnlyPaths} from './scripts/seed-pull-request.mjs';const paths=execFileSync('git',['diff','--name-only','HEAD^1','HEAD'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);const only=seedOnlyPaths(paths);if(only)execFileSync(process.execPath,['scripts/check.mjs','--verify-inventory'],{stdio:'inherit'});fs.appendFileSync(process.env.GITHUB_OUTPUT,'seed_only='+only+'\n');"
   native-windows:
-    if: vars.KELFT_NATIVE_BOOTSTRAP_CI == 'true'
+    needs: source
+    if: vars.KELFT_NATIVE_BOOTSTRAP_CI == 'true' && needs.source.outputs.seed_only != 'true'
     runs-on: windows-2025
     timeout-minutes: 20
     steps:

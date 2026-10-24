@@ -2,7 +2,7 @@
 
 ## Versions and compatibility
 
-The compiler version is `0.1.0-alpha.1`. Alpha releases are experimental and may
+The compiler version is `0.1.0-alpha.2`. Alpha releases are experimental and may
 change source support, commands, package layouts, and backend ABIs. Check the
 [changelog](CHANGELOG.md) and notes for the exact release before upgrading.
 Core, Intent, specification snapshots, and runtime profiles have separate
@@ -34,8 +34,9 @@ Reports preserve their actual inputs and releaseEligible status.
 
 The [release workflow guide](docs/release-workflow.md) describes native
 qualification, draft preparation, artifact attestations and the separate manual
-publication action. The workflow retains reviewed native hosts, rebuilds Kelft
-compiler generations and verifies the exact extracted packages.
+publication action. The workflow authenticates retained compiler qualification,
+updates changed native components through reviewed seed PRs, and verifies the
+exact extracted packages for the selected release.
 
 Trusted Windows executable signing and Apple notarization are deferred for the
 initial alpha. macOS still requires its documented ad-hoc signing step. Release

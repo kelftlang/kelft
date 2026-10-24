@@ -1,17 +1,42 @@
 {
   "schema": "kelft.compiler-release/1",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "coreVersion": "0.1",
   "intentVersion": "0.2",
   "specificationVersion": "0.2.0",
   "publication": "prepared-not-published",
   "targets": {
-    "linux-x86_64": {"entry": "selfhost/native-compiler.kelft", "baseline": "Ubuntu 24.04 / glibc 2.39"},
-    "linux-arm64": {"entry": "selfhost/native-linux-arm-driver.kelft", "baseline": "Ubuntu 24.04 / glibc 2.39"},
-    "windows-x86_64": {"entry": "selfhost/native-windows-installed.kelft", "baseline": "Windows Server 2025"},
-    "windows-arm64": {"entry": "selfhost/native-windows-arm-installed.kelft", "baseline": "Windows 11"},
-    "macos-x86_64": {"entry": "selfhost/native-darwin-installed.kelft", "baseline": "macOS 15"},
-    "macos-arm64": {"entry": "selfhost/native-darwin-arm-installed.kelft", "baseline": "macOS 14"}
+    "linux-x86_64": {
+      "entry": "selfhost/native-compiler.kelft",
+      "baseline": "Ubuntu 24.04 / glibc 2.39"
+    },
+    "linux-arm64": {
+      "entry": "selfhost/native-linux-arm-driver.kelft",
+      "baseline": "Ubuntu 24.04 / glibc 2.39"
+    },
+    "windows-x86_64": {
+      "entry": "selfhost/native-windows-installed.kelft",
+      "baseline": "Windows Server 2025"
+    },
+    "windows-arm64": {
+      "entry": "selfhost/native-windows-arm-installed.kelft",
+      "baseline": "Windows 11"
+    },
+    "macos-x86_64": {
+      "entry": "selfhost/native-darwin-installed.kelft",
+      "baseline": "macOS 15"
+    },
+    "macos-arm64": {
+      "entry": "selfhost/native-darwin-arm-installed.kelft",
+      "baseline": "macOS 14"
+    }
   },
-  "releaseGates": ["reviewed-source", "dependency-redistribution", "six-host-qualification", "public-rebuild", "artifact-provenance", "manual-publication"]
+  "releaseGates": [
+    "reviewed-source",
+    "dependency-redistribution",
+    "six-host-qualification",
+    "public-rebuild",
+    "artifact-provenance",
+    "manual-publication"
+  ]
 }

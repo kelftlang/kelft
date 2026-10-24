@@ -13,6 +13,10 @@
       "path": ".gitattributes"
     },
     {
+      "source": "tools/compiler-release/.github/main.ruleset.json",
+      "path": ".github/main.ruleset.json"
+    },
+    {
       "source": "tools/compiler-release/.github/workflows/release.yml",
       "path": ".github/workflows/release.yml"
     },
@@ -433,12 +437,24 @@
       "path": "bootstrap/linux-arm64/notices/rust/NCSA.txt"
     },
     {
+      "source": "tools/compiler-release/bootstrap/linux-arm64/provenance/compiler-qualification.json",
+      "path": "bootstrap/linux-arm64/provenance/compiler-qualification.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/linux-arm64/provenance/generation.json",
       "path": "bootstrap/linux-arm64/provenance/generation.json"
     },
     {
+      "source": "tools/compiler-release/bootstrap/linux-arm64/provenance/refresh.json",
+      "path": "bootstrap/linux-arm64/provenance/refresh.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/linux-arm64/provenance/seed.json",
       "path": "bootstrap/linux-arm64/provenance/seed.json"
+    },
+    {
+      "source": "tools/compiler-release/bootstrap/linux-arm64/release.json",
+      "path": "bootstrap/linux-arm64/release.json"
     },
     {
       "source": "tools/compiler-release/bootstrap/linux-arm64/rootfs/compiler",
@@ -1497,12 +1513,24 @@
       "path": "bootstrap/linux-x86_64/notices/rust/NCSA.txt"
     },
     {
+      "source": "tools/compiler-release/bootstrap/linux-x86_64/provenance/compiler-qualification.json",
+      "path": "bootstrap/linux-x86_64/provenance/compiler-qualification.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/linux-x86_64/provenance/generation.json",
       "path": "bootstrap/linux-x86_64/provenance/generation.json"
     },
     {
+      "source": "tools/compiler-release/bootstrap/linux-x86_64/provenance/refresh.json",
+      "path": "bootstrap/linux-x86_64/provenance/refresh.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/linux-x86_64/provenance/seed.json",
       "path": "bootstrap/linux-x86_64/provenance/seed.json"
+    },
+    {
+      "source": "tools/compiler-release/bootstrap/linux-x86_64/release.json",
+      "path": "bootstrap/linux-x86_64/release.json"
     },
     {
       "source": "tools/compiler-release/bootstrap/linux-x86_64/rootfs/compiler",
@@ -2525,12 +2553,24 @@
       "path": "bootstrap/macos-arm64/parts/2c44bde3a6a01d9e-002"
     },
     {
+      "source": "tools/compiler-release/bootstrap/macos-arm64/provenance/compiler-qualification.json",
+      "path": "bootstrap/macos-arm64/provenance/compiler-qualification.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/macos-arm64/provenance/generation.json",
       "path": "bootstrap/macos-arm64/provenance/generation.json"
     },
     {
+      "source": "tools/compiler-release/bootstrap/macos-arm64/provenance/refresh.json",
+      "path": "bootstrap/macos-arm64/provenance/refresh.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/macos-arm64/provenance/seed.json",
       "path": "bootstrap/macos-arm64/provenance/seed.json"
+    },
+    {
+      "source": "tools/compiler-release/bootstrap/macos-arm64/release.json",
+      "path": "bootstrap/macos-arm64/release.json"
     },
     {
       "source": "tools/compiler-release/bootstrap/macos-arm64/rootfs/compiler",
@@ -2897,12 +2937,24 @@
       "path": "bootstrap/macos-x86_64/parts/2c44bde3a6a01d9e-002"
     },
     {
+      "source": "tools/compiler-release/bootstrap/macos-x86_64/provenance/compiler-qualification.json",
+      "path": "bootstrap/macos-x86_64/provenance/compiler-qualification.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/macos-x86_64/provenance/generation.json",
       "path": "bootstrap/macos-x86_64/provenance/generation.json"
     },
     {
+      "source": "tools/compiler-release/bootstrap/macos-x86_64/provenance/refresh.json",
+      "path": "bootstrap/macos-x86_64/provenance/refresh.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/macos-x86_64/provenance/seed.json",
       "path": "bootstrap/macos-x86_64/provenance/seed.json"
+    },
+    {
+      "source": "tools/compiler-release/bootstrap/macos-x86_64/release.json",
+      "path": "bootstrap/macos-x86_64/release.json"
     },
     {
       "source": "tools/compiler-release/bootstrap/macos-x86_64/rootfs/compiler",
@@ -3957,12 +4009,24 @@
       "path": "bootstrap/windows-arm64/parts/000f664e330689d0-002"
     },
     {
+      "source": "tools/compiler-release/bootstrap/windows-arm64/provenance/compiler-qualification.json",
+      "path": "bootstrap/windows-arm64/provenance/compiler-qualification.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/windows-arm64/provenance/generation.json",
       "path": "bootstrap/windows-arm64/provenance/generation.json"
     },
     {
+      "source": "tools/compiler-release/bootstrap/windows-arm64/provenance/refresh.json",
+      "path": "bootstrap/windows-arm64/provenance/refresh.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/windows-arm64/provenance/seed.json",
       "path": "bootstrap/windows-arm64/provenance/seed.json"
+    },
+    {
+      "source": "tools/compiler-release/bootstrap/windows-arm64/release.json",
+      "path": "bootstrap/windows-arm64/release.json"
     },
     {
       "source": "tools/compiler-release/bootstrap/windows-arm64/rootfs/compiler.exe",
@@ -4345,12 +4409,24 @@
       "path": "bootstrap/windows-x86_64/parts/000f664e330689d0-002"
     },
     {
+      "source": "tools/compiler-release/bootstrap/windows-x86_64/provenance/compiler-qualification.json",
+      "path": "bootstrap/windows-x86_64/provenance/compiler-qualification.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/windows-x86_64/provenance/generation.json",
       "path": "bootstrap/windows-x86_64/provenance/generation.json"
     },
     {
+      "source": "tools/compiler-release/bootstrap/windows-x86_64/provenance/refresh.json",
+      "path": "bootstrap/windows-x86_64/provenance/refresh.json"
+    },
+    {
       "source": "tools/compiler-release/bootstrap/windows-x86_64/provenance/seed.json",
       "path": "bootstrap/windows-x86_64/provenance/seed.json"
+    },
+    {
+      "source": "tools/compiler-release/bootstrap/windows-x86_64/release.json",
+      "path": "bootstrap/windows-x86_64/release.json"
     },
     {
       "source": "tools/compiler-release/bootstrap/windows-x86_64/rootfs/compiler.exe",
@@ -4953,12 +5029,44 @@
       "path": "scripts/release-artifact.mjs"
     },
     {
+      "source": "tools/compiler-release/scripts/release-baseline.mjs",
+      "path": "scripts/release-baseline.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-checks.mjs",
+      "path": "scripts/release-checks.mjs"
+    },
+    {
       "source": "tools/compiler-release/scripts/release-contracts.mjs",
       "path": "scripts/release-contracts.mjs"
     },
     {
+      "source": "tools/compiler-release/scripts/release-generation.mjs",
+      "path": "scripts/release-generation.mjs"
+    },
+    {
       "source": "tools/compiler-release/scripts/release-github.mjs",
       "path": "scripts/release-github.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-identities.mjs",
+      "path": "scripts/release-identities.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-kits.mjs",
+      "path": "scripts/release-kits.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-language.mjs",
+      "path": "scripts/release-language.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-package.mjs",
+      "path": "scripts/release-package.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/release-retained.mjs",
+      "path": "scripts/release-retained.mjs"
     },
     {
       "source": "tools/compiler-release/scripts/release-reuse.mjs",
@@ -4969,12 +5077,32 @@
       "path": "scripts/release-review.mjs"
     },
     {
+      "source": "tools/compiler-release/scripts/release-source.mjs",
+      "path": "scripts/release-source.mjs"
+    },
+    {
       "source": "tools/compiler-release/scripts/release.mjs",
       "path": "scripts/release.mjs"
     },
     {
+      "source": "tools/compiler-release/scripts/seed-host.mjs",
+      "path": "scripts/seed-host.mjs"
+    },
+    {
       "source": "tools/compiler-release/scripts/seed-payload.mjs",
       "path": "scripts/seed-payload.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/seed-pull-request.mjs",
+      "path": "scripts/seed-pull-request.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/seed-refresh.mjs",
+      "path": "scripts/seed-refresh.mjs"
+    },
+    {
+      "source": "tools/compiler-release/scripts/seed-update.mjs",
+      "path": "scripts/seed-update.mjs"
     },
     {
       "source": "tools/compiler-release/scripts/seed.mjs",
@@ -5505,6 +5633,10 @@
       "path": "selfhost/toolchain/rebuild.kelft"
     },
     {
+      "source": "selfhost/toolchain/release-version.kelft",
+      "path": "selfhost/toolchain/release-version.kelft"
+    },
+    {
       "source": "selfhost/toolchain/targets.kelft",
       "path": "selfhost/toolchain/targets.kelft"
     },
@@ -5841,12 +5973,20 @@
       "path": "tests/native-conformance.json"
     },
     {
+      "source": "tools/compiler-release/tests/release-alpha2.test.mjs",
+      "path": "tests/release-alpha2.test.mjs"
+    },
+    {
       "source": "tools/compiler-release/tests/release-pipeline.test.mjs",
       "path": "tests/release-pipeline.test.mjs"
     },
     {
       "source": "tools/compiler-release/tests/release.test.mjs",
       "path": "tests/release.test.mjs"
+    },
+    {
+      "source": "tools/compiler-release/tests/seed-refresh.test.mjs",
+      "path": "tests/seed-refresh.test.mjs"
     },
     {
       "source": "tools/compiler-release/tests/source-archive.test.mjs",

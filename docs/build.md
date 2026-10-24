@@ -56,6 +56,15 @@ can run even when the seed or output installation is inside the checkout.
 
 ## Seed trust and verification
 
+The rebuilt installation records its version in its own `release.json`. A valid
+source `release.json` takes precedence when rebuilding; otherwise the existing
+installation identity is inherited. `kelft version` and `kelft doctor --json`
+read installation metadata, never a file in the current project. Metadata must
+be a regular file of at most 64 KiB with supported language versions and a
+canonical compiler version. Missing installation metadata permits the legacy
+embedded identity; malformed metadata is an error. Ordinary rebuilds remain
+unqualified local builds regardless of their version.
+
 A seed is an initial binary trust input. Its inventories and corresponding
 sources permit inspection; they do not eliminate that assumption. Git-tracked
 payloads and any split parts are identified in the bootstrap inventories. See

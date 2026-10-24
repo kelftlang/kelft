@@ -8,6 +8,11 @@ import {requireThat, safeName} from './common.mjs';
 
 const MAX = 512 << 20;
 export const SOURCE_ARCHIVE_LIMIT=2*1024*1024*1024;
+export function readTar(bytes){
+ requireThat(bytes.length<=64*1024*1024,'Corresponding source archive bound');const rows=[],seen=new Set();let at=0;
+ while(at+512<=bytes.length){const header=bytes.subarray(at,at+512);if(header.every(value=>value===0))return rows;const text=(offset,length)=>header.subarray(offset,offset+length).toString('utf8').replace(/\0.*$/s,''),number=(offset,length)=>{const raw=text(offset,length).trim();requireThat(/^[0-7]*$/.test(raw),'Unsupported source archive number');return parseInt(raw||'0',8);};requireThat(header.reduce((sum,value,index)=>sum+(index>=148&&index<156?32:value),0)===number(148,8),'Source archive checksum differs');const prefix=text(345,155),name=((prefix?prefix+'/':'')+text(0,100)).replace(/^\.\//,'').replace(/\/$/,''),size=number(124,12),type=header[156];safeName(name);requireThat([0,48,53].includes(type)&&Number.isSafeInteger(size)&&size>=0&&at+512+size<=bytes.length,'Source archive type or size differs');at+=512;if(type!==53){requireThat(!seen.has(name.toLowerCase())&&rows.length<8192,'Duplicate or oversized source inventory');seen.add(name.toLowerCase());rows.push({path:name,data:Buffer.from(bytes.subarray(at,at+size)),mode:number(100,8)&0o111?0o755:0o644});}at+=Math.ceil(size/512)*512;
+ }throw Error('Truncated source archive');
+}
 function tarHeader(row,size){
   safeName(row.path);let name=row.path,prefix='';
   if(Buffer.byteLength(name)>100){const at=name.lastIndexOf('/');prefix=name.slice(0,at);name=name.slice(at+1);}

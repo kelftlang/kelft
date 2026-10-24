@@ -1,87 +1,165 @@
 # Preparing an alpha release
 
-The native release workflow has three manually selected operations: `verify`,
-`prepare`, and `publish`. Ordinary contributions and local compiler rebuilding
-do not require a release tag or publication-inventory updates.
+The **Native compiler release** workflow has four manual operations:
 
-## Verify the compiler
+| Operation | Result |
+| --- | --- |
+| `refresh-seeds` | Refresh changed native components and open a seed-only PR against the dispatch branch, `dev` or `main`. |
+| `verify` | Assemble selected native distributions and check extracted installations, retaining reports without creating a release. |
+| `prepare` | Verify all six distributions, attest assets, create the version tag and a draft prerelease, and verify downloaded draft bytes. |
+| `publish` | Revalidate a specified draft and publish those same assets without rebuilding. |
 
-Choose one native target for an affected check, or `all` for complete release
-qualification. Native jobs run at most two at a time. Successful hosts retain
-their artifacts; rerun failed jobs when their source and tool inputs still match.
-When an earlier attempt completed S2/S3 and the language suites, continuation
-authenticates the retained objects, images, policies and receipts. It reconstructs
-the original packages byte for byte before repackaging and repeating package
-controls. Compiler, host, runtime, fixture, license or installation-guide drift
-rejects reuse. Only explicitly reviewed release-orchestration changes may differ;
-the new report retains the complete original report and input inventory.
-An interrupted attempt can retain its completed S2 while generating only the
-missing S3. Unfinished language suites run again; completed suites with identical
-inputs remain evidence. Continuation authenticates the original workflow run,
-artifact ZIP digest and every extracted proof member before using them.
-Release engineering uses the pinned Node version and the system archive tools;
-Linux preparation installs `unzip` for GitHub proof ZIPs. Installed compilation
-and native compiler rebuilding do not use that reader or require Node.
-Preparation installs only the platform prerequisites recorded by the seeds.
-Compiler rebuilding and native tests run offline with an empty runtime PATH.
+Native jobs have maximum concurrency two. Release engineering uses pinned tools;
+installed compilation and native Kelft rebuilding run offline without Node or
+Rust/C development tools. Refreshing a coordinator requires those development
+tools on its CI runner. Dependency preparation may use the network; compilation
+uses locked, prepared dependencies offline.
 
-S1 is the authenticated Git-tracked seed. S1 rebuilds the compiler into S2; S2
-rebuilds the identical sources from a separate directory into S3. Qualification
-compares S2/S3 object, executable and policy bytes, tests the complete bundled
-language corpus, and checks extracted native packages. Rust/C hosts are retained
-from the reviewed seed and identified in the evidence. They are rebuilt only
-through the separate [host source workflow](host-build.md).
+## Configure GitHub once
 
-Package assembly removes local checkout paths and local rebuild markers from
-distribution metadata. Original generation receipts remain evidence. The
-distribution contains its own compiler, hosts, native linker/runtime inputs,
-notices and installation instructions. Windows uses ZIP; Linux/macOS use tar.gz.
-A complete source archive accompanies the six native packages. Its writer uses
-a 2 GiB aggregate bound and a 256 MiB member bound; native limits are separate.
+In **Settings → Actions → General → Workflow permissions**, enable **Allow
+GitHub Actions to create and approve pull requests**. The workflow creates PRs
+but never approves or merges them. It uses the built-in `GITHUB_TOKEN`; no
+additional credential is required. When a bot PR displays **Approve workflows
+to run**, click it to start its `source` check. See GitHub's
+[workflow triggering guidance](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
 
-## Review the candidate
+Before merging into `main`, enable the prepared
+[main ruleset](../.github/main.ruleset.json) in **Settings → Rules → Rulesets**.
+Use **New ruleset → Import a ruleset**, or configure a branch ruleset with:
 
-The exact source inventory, seed inventories, corresponding sources, notices,
-and dependency review must match. Review records identify their subjects by
-SHA-256. Unresolved obligations and missing modified-runtime relink evidence
-block release preparation. A hash or successful build alone grants no
-redistribution permission.
+- Enforcement **Active**, target `main`, and no bypass actors.
+- **Require a pull request before merging**, with required approvals **0** and
+  resolved review conversations required.
+- **Require status checks to pass**, selecting `source` from GitHub Actions,
+  with branches required to be up to date.
+- **Restrict deletions** and **Block force pushes**.
 
-The release manifest identifies the public source commit independently from
-earlier preparation provenance. Local and private checks supply development
-evidence; public release attestations are generated by the public workflow.
+Do not require signed commits across existing history. Release preparation
+separately verifies the selected source commit. The automation has no bypass;
+you review and merge its PRs through GitHub. The JSON file is a configuration
+template and does not activate a rule by being committed.
+
+Configure required reviewers for `compiler-release-draft` and
+`compiler-release-publish`, restricting both environments to `main`. If the same
+person starts and approves a run, leave **Prevent self-review** unchecked.
+
+## Refresh native seeds through a PR
+
+After pushing reviewed tooling to `dev`, open **Actions → Native compiler
+release → Run workflow**. Choose branch `dev`, operation `refresh-seeds`, and
+target `all`. Leave `candidate_sha` empty: refresh always uses the triggering
+commit. A dispatch from `dev` opens a PR into `dev`; one from `main` opens a PR
+into `main`. Other branches and forks cannot run the write operation.
+
+If GitHub's form still displays the workflow inputs from the older `main`
+version, dispatch the existing workflow against `dev` using the GitHub CLI:
+
+```sh
+gh workflow run release.yml --repo kelftlang/kelft --ref dev -f operation=refresh-seeds -f target=all
+```
+
+The native jobs authenticate checked-in seeds and retained public compiler
+evidence. They retain unchanged compiler images, testing policies, boundaries,
+and linker/runtime inputs. Changed rebuild policies are compiled twice and
+compared; coordinators are rebuilt only when their inputs or embedded policy
+change. Focused checks exercise version metadata, staging in spaced/Unicode
+paths, policy decisions, rejected metadata, empty runtime PATH, and Hello World.
+These jobs do not repeat compiler S1/S2/S3 generations or unchanged language suites.
+
+Native jobs have read-only repository permissions. A separate PR job authenticates
+the artifacts' producing repository, workflow, dispatch branch, commit, ZIP
+digest, and members before using the delta. Only that job receives repository
+and PR write permissions. It creates an `automation/refresh-seeds/…` branch
+through GitHub's bot-authenticated commit API, without overriding author,
+committer, or signature fields. It verifies the returned signature, full tree,
+paths, and executable modes before opening a PR. See GitHub's
+[bot signature guidance](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification).
+
+The PR contains seed payloads, corresponding sources, inventories, provenance,
+notices where required, and derived review bindings. Dependency decisions carry
+forward only when dependency, license, and notice bytes remain unchanged.
+Changed obligations stop with a review requirement. Unrelated destination edits
+are preserved; relevant source or seed drift stops PR creation. No-op refreshes
+create no commit. Identical reruns reuse the existing PR without force pushes.
+
+Review the component hashes, retained identities, artifact identities, producer
+commit, and checks in the PR description. Approve its workflow checks if GitHub
+requests it, then merge manually. Seed-only PR checks validate inventories and
+skip optional native compiler rebuilds. On failure, rerun failed jobs rather
+than restarting successful targets; the PR job accepts authenticated successful
+artifacts from earlier attempts of the same run.
+
+## Retained compiler qualification
+
+Initial compiler evidence is adopted from public run `40059868983`, candidate
+`64b4da174db450ff96a9ce7a04555d3514758fe9`. Its S1 is the authenticated
+checked-in seed; S2 is S1's rebuild; S3 is S2's rebuild from a separate identical
+source copy. S2/S3 compiler objects, executable images, and policies were
+compared. Original reports and producer identities remain unchanged.
+
+Adoption checks the actual compiler import closure and selected execution
+inputs, rather than equating whole repository snapshots. Compiler-core,
+rebuild-policy, testing-policy, and host inputs have separate identities.
+Documentation and version edits reuse the compiler and unchanged language
+evidence. Changed fixtures rerun affected language checks without rebuilding
+the compiler. A changed compiler, testing policy, boundary, linker, or runtime
+that cannot use the retained proof stops with a specific diagnostic; it never
+silently launches replacement six-host compiler generations.
+
+The first refresh authenticates and imports the retained reports into the seed
+materials. Later packaging can use those checked-in materials without private
+access. Missing or expired initial artifacts are a concrete recovery requirement;
+an artifact name alone is never enough to execute downloaded files.
 
 ## Prepare a draft
 
-An authorized maintainer must first review and commit the candidate on `main`,
-and create the existing version tag, such as `v0.1.0-alpha.1`, at that exact
-commit. The workflow never creates or moves tags. `prepare` must run from `main`
-at the selected candidate commit and must include all six native targets.
+Merge the seed PR into `dev`, then merge the reviewed `dev` → `main` PR through
+GitHub. Select that resulting `main` commit. Dispatch `prepare` from `main`,
+target `all`, with the exact candidate SHA. No private qualification cycle or
+separate host-readiness proof is required.
 
-Configure the `compiler-release-draft` and `compiler-release-publish` GitHub
-environments with required reviewers before release operations. The tooling
-checks those protections and fails if they are absent. Repository permissions
-must allow GitHub OIDC artifact attestations. Forks and development branches
-cannot create or publish a draft through this workflow.
+`release.json` is the compiler version authority. The changelog must contain
+exactly one nonempty matching tag section, such as `## v0.1.0-alpha.2`. Archive
+names, release titles, and tags derive from it; no publication date is invented.
+Preparation verifies the source commit's GitHub web-flow signature against
+GitHub's published signing keys. An existing tag must identify that exact commit.
 
-After qualification, assembly binds native archives, the source archive,
-inventories, dependency decisions, evidence and checksums. The workflow creates
-GitHub artifact attestations, verifies their public repository/workflow and
-source identity, uploads a draft prerelease, and downloads every asset to verify
-its bytes and attestation. Existing releases and assets are never overwritten.
+Each native runner assembles a distribution using the retained compiler and
+compatible refreshed components, compares two independently written package
+archives, and runs current extracted-package controls. These are repeated
+packaging checks, not new S2/S3 compiler generations. Metadata, installation
+documents, checksums, inventories, and provenance describe the new candidate.
+Executable bytes are never normalized. The complete outgoing inventory and
+candidate commit remain release audit inputs, separate from reuse identities.
 
-## Publish the same assets
+The manifest calculates `releaseEligible` from source/export validation,
+dependency review, all six qualification reports, reproducibility, and package
+integrity. Missing checks produce explicit reasons. Seeds and ordinary local
+rebuilds remain unqualified. Attestation, downloaded-draft verification, and
+protected manual approval are additional mandatory publication gates.
 
-Select `publish` separately, supplying the draft ID and exact candidate commit.
-The protected job authenticates the downloaded manifest and signatures, checks
-the existing tag and complete asset set, and verifies every downloaded artifact.
-Changed, missing, extra or unattested assets stop publication. Publishing changes
-the verified draft into a prerelease without compiling or replacing any asset.
+After packaging and OIDC attestation, the protected draft job verifies local
+assets and signatures, creates a missing version tag, and reads it back before
+creating the draft. The lightweight tag points to the verified source commit;
+the tag itself does not claim a signature. Matching concurrent tag creation is
+accepted; tags are never moved or replaced.
 
-The release notes disclose that Windows binaries lack trusted publisher signing
-and macOS binaries use ad-hoc signatures without Apple notarization. Keep those
-disclosures until the corresponding signing processes are implemented.
+Existing matching drafts and uploaded assets can be reused; missing assets can
+be uploaded. Altered, unexpected, published, or immutable releases are rejected.
+Every release update includes `tag_name` and validates response/readback identity.
+Complete draft assets are downloaded and authenticated against checksums and
+attestations. Alpha.1's tag, draft, assets, and historical evidence are preserved.
 
-Consumers can follow [release verification](../RELEASES.md). GitHub's
-[attestation documentation](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)
-explains the provenance trust model.
+## Publish separately
+
+Review the draft and download-verification results. Supply its ID and exact
+candidate SHA to `publish` from `main`. Approve the separate protected action.
+It authenticates the manifest before using it, rechecks eligibility, the tag,
+complete asset set, downloaded bytes, and attestations, then publishes the same
+assets without rebuilding. Publication races are rejected.
+
+Windows signing and Apple notarization remain deferred. macOS uses ad-hoc
+signing. Release notes disclose these alpha limitations. Source archives retain
+the 2 GiB aggregate and 256 MiB member limits; native and sandbox limits remain
+unchanged. See the [host source workflow](host-build.md) for advanced rebuilding.

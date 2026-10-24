@@ -120,6 +120,7 @@ fn dispatch()->Result<i32,Error>{
             Err(error)=>serde_json::json!({"schema":"kelft.doctor/1","status":"failure","host":host.id(),"scope":"installed-entry-inputs","error":error.to_string(),"certification":"not-evaluated"}),
         };
         let mut result=result;result["compilerSHA256"]=serde_json::json!(compiler_sha256().ok());result["origin"]=serde_json::json!(if installed_targets::root()?.join("rebuild.json").is_file(){"local-rebuild"}else{"distribution"});let mut valid=inspected.is_ok();if installed_targets::enabled(){match installed_targets::status(){Ok(components)=>{if components.as_array().is_some_and(|rows|rows.iter().any(|r|r["integrity"]=="modified"||r["integrity"]=="incomplete")){valid=false;result["status"]=serde_json::json!("failure");}result["components"]=components;},Err(e)=>{valid=false;result["componentError"]=serde_json::json!(e.to_string());result["status"]=serde_json::json!("failure");}}}
+        result["release"]=installed_cli::installed_release()?;
         result["workspace"]=installed_workspace::capabilities();
         println!("{}",serde_json::to_string(&result)?);return Ok(if valid{0}else{1});
     }

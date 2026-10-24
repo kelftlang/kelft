@@ -1,7 +1,7 @@
 {
   "schema": "kelft.public-export/1",
   "kind": "compiler",
-  "sourceRevision": "78efd88bce665291bb74ac3cc0a0e259c3acedd0",
+  "sourceRevision": "de80968f2415eb9e3f6dec4f94fd4a557fc229ce",
   "sourceDirty": true,
   "publication": "prepared-not-published",
   "files": [
@@ -11,14 +11,19 @@
       "bytes": 288
     },
     {
+      "path": ".github/main.ruleset.json",
+      "sha256": "sha256:4fd55fa5e1a1ecd3674ed5074b6b5ea9cdd514af5125a3f2c1e7834ee26bd4bb",
+      "bytes": 836
+    },
+    {
       "path": ".github/workflows/release.yml",
-      "sha256": "sha256:28311a9aaa3852f4bf63ea21444b74d2e04c70182aebb92627a7464406b6ddee",
-      "bytes": 8916
+      "sha256": "sha256:a17f2a5f0001aa231c034fe60f0110e0375b011ff0ce8e7363182cb9d6d1a105",
+      "bytes": 13407
     },
     {
       "path": ".github/workflows/verify.yml",
-      "sha256": "sha256:d27dcea023aaeab2bb6beb1e8d7174314de9279d27b19887b40d1d972dc848b5",
-      "bytes": 1375
+      "sha256": "sha256:fabf14c8752480b45b2b69b5e9b4ca1be5caa0bdd3dc53ab7d8e195539cdc4e4",
+      "bytes": 2188
     },
     {
       "path": ".gitignore",
@@ -27,8 +32,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "sha256:9835fa3fc121639a596c7c66c476d615f4ec67f7680b6a685de5bebdc770d772",
-      "bytes": 960
+      "sha256": "sha256:ef4ee8af766d2e1bc9ceac35709691e4833f686f85024699c91d8842ecbac490",
+      "bytes": 1151
     },
     {
       "path": "CONTRIBUTING.md",
@@ -72,13 +77,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "sha256:efab4fa7a9b22dec4c93a937c909781946f706ba72c148bed60b5759824b069f",
+      "sha256": "sha256:b4c9942de1e1dbe154a074c8e3a2cc8e7190e6f91f2dd88b092fbe95b586a24b",
       "bytes": 2756
     },
     {
       "path": "RELEASES.md",
-      "sha256": "sha256:08d12c6b5c19e0d173e628acfe58df99bed16d4f1c0bc362d2816d296c4c78c0",
-      "bytes": 2373
+      "sha256": "sha256:a27d56dcd5ec03e14816c7d3848d4e46a170ac7408df7809c7101e49780cb2e1",
+      "bytes": 2439
     },
     {
       "path": "SECURITY.md",
@@ -107,8 +112,8 @@
     },
     {
       "path": "bootstrap/assets.json",
-      "sha256": "sha256:03fc5ac6c2efb3df0e17cf349a82303b830d69599d0d8fb36b98ed60f926b19d",
-      "bytes": 234300
+      "bytes": 237891,
+      "sha256": "sha256:cd0e67d96190b4fc9f0699e56a8c83d1e8ad3aaf8dcf4ce00d2f28b1d99b3ce5"
     },
     {
       "path": "bootstrap/linux-arm64/READY",
@@ -117,8 +122,8 @@
     },
     {
       "path": "bootstrap/linux-arm64/bin/kelft",
-      "sha256": "sha256:ebc783c33bd69ce85e36c8d3b8d487946cc7418dfe881bedf10de4b94b696e30",
-      "bytes": 4276528
+      "bytes": 4342064,
+      "sha256": "sha256:1da50c02188b686126eed810d59386cd7f816efdbffd6727894c0084108dc777"
     },
     {
       "path": "bootstrap/linux-arm64/bin/kelft-boundary",
@@ -561,14 +566,29 @@
       "bytes": 1676
     },
     {
+      "path": "bootstrap/linux-arm64/provenance/compiler-qualification.json",
+      "bytes": 312836,
+      "sha256": "sha256:271a33b1b340305baff86d652ef6f52adadceed224c8f90a01ae028604d25720"
+    },
+    {
       "path": "bootstrap/linux-arm64/provenance/generation.json",
       "sha256": "sha256:7a9c5dd20ff61a9742ef54010a9d6aaaf27d6d995875fca4e2f06ec6008d1d7d",
       "bytes": 29783
     },
     {
+      "path": "bootstrap/linux-arm64/provenance/refresh.json",
+      "bytes": 25554,
+      "sha256": "sha256:5e6efdeedaf43727be1664cddeaf02b3e7d04a4b9942f8eb6fb510d81b5b0ef4"
+    },
+    {
       "path": "bootstrap/linux-arm64/provenance/seed.json",
       "sha256": "sha256:69aedddc3c2c909a7ae35c4640de3cd423e18741faafbe9a9b45ddb0d0a2ee97",
       "bytes": 1175
+    },
+    {
+      "path": "bootstrap/linux-arm64/release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322"
     },
     {
       "path": "bootstrap/linux-arm64/rootfs/compiler",
@@ -632,8 +652,8 @@
     },
     {
       "path": "bootstrap/linux-arm64/rootfs/policies/rebuild",
-      "sha256": "sha256:dd99140f46589d19b3a40dcb81d85498974a9b5eb3c5b7e649fa1e488d3bed44",
-      "bytes": 411792
+      "bytes": 459008,
+      "sha256": "sha256:1df6bde7b91b4f4c359b19b6e46faa28c0a3967aa3467052ed21f129ba964b64"
     },
     {
       "path": "bootstrap/linux-arm64/rootfs/policies/testing",
@@ -1427,13 +1447,13 @@
     },
     {
       "path": "bootstrap/linux-arm64/runtime-modes.json",
-      "sha256": "sha256:a180f31c34aed6e21ff9457176eab7ed610753ca4eb6dcf5e3c66a3cfbe4719b",
-      "bytes": 24251
+      "bytes": 24471,
+      "sha256": "sha256:404722400b66eef9a493b8d350e6d9803c8d17e3fc7fe1098b99090c76463ad3"
     },
     {
       "path": "bootstrap/linux-arm64/seed.json",
-      "sha256": "sha256:efaafe7cabec21095e444f16d372313642b922a7c828db69b6d0dc911e211ac3",
-      "bytes": 56141
+      "bytes": 58527,
+      "sha256": "sha256:d6bfd59dbe60ec79f36846c6827f674fae07cffd0817d391b24d842717606a94"
     },
     {
       "path": "bootstrap/linux-arm64/supervisor.json",
@@ -1447,8 +1467,8 @@
     },
     {
       "path": "bootstrap/linux-x86_64/bin/kelft",
-      "sha256": "sha256:17c2f9e846ae174340b0f3420fb440e1a9532668c4834ba6552b1a39582adc34",
-      "bytes": 5802232
+      "bytes": 5879704,
+      "sha256": "sha256:d9117f6703ab0b8361f63e2f53cd6f043228bd24b86d11f2f0d44b37e361b0a9"
     },
     {
       "path": "bootstrap/linux-x86_64/bin/kelft-boundary",
@@ -1891,14 +1911,29 @@
       "bytes": 1676
     },
     {
+      "path": "bootstrap/linux-x86_64/provenance/compiler-qualification.json",
+      "bytes": 312838,
+      "sha256": "sha256:125d3800d5059a546004c4409b9bdbe21cb8eac8d2e79010d03fd81a68990a9b"
+    },
+    {
       "path": "bootstrap/linux-x86_64/provenance/generation.json",
       "sha256": "sha256:68189115672d4b748c029d6710cbc959bf35ebf34c9e60e8cc9ae9c6a30cac21",
       "bytes": 29784
     },
     {
+      "path": "bootstrap/linux-x86_64/provenance/refresh.json",
+      "bytes": 27878,
+      "sha256": "sha256:2b5f11af3573780bdf68f23fc7c540d985d9ee345a9326e97f19e74195f2601f"
+    },
+    {
       "path": "bootstrap/linux-x86_64/provenance/seed.json",
       "sha256": "sha256:18827ef13c2c02bb33e5117278d64667a33b904c9e2da56ee17fe44e20e6e9cb",
       "bytes": 1200
+    },
+    {
+      "path": "bootstrap/linux-x86_64/release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322"
     },
     {
       "path": "bootstrap/linux-x86_64/rootfs/compiler",
@@ -1962,8 +1997,8 @@
     },
     {
       "path": "bootstrap/linux-x86_64/rootfs/policies/rebuild",
-      "sha256": "sha256:d8e74cc13da504404e35cd72b7f4cad67e994c8cd40072c01059e5bc81f7c0bd",
-      "bytes": 748712
+      "bytes": 811456,
+      "sha256": "sha256:1280ad2e3becd691f4f37fc8b956e03590a1af5239f6849bff80142a6b61926c"
     },
     {
       "path": "bootstrap/linux-x86_64/rootfs/policies/testing",
@@ -2757,13 +2792,13 @@
     },
     {
       "path": "bootstrap/linux-x86_64/runtime-modes.json",
-      "sha256": "sha256:f3527bf420d73803980d5dea02adf31e701d2e4788ab6733170aacaa9f47ae84",
-      "bytes": 24234
+      "bytes": 24454,
+      "sha256": "sha256:3793794dc551bc0a72deccfdf137150dbee4314e908a75081fb2a3afb69f1a41"
     },
     {
       "path": "bootstrap/linux-x86_64/seed.json",
-      "sha256": "sha256:abb3f7bf0b139c80f784828bc38f3cb6ae3340a8d7631838445e47d1f8cfb3e7",
-      "bytes": 56128
+      "bytes": 58514,
+      "sha256": "sha256:59148f3a0f38fd19f868d9acd7992d202598a46b9876395087350f5f38ed7ddd"
     },
     {
       "path": "bootstrap/linux-x86_64/supervisor.json",
@@ -2777,8 +2812,8 @@
     },
     {
       "path": "bootstrap/macos-arm64/bin/kelft",
-      "sha256": "sha256:b5ceb86fe6d38bf5684f073aae27adbed6330e154793721a61ddca52616a7257",
-      "bytes": 3335488
+      "bytes": 3401584,
+      "sha256": "sha256:4a62838fa963e63ac09a0945fbccca9cd9512f8b5dbe82fa4508c5fe617bcf0a"
     },
     {
       "path": "bootstrap/macos-arm64/bin/kelft-boundary",
@@ -3176,14 +3211,29 @@
       "bytes": 42946176
     },
     {
+      "path": "bootstrap/macos-arm64/provenance/compiler-qualification.json",
+      "bytes": 313493,
+      "sha256": "sha256:e4ce859126516e1d59f95ee875b857374b406ea7ae6c9b07e55af706d36505e5"
+    },
+    {
       "path": "bootstrap/macos-arm64/provenance/generation.json",
       "sha256": "sha256:92883e883eefa55f2925a2472364643bfe989d6a5151f41444e41c0c9eee4bb2",
       "bytes": 29783
     },
     {
+      "path": "bootstrap/macos-arm64/provenance/refresh.json",
+      "bytes": 44547,
+      "sha256": "sha256:1f0f3c446be69c4f0e2117e1fdbe318fea0b7720a6fa285089eb2c8f1e069566"
+    },
+    {
       "path": "bootstrap/macos-arm64/provenance/seed.json",
       "sha256": "sha256:fefbb9c943fedcfcc2b0a8a04d55e6336ea3f51df9189a8cc983fe13b0e47db4",
       "bytes": 1199
+    },
+    {
+      "path": "bootstrap/macos-arm64/release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322"
     },
     {
       "path": "bootstrap/macos-arm64/rootfs/compiler",
@@ -3202,8 +3252,8 @@
     },
     {
       "path": "bootstrap/macos-arm64/rootfs/policies/rebuild",
-      "sha256": "sha256:5ec12ed3692e4f131380a260e9f180f2d4db99d4ddefa99e18f0bfa5eee90160",
-      "bytes": 444944
+      "bytes": 495440,
+      "sha256": "sha256:9c6a6f9cd7d58a73424904e35bdf192f073e3d0f0a54edc4c7ea523609345413"
     },
     {
       "path": "bootstrap/macos-arm64/rootfs/policies/testing",
@@ -3222,8 +3272,8 @@
     },
     {
       "path": "bootstrap/macos-arm64/runtime-modes.json",
-      "sha256": "sha256:dd2c3b5f81716f89447760e65e81aa5dc3b0c0b5b533a6b67cfab82788e6a19b",
-      "bytes": 7561
+      "bytes": 7781,
+      "sha256": "sha256:df23d057e8758789ac38e25877b30cc8a6c6ccc27c0dce3013d855e142bc81e9"
     },
     {
       "path": "bootstrap/macos-arm64/seed-parts.json",
@@ -3232,8 +3282,8 @@
     },
     {
       "path": "bootstrap/macos-arm64/seed.json",
-      "sha256": "sha256:3964975719f36055171101a69338b85b978828a66ef94fcf6a4db49005905a3d",
-      "bytes": 19442
+      "bytes": 21828,
+      "sha256": "sha256:abccd7d6c8dd3218a1bbad5846726e0ce8d57d8dd0ac5fd455d4ee5e536c8cbb"
     },
     {
       "path": "bootstrap/macos-x86_64/READY",
@@ -3242,8 +3292,8 @@
     },
     {
       "path": "bootstrap/macos-x86_64/bin/kelft",
-      "sha256": "sha256:df725c8cb0754dc93afe768a851e4cfe3ef037c966a3020673d2b6dd0001dc9d",
-      "bytes": 4112032
+      "bytes": 4190496,
+      "sha256": "sha256:a678e2a01535673051411c59332bf418b3c93d40d14b9b0b13ce14ee9fbee79a"
     },
     {
       "path": "bootstrap/macos-x86_64/bin/kelft-boundary",
@@ -3641,14 +3691,29 @@
       "bytes": 48896224
     },
     {
+      "path": "bootstrap/macos-x86_64/provenance/compiler-qualification.json",
+      "bytes": 313494,
+      "sha256": "sha256:d6a45ad03409cf30e8f99d25252a2e12cdc74d6bf7c08785cdbb536c7c0ce48b"
+    },
+    {
       "path": "bootstrap/macos-x86_64/provenance/generation.json",
       "sha256": "sha256:bffe95fe87190c6199b5b1c58dd1a3fa9413e37d640d6451ed7e439fdba6d75b",
       "bytes": 29784
     },
     {
+      "path": "bootstrap/macos-x86_64/provenance/refresh.json",
+      "bytes": 47970,
+      "sha256": "sha256:d2cdd226c6370cdb3b8cb8ee06a49bc0d9099f0f7c371f0b749cae2bf04169b2"
+    },
+    {
       "path": "bootstrap/macos-x86_64/provenance/seed.json",
       "sha256": "sha256:398147484b69a88f5f595f03f128844d717d6c20449420bbfa431887596537c4",
       "bytes": 1200
+    },
+    {
+      "path": "bootstrap/macos-x86_64/release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322"
     },
     {
       "path": "bootstrap/macos-x86_64/rootfs/compiler",
@@ -3667,8 +3732,8 @@
     },
     {
       "path": "bootstrap/macos-x86_64/rootfs/policies/rebuild",
-      "sha256": "sha256:0603b83a1fa6d9974b93198bf260c8f1c87f2b52707c56449925bc71ae82cc15",
-      "bytes": 568784
+      "bytes": 635792,
+      "sha256": "sha256:077ae82a3c1dcbdebfca861135d21386d66710a85daee0368fe18544d7ac29fa"
     },
     {
       "path": "bootstrap/macos-x86_64/rootfs/policies/testing",
@@ -3687,8 +3752,8 @@
     },
     {
       "path": "bootstrap/macos-x86_64/runtime-modes.json",
-      "sha256": "sha256:dd2c3b5f81716f89447760e65e81aa5dc3b0c0b5b533a6b67cfab82788e6a19b",
-      "bytes": 7561
+      "bytes": 7781,
+      "sha256": "sha256:df23d057e8758789ac38e25877b30cc8a6c6ccc27c0dce3013d855e142bc81e9"
     },
     {
       "path": "bootstrap/macos-x86_64/seed-parts.json",
@@ -3697,13 +3762,13 @@
     },
     {
       "path": "bootstrap/macos-x86_64/seed.json",
-      "sha256": "sha256:0ff2be6fdeeec8b018a18d6ad5187232faa3c1258c7f3f5ba7f476cfa60b050a",
-      "bytes": 19429
+      "bytes": 21815,
+      "sha256": "sha256:d4b9740927d094d1fa80a4427d16c33c901a1ba1d20c7ef8a62c9c43717b6c96"
     },
     {
       "path": "bootstrap/seeds.json",
-      "sha256": "sha256:fd2cf77e34d2b5eae8ba57ed5eb27a0c403035b16c5c32fcf4573af3bbe113b5",
-      "bytes": 2090
+      "bytes": 3308,
+      "sha256": "sha256:a1e22c967329db09f594c73580c5ed7f17e63534db1468faf001e17a7a85c803"
     },
     {
       "path": "bootstrap/sources/dependencies/cargo/adler2-2.0.1.crate",
@@ -4527,33 +4592,33 @@
     },
     {
       "path": "bootstrap/sources/linux-arm64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
-      "bytes": 763734
+      "bytes": 1582950,
+      "sha256": "sha256:dc2ae2dd6b65dd4286f8aa25e30468ed7d31234bc9ff44446b0d8807cde7023e"
     },
     {
       "path": "bootstrap/sources/linux-x86_64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
-      "bytes": 763734
+      "bytes": 1582943,
+      "sha256": "sha256:23eb53e425064ce1f38af7f0092b8b97daa2187262c3181fa08e5d4b8bdb717c"
     },
     {
       "path": "bootstrap/sources/macos-arm64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
-      "bytes": 763734
+      "bytes": 1582934,
+      "sha256": "sha256:90a055bc1c6776eb55a60fe7bb93a0f71e87ddb391ddf328ce52d20d41c6de38"
     },
     {
       "path": "bootstrap/sources/macos-x86_64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
-      "bytes": 763734
+      "bytes": 1582955,
+      "sha256": "sha256:a0446f932a285e7d09f11a6943b3b3955749c613d5e943db3caafe879823a258"
     },
     {
       "path": "bootstrap/sources/windows-arm64.tar.gz",
-      "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
-      "bytes": 763734
+      "bytes": 1582924,
+      "sha256": "sha256:95570171617ae6ce9eb286ccd484a3fead914b2777ccfd967d08a02715f2c075"
     },
     {
       "path": "bootstrap/sources/windows-x86_64.tar.gz",
-      "sha256": "sha256:611aab42ebdea5a59b8111ee606c81bdad4d47b67d3afbb1b40510a6ca366349",
-      "bytes": 764249
+      "bytes": 1583427,
+      "sha256": "sha256:8dc9b49bdf680d4419341d81cde02cb2cbf9f31f9e282cdd8344201a7b6087c2"
     },
     {
       "path": "bootstrap/windows-arm64/READY",
@@ -4567,8 +4632,8 @@
     },
     {
       "path": "bootstrap/windows-arm64/bin/kelft.exe",
-      "sha256": "sha256:4b86c802af0b92d4aad0ce851d6b1d61cfb739cdc73721f59ad36a443015c99a",
-      "bytes": 3622912
+      "bytes": 3686400,
+      "sha256": "sha256:b5987ff051fbf7fec26971d73dd57e87f3dc6f666d09db99dffe9ef2f7a42862"
     },
     {
       "path": "bootstrap/windows-arm64/manifest.json",
@@ -4966,14 +5031,29 @@
       "bytes": 9146368
     },
     {
+      "path": "bootstrap/windows-arm64/provenance/compiler-qualification.json",
+      "bytes": 313594,
+      "sha256": "sha256:2f43ca7d051d7c834fb8eff63f94333c8e61396f07aea9262e7e120943eca84e"
+    },
+    {
       "path": "bootstrap/windows-arm64/provenance/generation.json",
       "sha256": "sha256:b1ea6f67d2dfa7202bcbd9dc7159606944c078f589d1fa8487988650de0b98f1",
       "bytes": 29785
     },
     {
+      "path": "bootstrap/windows-arm64/provenance/refresh.json",
+      "bytes": 41219,
+      "sha256": "sha256:e4c0c4d62f259cbfe0343681f14463e4e0ff95eb20b8dc215392c628aaed1e3a"
+    },
+    {
       "path": "bootstrap/windows-arm64/provenance/seed.json",
       "sha256": "sha256:2a85fe08a449461edd64ab9e0325a6e17cd70c629c61e2c6571e6e4d8e208fc3",
       "bytes": 1201
+    },
+    {
+      "path": "bootstrap/windows-arm64/release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322"
     },
     {
       "path": "bootstrap/windows-arm64/rootfs/compiler.exe",
@@ -4987,8 +5067,8 @@
     },
     {
       "path": "bootstrap/windows-arm64/rootfs/policies/rebuild.exe",
-      "sha256": "sha256:4be6c0db47f3243539cb9e39e9888f6bd4967698e029251ead7860e7c8558060",
-      "bytes": 410624
+      "bytes": 457216,
+      "sha256": "sha256:f60917bc78a280ccefc4b2656873e87a3dc15716cd1ad9f92a7a403e457af307"
     },
     {
       "path": "bootstrap/windows-arm64/rootfs/policies/testing.exe",
@@ -5032,8 +5112,8 @@
     },
     {
       "path": "bootstrap/windows-arm64/runtime-modes.json",
-      "sha256": "sha256:a9720acb336105947f6000357d1af681c978ab2cdcafa4270a7c7defdb76d05d",
-      "bytes": 7979
+      "bytes": 8199,
+      "sha256": "sha256:7154e1a7dd4a46420f72471df72340b33ef72ac559f9b47aed870f1a161fdbe1"
     },
     {
       "path": "bootstrap/windows-arm64/seed-parts.json",
@@ -5042,8 +5122,8 @@
     },
     {
       "path": "bootstrap/windows-arm64/seed.json",
-      "sha256": "sha256:3c83a09d46760084965897b61f00aaae1f0bd8b3d31e64cced73376e36a2d59b",
-      "bytes": 20465
+      "bytes": 22851,
+      "sha256": "sha256:0669a6777ae6598fb9b98e5da292aee1fdbb10ce13ce73597f17a236c68b52da"
     },
     {
       "path": "bootstrap/windows-x86_64/READY",
@@ -5057,8 +5137,8 @@
     },
     {
       "path": "bootstrap/windows-x86_64/bin/kelft.exe",
-      "sha256": "sha256:30d11493d7dea84cf54ab059829183e7f0918107e541119f78822093eabaeb7d",
-      "bytes": 4761088
+      "bytes": 4846592,
+      "sha256": "sha256:1378f307876b99c21139399fe35b5b549676a35dcbdf3217112fa186e5fd64d4"
     },
     {
       "path": "bootstrap/windows-x86_64/notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -5451,14 +5531,29 @@
       "bytes": 21943296
     },
     {
+      "path": "bootstrap/windows-x86_64/provenance/compiler-qualification.json",
+      "bytes": 314056,
+      "sha256": "sha256:cf76b247ccb5aa8064888ef54f2b5c5d181b2ad02c3fb74af3a28fc22759dd19"
+    },
+    {
       "path": "bootstrap/windows-x86_64/provenance/generation.json",
       "sha256": "sha256:441233ff3271ccd1cede4e052f2e9fe8b2fc6fa59c8c218f7d629fc77c018194",
       "bytes": 29786
     },
     {
+      "path": "bootstrap/windows-x86_64/provenance/refresh.json",
+      "bytes": 41340,
+      "sha256": "sha256:f93dba07f81a50655b074eb93bb78b87eb6bab553c23c9524ce3a39a50b18823"
+    },
+    {
       "path": "bootstrap/windows-x86_64/provenance/seed.json",
       "sha256": "sha256:0f1d6297360825937fa26144fc1affae91956b31cb625d0bb238b59c2a790ac1",
       "bytes": 1202
+    },
+    {
+      "path": "bootstrap/windows-x86_64/release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322"
     },
     {
       "path": "bootstrap/windows-x86_64/rootfs/compiler.exe",
@@ -5472,8 +5567,8 @@
     },
     {
       "path": "bootstrap/windows-x86_64/rootfs/policies/rebuild.exe",
-      "sha256": "sha256:1935289fef45bb531cbd6db9a08457dde40b474dc0845170d9ad82724b756d1b",
-      "bytes": 578560
+      "bytes": 644096,
+      "sha256": "sha256:0485665c9ee6d810672c03be3426fec3fd4190d5929fb360cd8a98c2d5efa8da"
     },
     {
       "path": "bootstrap/windows-x86_64/rootfs/policies/testing.exe",
@@ -5517,8 +5612,8 @@
     },
     {
       "path": "bootstrap/windows-x86_64/runtime-modes.json",
-      "sha256": "sha256:93c4f74dc4702f0678c7c99f29dadea7ff2732ee4c40a309cd7b8c1678c63440",
-      "bytes": 7917
+      "bytes": 8137,
+      "sha256": "sha256:c15a6234cb0bcb3de56b16155473a351c9ed822b418eee67049ac0359c1117e4"
     },
     {
       "path": "bootstrap/windows-x86_64/seed-parts.json",
@@ -5527,8 +5622,8 @@
     },
     {
       "path": "bootstrap/windows-x86_64/seed.json",
-      "sha256": "sha256:c3fc62741bda1729b6eae7c9ff0acc5b6fe5ca9a82118a46502e0fc815b215c7",
-      "bytes": 20335
+      "bytes": 22721,
+      "sha256": "sha256:7fd9dbbb93aa4f3b0be17007d52d79df09ae8b1f17b96c5b0d34f5cd7f415e2d"
     },
     {
       "path": "docs/architecture.md",
@@ -5537,17 +5632,17 @@
     },
     {
       "path": "docs/build.md",
-      "sha256": "sha256:c1fdfd463cad6c3dabd7fa764e3e9fc0cd9fd3bd935768beaa74303928bbd8d1",
-      "bytes": 4551
+      "sha256": "sha256:7c5c2746260de34a59f1642b67781427bb5a5b339aded6628bfea74b5051a366",
+      "bytes": 5150
     },
     {
       "path": "docs/host-build.md",
-      "sha256": "sha256:f31fc921048564b71cab4fc5c3b3eff891e0e709fcd893e2d334f0606c909839",
-      "bytes": 4960
+      "sha256": "sha256:42e8f5cb391dc33757dd42d68edb06ba7dce0037f359e4dab213a62d69ddb069",
+      "bytes": 5410
     },
     {
       "path": "docs/install.md",
-      "sha256": "sha256:b924849aeb0c13fb6e59a9a5b2c99b283283b8dc5d9003b00098b7042ed89af4",
+      "sha256": "sha256:9f92db51a9da6cefeb8a2d3fc1d315000bca7051c7f6a1c5486bc67c4209e183",
       "bytes": 2450
     },
     {
@@ -5557,8 +5652,8 @@
     },
     {
       "path": "docs/release-workflow.md",
-      "sha256": "sha256:a89f0663ac8efdf9f941e66ccccd812039d765d8154c55766e02e5bb41b1d873",
-      "bytes": 5184
+      "sha256": "sha256:da906048b8b0d1dc94457b3c2609491caa710fe4952b529654ad0ce2dfbca7b9",
+      "bytes": 9839
     },
     {
       "path": "examples/hello.kelft",
@@ -5642,7 +5737,7 @@
     },
     {
       "path": "host/driver/release.json",
-      "sha256": "sha256:06fa440cc6f9011f3cfca7f01e98512bbe6da631db20fd44ebffd10a248fa8c7",
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322",
       "bytes": 123
     },
     {
@@ -5707,8 +5802,8 @@
     },
     {
       "path": "host/driver/src/installed.rs",
-      "sha256": "sha256:c63e2f99d4b0a7513495d962b7f0c1076e14cb375df0aed0253f44695e893d4f",
-      "bytes": 16085
+      "sha256": "sha256:4a05b0320e009f565c2666e80137deb3cd165beedc79eb0a69fc8011bb4eb85d",
+      "bytes": 16148
     },
     {
       "path": "host/driver/src/installed_boundary_linux.rs",
@@ -5727,8 +5822,8 @@
     },
     {
       "path": "host/driver/src/installed_cli.rs",
-      "sha256": "sha256:fe17470d9fe3f1716481db5f23697ff9bf35de905d8fbcc5f211a9c4084c28e1",
-      "bytes": 10227
+      "sha256": "sha256:f1e7135483f4c6790f961acf47ade2ea6d67cc3f7c59d7087b645dc868c27f82",
+      "bytes": 13890
     },
     {
       "path": "host/driver/src/installed_execution.rs",
@@ -5742,8 +5837,8 @@
     },
     {
       "path": "host/driver/src/installed_rebuild.rs",
-      "sha256": "sha256:02f062f96a189c8a4bc380acf2e41a885ba0985d540263b4d89b0c149bb64faf",
-      "bytes": 51515
+      "sha256": "sha256:3ae32e6f3fc8ced5649ea1c2ca377259f2bc055e6f5719ef9e954eb7b408c9c1",
+      "bytes": 54207
     },
     {
       "path": "host/driver/src/installed_request.rs",
@@ -6057,7 +6152,7 @@
     },
     {
       "path": "host/package.json",
-      "sha256": "sha256:15a8073d7003e48b80e78754bf1de4c5b0096d0eb6a8d784e26513df98436034",
+      "sha256": "sha256:96aca4a310dee21209a11ec814d61582c42ce2b14f07e2446480c7aa9bc077db",
       "bytes": 89
     },
     {
@@ -6082,13 +6177,13 @@
     },
     {
       "path": "host/scripts/build-native-macos-installed-host.mjs",
-      "sha256": "sha256:d4eddea0a1c6983729ecdf98cdf68005e2e33aa168c286eb1862d25428419337",
-      "bytes": 6812
+      "sha256": "sha256:878906d3c78ba9a942af08426721b1c0120755722a04ab42be2d32e21050edda",
+      "bytes": 7126
     },
     {
       "path": "host/scripts/build-native-windows-installed-host.mjs",
-      "sha256": "sha256:4cc6cf176076225a97b7689f5b689cd28e021cae33e555685f9c90cfcf77be09",
-      "bytes": 6615
+      "sha256": "sha256:6b424ba5fed22f1d32c4b165c67a4e5d984c801510fc85cb6d63e87f46db258d",
+      "bytes": 6888
     },
     {
       "path": "host/scripts/direct-toolchain.mjs",
@@ -6142,8 +6237,8 @@
     },
     {
       "path": "publication.json",
-      "sha256": "sha256:196e23f3e10445b979e7926dae01b721960cbef772b4284030552ec167d2fdf3",
-      "bytes": 265597
+      "bytes": 270769,
+      "sha256": "sha256:6ac2b36a3d0fdb5e6a8e1e0aa2c3b87ca0c4a862d74d59f704648565aaa9018a"
     },
     {
       "path": "release-evidence/linux-arm64-relink.json",
@@ -6172,18 +6267,18 @@
     },
     {
       "path": "release-review.json",
-      "sha256": "sha256:8cc8d401e30667e9b99dac25ecd2dc72c5757afe9cae81ae0e6ca29f4d32eee9",
-      "bytes": 295269
+      "bytes": 299188,
+      "sha256": "sha256:a87bd992bfed6564e240d9e126e094a99afa52bfcf0a7b9c1b97007b87498ca5"
     },
     {
       "path": "release.json",
-      "sha256": "sha256:2761f126a5769fde2265daeebfbf8770c5d523e0d2434a56501966148471abbf",
-      "bytes": 1009
+      "sha256": "sha256:4ea1da80b164f0ee73ca01c5863557eafb69d86a6d5a3c62376db60a660c6346",
+      "bytes": 1145
     },
     {
       "path": "scripts/archive.mjs",
-      "sha256": "sha256:9fdf933ccdc9cf986d4ff6647676b1680469907d4c56474fa316288b17e3feb8",
-      "bytes": 7052
+      "sha256": "sha256:4cdad4d1c5d1c07a6e067aefd4f8299b880233c6965dc0617252358a2ed48e87",
+      "bytes": 8350
     },
     {
       "path": "scripts/build.mjs",
@@ -6212,28 +6307,68 @@
     },
     {
       "path": "scripts/release-actions.mjs",
-      "sha256": "sha256:ab967a2b61e9a744c982fbfc0e2fb6aa8a6e916f534432a8f70a4ae4324e4c37",
-      "bytes": 6581
+      "sha256": "sha256:c6e666abfa69e53a4311a87e7b6b94a80b2a9fe8869c6c243f088895a33c0212",
+      "bytes": 7903
     },
     {
       "path": "scripts/release-artifact.mjs",
-      "sha256": "sha256:d6114831eb40919fc0a39e5d3713f76c308feee5b3461d5c6f75866416d7dd51",
-      "bytes": 5114
+      "sha256": "sha256:4eb67ef05c1c30b3773c22ea4135f4b7ed27a63e8a4f7b2fc59c9d2c9d08a95b",
+      "bytes": 6705
+    },
+    {
+      "path": "scripts/release-baseline.mjs",
+      "sha256": "sha256:dea70b3ea5ee1254ddd5ab41f571d2f958ee5420fec8563e01e60d267337bff4",
+      "bytes": 6689
+    },
+    {
+      "path": "scripts/release-checks.mjs",
+      "sha256": "sha256:a2122e179dba7a1ea5acd0d6878556d7f56179280fef7bcb38f80053a5a93c9e",
+      "bytes": 8874
     },
     {
       "path": "scripts/release-contracts.mjs",
-      "sha256": "sha256:9899b2bad62830bcc947652cb288cec48a1a2ba80a4123723a7e59a6c36ea8b0",
-      "bytes": 10560
+      "sha256": "sha256:2ec958d3907778dc72801572f58f0dad70c6f92ace359b3ecf43795855eede39",
+      "bytes": 15836
+    },
+    {
+      "path": "scripts/release-generation.mjs",
+      "sha256": "sha256:50d77a86744b84cd8ad450be50e058e3c0a299287efd78c960b8a8c12db5aa57",
+      "bytes": 3542
     },
     {
       "path": "scripts/release-github.mjs",
-      "sha256": "sha256:07ac2e9be7f7b5a101009587c9f029eb57ef936b6637fd049622249544af0ef3",
-      "bytes": 7961
+      "sha256": "sha256:6e57626236a6a755e9fa6b2b19041aa052d11627c12da84c6db65b05198f3095",
+      "bytes": 11891
+    },
+    {
+      "path": "scripts/release-identities.mjs",
+      "sha256": "sha256:634b51ff70e46197b7558624f97457114bedcc1464fb59a005fc01505464adc9",
+      "bytes": 5198
+    },
+    {
+      "path": "scripts/release-kits.mjs",
+      "sha256": "sha256:8e29f8cee848d7be4284c9be8616166303aaadb3b74f5078a0fb9d154b56fdf4",
+      "bytes": 4280
+    },
+    {
+      "path": "scripts/release-language.mjs",
+      "sha256": "sha256:38cfe54baa13e515d1ae87be9d1739429a8c40c45b81bb2c4f7d68a4c1a73d0e",
+      "bytes": 2596
+    },
+    {
+      "path": "scripts/release-package.mjs",
+      "sha256": "sha256:eb0ff491cf110a0d31e6bfa05d3a9a57beeb146634ee9f0898df9533f414630c",
+      "bytes": 2872
+    },
+    {
+      "path": "scripts/release-retained.mjs",
+      "sha256": "sha256:54970b47004bcc3d5aa5a08bb46fb0b217c498c7fe3093b8e95906d0314d9518",
+      "bytes": 4309
     },
     {
       "path": "scripts/release-reuse.mjs",
-      "sha256": "sha256:c2c5c3938c9daf943e351d5a914447a15634792608f8e36e08c0e2961b0a4057",
-      "bytes": 12414
+      "sha256": "sha256:0345ef60a4d63df498957a744c7a52b0f8cc790a161a70111ae359a8fd2798d4",
+      "bytes": 15712
     },
     {
       "path": "scripts/release-review.mjs",
@@ -6241,14 +6376,39 @@
       "bytes": 9067
     },
     {
+      "path": "scripts/release-source.mjs",
+      "sha256": "sha256:fa96bea72001250ca3d26e5b30c384f84654c5dd68668921d24c65d0b4f651b1",
+      "bytes": 5564
+    },
+    {
       "path": "scripts/release.mjs",
-      "sha256": "sha256:32a2e3b101f3bba1bd5979e34cad4e4b677f9aa3e6b0986f0d9a0f567c526d60",
-      "bytes": 25133
+      "sha256": "sha256:b5d84331b4c0547044fc36e3ef9906f8739a1189aeafde9cada1e27c206d876e",
+      "bytes": 10380
+    },
+    {
+      "path": "scripts/seed-host.mjs",
+      "sha256": "sha256:e0b3755b474c8b7d0033d6acee945b8acb5e14927720c0c01e93e5abbe735ef4",
+      "bytes": 4942
     },
     {
       "path": "scripts/seed-payload.mjs",
       "sha256": "sha256:9f23833bbefe2ef680acde17407864a866c01425c9ffb78d9a750f14c49b8297",
       "bytes": 4562
+    },
+    {
+      "path": "scripts/seed-pull-request.mjs",
+      "sha256": "sha256:09ab06af22f54a7a43eda838a71afc6c136871ac5795273c2c344224699f6298",
+      "bytes": 11847
+    },
+    {
+      "path": "scripts/seed-refresh.mjs",
+      "sha256": "sha256:2dea3ff47be55630cabc467a2392af698367d69b4493d06ee5de74ed596884d7",
+      "bytes": 15207
+    },
+    {
+      "path": "scripts/seed-update.mjs",
+      "sha256": "sha256:fc3950a7f7403250485249c1a87d25dad68604769bc460a7fe39d2b6571b67f4",
+      "bytes": 13247
     },
     {
       "path": "scripts/seed.mjs",
@@ -6907,8 +7067,13 @@
     },
     {
       "path": "selfhost/toolchain/rebuild.kelft",
-      "sha256": "sha256:6e5bec4103e35b39b3b6b2ddf5128cb2a89cdbc050d61b7c0ceae061fa2a7635",
-      "bytes": 5752
+      "sha256": "sha256:03e5741fc8162d94474d0d66d996edaf5ad08fc23a9f80fbc809639a629fc6ee",
+      "bytes": 6146
+    },
+    {
+      "path": "selfhost/toolchain/release-version.kelft",
+      "sha256": "sha256:2ce2b0f27f48cde4b1e9278caedf5288d2f3ffed0f449019f40ac8ba2e4b45bb",
+      "bytes": 2144
     },
     {
       "path": "selfhost/toolchain/targets.kelft",
@@ -7471,9 +7636,14 @@
       "bytes": 60
     },
     {
+      "path": "tests/release-alpha2.test.mjs",
+      "sha256": "sha256:b28d45fb7162ad6d7d8ae03ba36103dc657ed7984094028563f71f887ad73872",
+      "bytes": 18265
+    },
+    {
       "path": "tests/release-pipeline.test.mjs",
-      "sha256": "sha256:d770ce40279fa1cb331021fe811b154c1cafdb21440d84745d1646e84118617a",
-      "bytes": 13744
+      "sha256": "sha256:3d2cabf73312068813620df758b202c22efb00b81a58b6a0cb096edb76057629",
+      "bytes": 19858
     },
     {
       "path": "tests/release.test.mjs",
@@ -7481,9 +7651,46 @@
       "bytes": 5367
     },
     {
+      "path": "tests/seed-refresh.test.mjs",
+      "sha256": "sha256:a9a515c9020309fa2e2e48bfb1a9ddab9a9e8afd53a69dddcf19a9c6f98ea95a",
+      "bytes": 31110
+    },
+    {
       "path": "tests/source-archive.test.mjs",
       "sha256": "sha256:d0675804074d85bf6d766fffeecdfb76da9c6a3cbe8f80816d316f4a1f0944ed",
       "bytes": 2450
+    }
+  ],
+  "generatedSeeds": [
+    {
+      "target": "linux-x86_64",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+      "reportSHA256": "sha256:46cfcd94693fdb21e519aacfc25dfe4fab96547a07f1d1df16b5160a93baacdb"
+    },
+    {
+      "target": "linux-arm64",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+      "reportSHA256": "sha256:69477f1dc68838d94c79dcc5683e542b7cb7b5531c30da6341f4d7e2de8e61f3"
+    },
+    {
+      "target": "windows-x86_64",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+      "reportSHA256": "sha256:ce0d5a9c31dcaa5534d715c10cca612a0bfc83c3cac2093584569fbc691abe17"
+    },
+    {
+      "target": "windows-arm64",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+      "reportSHA256": "sha256:ed82c1df7e955ca9c46d2eedd5ee5b5d69653f0575f8d3a57a6334fe9f674846"
+    },
+    {
+      "target": "macos-x86_64",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+      "reportSHA256": "sha256:7f13c3514a117aaf30cd0d5f7edf609b404d15220a0f62d9677baa84c8ae684e"
+    },
+    {
+      "target": "macos-arm64",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+      "reportSHA256": "sha256:84f928fb2115ebb9ce4203d62f26e8aa7693cf587d98046b69e2dd39952b82e8"
     }
   ]
 }

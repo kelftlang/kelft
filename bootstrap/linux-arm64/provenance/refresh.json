@@ -1,0 +1,602 @@
+{
+  "schema": "kelft.seed-components/1",
+  "target": "linux-arm64",
+  "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+  "hostInputSHA256": "sha256:5c25a18c1eea06247520546ea75e91879e833bc65aab474f66a94996823ef8c3",
+  "policyInputSHA256": "sha256:0c347e4791287dff74ce93acf67094baa290f3456b1013503e49e0fe349097f4",
+  "coreInputSHA256": "sha256:a5b60fe2e65f597ad059e7fc50b8f60987f086247bff65fa42f93742d51ba90d",
+  "adoption": {
+    "schema": "kelft.compiler-adoption/1",
+    "target": "linux-arm64",
+    "compiler": {
+      "bytes": 15423160,
+      "sha256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712"
+    },
+    "object": {
+      "bytes": 21846904,
+      "sha256": "sha256:a51f9dbc197d4f8827e2286916b0790945d8dae7eb2c1e8100d0b47701ddacbb"
+    },
+    "coreSources": [
+      {
+        "path": "selfhost/core.kelft",
+        "bytes": 14844,
+        "sha256": "sha256:28038a5feb2a5b2ad9bb58f7d5278df822a5abf8dd690220ff5c8bad5d6bab63"
+      },
+      {
+        "path": "selfhost/direct/aggregate-runtime.kelft",
+        "bytes": 14722,
+        "sha256": "sha256:19bf9389374217abf533a918970068396c0c0c2bae16a20482a20cbee1f0b9e1"
+      },
+      {
+        "path": "selfhost/direct/aggregate.kelft",
+        "bytes": 89767,
+        "sha256": "sha256:a8318273bc4b2c4fca8672f09b0d690a4ae17bf870939492d7308edec2251d11"
+      },
+      {
+        "path": "selfhost/direct/arm-elf.kelft",
+        "bytes": 10927,
+        "sha256": "sha256:4738b52b561cf7ef598aba25f83fcafb1bd89bf8ef118c967437d2f6018152b5"
+      },
+      {
+        "path": "selfhost/direct/arm64.kelft",
+        "bytes": 14263,
+        "sha256": "sha256:17fa68d12e28a290fe2b6b60bab8cfe92f574965067c81602b4c97c5e170e6c5"
+      },
+      {
+        "path": "selfhost/direct/artifact-runtime.kelft",
+        "bytes": 99134,
+        "sha256": "sha256:d28f61c9fe349fcf8a1cc03c0af4217b92847cedfdc209aee0713fee46dee188"
+      },
+      {
+        "path": "selfhost/direct/binary.kelft",
+        "bytes": 3083,
+        "sha256": "sha256:3bad316e772c3af25b0cf49244c3e9da9ede5b35d1694e8cd2daf53f2c93dd16"
+      },
+      {
+        "path": "selfhost/direct/builder.kelft",
+        "bytes": 4680,
+        "sha256": "sha256:aaeccc6214a7b756bff318408c56e07fcaca3c3e2d5a58eab61efea4140146b9"
+      },
+      {
+        "path": "selfhost/direct/channel-runtime.kelft",
+        "bytes": 88896,
+        "sha256": "sha256:a286d3d88905ba1ba2e4f19423b60fd062dc4c0ea2e044d187fcc5a1013bbacd"
+      },
+      {
+        "path": "selfhost/direct/elf.kelft",
+        "bytes": 9800,
+        "sha256": "sha256:33ff3ef10bec320fd824aa7edae58bc8569e1797f860345cfb5d0005679caae8"
+      },
+      {
+        "path": "selfhost/direct/engine-boundary.kelft",
+        "bytes": 2933,
+        "sha256": "sha256:5cba7e4b3a0ebfe1241bb03856b4528c8fd2f094c4da04693b1e788010bfa17f"
+      },
+      {
+        "path": "selfhost/direct/fs-policy-runtime.kelft",
+        "bytes": 33242,
+        "sha256": "sha256:0b5ab0ad9da3a10187c4d0ddaabf24898cb49e04819736d93c96399c850daa6c"
+      },
+      {
+        "path": "selfhost/direct/fs-runtime.kelft",
+        "bytes": 41892,
+        "sha256": "sha256:f3b4b82f25e6fd354d19637f2b81da365d76b27daf87029501413ecb992592a5"
+      },
+      {
+        "path": "selfhost/direct/graph-runtime.kelft",
+        "bytes": 17295,
+        "sha256": "sha256:fa8afaa0c8d5689b01e94e4f1f92844c5dbd8428614ee87fab3b76c7d5c3a93b"
+      },
+      {
+        "path": "selfhost/direct/heap.kelft",
+        "bytes": 12568,
+        "sha256": "sha256:918f5fc881a55aa28b3e85f153328a0fe897c11eb1ad2d16655322325f0cf2c5"
+      },
+      {
+        "path": "selfhost/direct/host-policy.kelft",
+        "bytes": 1336,
+        "sha256": "sha256:da7914b99da55319f10bbb904e980dac64a5e4a6bbafd1a52fb13d2ae4a51d84"
+      },
+      {
+        "path": "selfhost/direct/host-runtime.kelft",
+        "bytes": 41451,
+        "sha256": "sha256:e897abf49470ba938b0572d17956151901408cfa4fc64b703b74b02795105f44"
+      },
+      {
+        "path": "selfhost/direct/ir.kelft",
+        "bytes": 19078,
+        "sha256": "sha256:1cbad7c64bf78223904b70c32da1bfb2181fe78ea5d77c86bd45614c5df4535f"
+      },
+      {
+        "path": "selfhost/direct/link-driver.kelft",
+        "bytes": 5922,
+        "sha256": "sha256:6c7c12aaedb9fc163a7eb1dbe391c03d7a66074043234be0582a1c41a56f6522"
+      },
+      {
+        "path": "selfhost/direct/linux-arm-aggregate.kelft",
+        "bytes": 20553,
+        "sha256": "sha256:721ad0f21764f60823aa3bf29ee3b77aab25dcc5e5ccd2d38b1c12a3d2d4758d"
+      },
+      {
+        "path": "selfhost/direct/linux-arm-services.kelft",
+        "bytes": 10455,
+        "sha256": "sha256:e4013ef20bf3095341b55791b0ed6a8ca1c92a8c655266d088ba30f837fa58b0"
+      },
+      {
+        "path": "selfhost/direct/linux-guest-runtime.kelft",
+        "bytes": 46539,
+        "sha256": "sha256:0ba9adf5b32a15ee6587f82c311b1faf57dcfa523fb3e8f867b15f8c2a9ac2c9"
+      },
+      {
+        "path": "selfhost/direct/linux-runtime-data.kelft",
+        "bytes": 5636,
+        "sha256": "sha256:6012ba14f2a36a634cf9f93139320105f57a26b6c3eb9b013ca64e83b5abdfa9"
+      },
+      {
+        "path": "selfhost/direct/map-runtime.kelft",
+        "bytes": 6541,
+        "sha256": "sha256:579112b7c858170e93a7905ffc13980d8177521f8ac32e0caf9b255e4c56d458"
+      },
+      {
+        "path": "selfhost/direct/native-target.kelft",
+        "bytes": 663,
+        "sha256": "sha256:1dcc5facb98c02c6800ecc0fda199ec8e3768618a7f86d71ca2f9e86852cba4d"
+      },
+      {
+        "path": "selfhost/direct/opcodes.kelft",
+        "bytes": 3211,
+        "sha256": "sha256:12d22d71a2c7305cbed38d62b1742d7478b99c400f33f60b23b636e497386974"
+      },
+      {
+        "path": "selfhost/direct/package-driver.kelft",
+        "bytes": 5332,
+        "sha256": "sha256:5257d7888d860f8093105b862d44551a561fdd56d2dd2ebc1f8b121d40774965"
+      },
+      {
+        "path": "selfhost/direct/packed-runtime.kelft",
+        "bytes": 6799,
+        "sha256": "sha256:21c96e22f742eced2b53c5200d02059f6a5d4bb8cd500c77e7c2a0440da8a943"
+      },
+      {
+        "path": "selfhost/direct/path-runtime.kelft",
+        "bytes": 29725,
+        "sha256": "sha256:fb23367bdc429095b60104db1470d66bbbeeb4e2939f0054100decc50694bcab"
+      },
+      {
+        "path": "selfhost/direct/pool.kelft",
+        "bytes": 14194,
+        "sha256": "sha256:e0bc6fb72e0527887c1d7cb198c65db9ce5b630f78faa5432a438dad24c66939"
+      },
+      {
+        "path": "selfhost/direct/process-runtime.kelft",
+        "bytes": 5021,
+        "sha256": "sha256:51733fe1aeae5f8246e01355478edef577235bb5af10534ed77408e007841bed"
+      },
+      {
+        "path": "selfhost/direct/protocol-linux-arm.kelft",
+        "bytes": 2356,
+        "sha256": "sha256:f9c0c7cb87988bd54444b36f88d8a95be57dd053ae0bd729d47a18c2b5b36994"
+      },
+      {
+        "path": "selfhost/direct/runtime-ir.kelft",
+        "bytes": 2523,
+        "sha256": "sha256:1b1e0212ab6022ff14abe4af7dd5a2ac3a7115e1f9c610e2e96c289fb58a21b6"
+      },
+      {
+        "path": "selfhost/direct/scalar-runtime.kelft",
+        "bytes": 1380,
+        "sha256": "sha256:cbb1457a5e8be7a02ba638c895aeed18a21a7bdcdc83c715fb7f9d4796e50b7f"
+      },
+      {
+        "path": "selfhost/direct/stream-runtime.kelft",
+        "bytes": 3011,
+        "sha256": "sha256:d9979fd99a19ff1ec6c8fc96e9238a3c38d571957f73a3cfcea849b64f3208d5"
+      },
+      {
+        "path": "selfhost/direct/string-runtime.kelft",
+        "bytes": 25493,
+        "sha256": "sha256:bb651883e730ff17042df9ca2811ec11c515d51f80f8b3309017b0d413ce7b10"
+      },
+      {
+        "path": "selfhost/direct/string-transform-runtime.kelft",
+        "bytes": 8069,
+        "sha256": "sha256:80dd9c28bfbedcb7f3c144e09fa2334ec78d497ba225ea4c69e0c7c08a5ded4d"
+      },
+      {
+        "path": "selfhost/direct/verification-artifact-linux-arm.kelft",
+        "bytes": 1800,
+        "sha256": "sha256:c3cf5ab110ba96288df6ff9f76e8e1817fa7fdf4472655f4fb1ce08b196adf99"
+      },
+      {
+        "path": "selfhost/direct/windows-guest-runtime.kelft",
+        "bytes": 62060,
+        "sha256": "sha256:e31eb3edfa88fe3c8cde8233854ac8a56200f2adbf11a74b744ef52e2c79ff90"
+      },
+      {
+        "path": "selfhost/direct/write-runtime.kelft",
+        "bytes": 19687,
+        "sha256": "sha256:fa88ddb14de80df26005ac414074aa5322d7279199647a68e53ca2462ab85546"
+      },
+      {
+        "path": "selfhost/direct/x86_64.kelft",
+        "bytes": 15255,
+        "sha256": "sha256:d727b57d461c4f3b1df3d55f1190337b853d9f503b9c85b849dc845a7c6a85cb"
+      },
+      {
+        "path": "selfhost/driver.kelft",
+        "bytes": 17226,
+        "sha256": "sha256:221fe8d416c3cda0a3562436a051078367785cdcee07fd71f59df0a0215f8ed9"
+      },
+      {
+        "path": "selfhost/emitter.kelft",
+        "bytes": 8767,
+        "sha256": "sha256:20c5f2a79c279eb48315ed41cc132611b522a6f7fb694f2fe213110c2f3ca812"
+      },
+      {
+        "path": "selfhost/hash.kelft",
+        "bytes": 5165,
+        "sha256": "sha256:bd7caf9a8f4cc04bbf67218d60679c5aa7b3698e329ba54ca305a3e51ba583d9"
+      },
+      {
+        "path": "selfhost/intent.kelft",
+        "bytes": 14187,
+        "sha256": "sha256:236f4705c0e55059d0f9e1e8eb449061e3a6e0e2899619ee437533e61f0a191a"
+      },
+      {
+        "path": "selfhost/intent_bindings.kelft",
+        "bytes": 4122,
+        "sha256": "sha256:207e0f9ae65a662bb091d6f171cf7004fca4f8435e53b7feb1dd214ac779b6a4"
+      },
+      {
+        "path": "selfhost/intent_capabilities.kelft",
+        "bytes": 5902,
+        "sha256": "sha256:ee50d6057862bb333ac61b6dc3a50b5d9b343e2058f333fa08274367f61d2c69"
+      },
+      {
+        "path": "selfhost/intent_domain.kelft",
+        "bytes": 14822,
+        "sha256": "sha256:736476fdcfc7ed0fcf4feaba94756f53c35cdd53de3b450280c0948ec5984be7"
+      },
+      {
+        "path": "selfhost/intent_enforce.kelft",
+        "bytes": 16134,
+        "sha256": "sha256:470bfb062452d13a4ce2155fca28f554ad4b0a2a775811417394ec09249952cb"
+      },
+      {
+        "path": "selfhost/intent_public.kelft",
+        "bytes": 12887,
+        "sha256": "sha256:90b9423e486bc47735611aea30e76156e3ff8cc328fdad0a4c87218c36744f4a"
+      },
+      {
+        "path": "selfhost/intent_source.kelft",
+        "bytes": 23868,
+        "sha256": "sha256:16315ae4a4ecf86c92227fdadcfed9c4fe0f713adf0138aafcc8901a5885fae2"
+      },
+      {
+        "path": "selfhost/intrinsics.kelft",
+        "bytes": 6730,
+        "sha256": "sha256:b5d38ad6ea148bedc607ed6ff8c10111cb91bf2bc4a668f57730d9e176415c3f"
+      },
+      {
+        "path": "selfhost/json.kelft",
+        "bytes": 8770,
+        "sha256": "sha256:003a9e326a4a8e12c2ffa38c916f7bbd17c1ec98df3af24062d829b670202771"
+      },
+      {
+        "path": "selfhost/lexer.kelft",
+        "bytes": 5108,
+        "sha256": "sha256:bb99c6d8e43cc3b57252039be7fe4e1a9a4f0e99a3ae42c686b531656ca2f8d2"
+      },
+      {
+        "path": "selfhost/modules.kelft",
+        "bytes": 2694,
+        "sha256": "sha256:7182f17c594e42ac61ee571f17d0186ef6f2a146bf4ea468597dadf2e96ec951"
+      },
+      {
+        "path": "selfhost/native-linux-arm-driver.kelft",
+        "bytes": 3279,
+        "sha256": "sha256:f5df2e1164d8db242be2957cec9aaebf3cea2ebbf339415fd7969e017547ee85"
+      },
+      {
+        "path": "selfhost/native-linux-arm-object.kelft",
+        "bytes": 3530,
+        "sha256": "sha256:7e663bd98203b89f1bf3888c32b120ab5917bf74ac42302529d3e8b2dba5de54"
+      },
+      {
+        "path": "selfhost/parser.kelft",
+        "bytes": 19498,
+        "sha256": "sha256:ed2341ebb251d90ed3becee1c235e1d6a83083d426d245a9af7802030224c88b"
+      },
+      {
+        "path": "selfhost/runtime.kelft",
+        "bytes": 19883,
+        "sha256": "sha256:ee7c3011dff580ab49239e6331a920a76b665f31c07c321b7d2839c10ece3a04"
+      },
+      {
+        "path": "selfhost/semantic.kelft",
+        "bytes": 40859,
+        "sha256": "sha256:63a7256e96617ac546a757ca802508de6844cdf6b7eef733da226c32e95af4bd"
+      },
+      {
+        "path": "selfhost/syntax.kelft",
+        "bytes": 5687,
+        "sha256": "sha256:9589e5668c9f21cfa3fbe3cc938f49c7078e86a10d8edcd2c22154b1c0bda71b"
+      },
+      {
+        "path": "selfhost/toolchain/host-capabilities.kelft",
+        "bytes": 10539,
+        "sha256": "sha256:d647fb8a7f4c66a2a329336fc2c554fccbdaaec95de59ab86336244e314d9d10"
+      },
+      {
+        "path": "selfhost/toolchain/inspect.kelft",
+        "bytes": 5096,
+        "sha256": "sha256:cac24083932f0d4312ccecc455b675ef4af91f6d793d75ea36ab91cd9b60b5d5"
+      },
+      {
+        "path": "selfhost/verification.kelft",
+        "bytes": 15088,
+        "sha256": "sha256:9da833f2b213f6c8a7a9d41714eeb001a7a9b898ca2f96d161149f926dec1358"
+      },
+      {
+        "path": "selfhost/wasm/binary.kelft",
+        "bytes": 10431,
+        "sha256": "sha256:6a5d4de9c6b6a2329e8c61f02625859348216e7ca2d731063e2ee6bca8d95040"
+      },
+      {
+        "path": "selfhost/wasm/emitter.kelft",
+        "bytes": 26781,
+        "sha256": "sha256:3f877d624e729c60474ba90832e29d52619db103988977e825e791f7ef17e528"
+      },
+      {
+        "path": "selfhost/wasm/runtime.kelft",
+        "bytes": 67729,
+        "sha256": "sha256:abd3925d07567606d511dab95d5c7e7f98f3ddb8a6ee781759d5e390b3457a70"
+      },
+      {
+        "path": "stdlib/bootstrap/strings.kelft",
+        "bytes": 730,
+        "sha256": "sha256:9f0556492ce4f36f327495fc21015b144d210ce991f705d5f2c2f8362418f5ec"
+      }
+    ],
+    "executionInputs": [
+      {
+        "path": "bootstrap/linux-arm64/bin/kelft-boundary",
+        "bytes": 780960,
+        "sha256": "sha256:95cb84c99d11a7822b7a6a3775ea7ef70062f295cca55d2531aafe56867f4051"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/compiler",
+        "bytes": 15423160,
+        "sha256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/control/maximum.json",
+        "bytes": 162,
+        "sha256": "sha256:a1d54fc77f5981b7b8caea0e9f95cf3fefac81cb7789f668dd12e0ef8f07ca6a"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/control/toolchain.json",
+        "bytes": 1881,
+        "sha256": "sha256:0f6aadf23cb4cafdb62b863204ab9b3b977b6eb44a8e39da79c1b1922d72f323"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/etc/ld.so.cache",
+        "bytes": 37455,
+        "sha256": "sha256:520ae01978f6a0c33b19862c68f97b726a5907335585c87e41929b2d6d995543"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libbfd-2.42-system.so",
+        "bytes": 1648264,
+        "sha256": "sha256:d9d9cc536c3a752ce0fd09e554ce2e31f98a5d42201984a608ed1e577e4ad0de"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libc.so.6",
+        "bytes": 1722920,
+        "sha256": "sha256:0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libctf.so.0",
+        "bytes": 265360,
+        "sha256": "sha256:be124ffe36abc3d3068092e5a05300aee0c7b9fa6f59acbb289aedae788ddbae"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libjansson.so.4",
+        "bytes": 67920,
+        "sha256": "sha256:ec0e6c38dd7f4979d61563777872de4c9983b0cfb15bbba9b0d9d90e4d736907"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libsframe.so.1",
+        "bytes": 67752,
+        "sha256": "sha256:c56f579c7f266b5bfcbdc9d448d2a8f1a8223483b390d98e311526598bf29a5d"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libz.so.1",
+        "bytes": 133272,
+        "sha256": "sha256:e3bc90ee8cce46778c2f46c2a3e580d3b930f7b455910f25ea400a0b797fb9dc"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/aarch64-linux-gnu/libzstd.so.1",
+        "bytes": 657432,
+        "sha256": "sha256:fe726238b170b83aa83bf1f8a79109b8b61b9eb45234304511d093bbe5f5fb20"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/lib/ld-linux-aarch64.so.1",
+        "bytes": 203968,
+        "sha256": "sha256:390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/bin/aarch64-linux-gnu-ld.bfd",
+        "bytes": 1710520,
+        "sha256": "sha256:1e4d3369b76845fa8e099b83513bf28f6f722e046f9b2cde1378c9e27f96d19c"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+        "bytes": 203968,
+        "sha256": "sha256:390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libbfd-2.42-system.so",
+        "bytes": 1648264,
+        "sha256": "sha256:d9d9cc536c3a752ce0fd09e554ce2e31f98a5d42201984a608ed1e577e4ad0de"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libc.so.6",
+        "bytes": 1722920,
+        "sha256": "sha256:0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libctf.so.0.0.0",
+        "bytes": 265360,
+        "sha256": "sha256:be124ffe36abc3d3068092e5a05300aee0c7b9fa6f59acbb289aedae788ddbae"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libjansson.so.4.14.0",
+        "bytes": 67920,
+        "sha256": "sha256:ec0e6c38dd7f4979d61563777872de4c9983b0cfb15bbba9b0d9d90e4d736907"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libsframe.so.1.0.0",
+        "bytes": 67752,
+        "sha256": "sha256:c56f579c7f266b5bfcbdc9d448d2a8f1a8223483b390d98e311526598bf29a5d"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libz.so.1.3",
+        "bytes": 133272,
+        "sha256": "sha256:e3bc90ee8cce46778c2f46c2a3e580d3b930f7b455910f25ea400a0b797fb9dc"
+      },
+      {
+        "path": "bootstrap/linux-arm64/rootfs/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.5",
+        "bytes": 657432,
+        "sha256": "sha256:fe726238b170b83aa83bf1f8a79109b8b61b9eb45234304511d093bbe5f5fb20"
+      }
+    ],
+    "languageReusable": true,
+    "originalSnapshotID": "sha256:958416883845807639591515188cb6220f9718682d45bde6bc119d7218b69780",
+    "originalReportSHA256": "sha256:b30f8d2e41d897d9613565f149f62de4fc33a43feca2c494606de52ca741e851",
+    "producerCommit": "64b4da174db450ff96a9ce7a04555d3514758fe9",
+    "compilerGenerationsRebuilt": false
+  },
+  "evidence": {
+    "compilerRetained": true,
+    "boundaryRetained": true,
+    "testingPolicyRetained": true,
+    "metadata": {
+      "status": "passed",
+      "installedVersion": true,
+      "projectMetadataIgnored": true,
+      "malformedRejected": true,
+      "oversizedRejected": true,
+      "legacyFallback": true,
+      "emptyRuntimePATH": true
+    },
+    "policy": {
+      "status": "passed",
+      "cases": 3
+    },
+    "hello": true,
+    "componentHashes": {
+      "compiler": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712",
+      "boundary": "sha256:95cb84c99d11a7822b7a6a3775ea7ef70062f295cca55d2531aafe56867f4051",
+      "testingPolicy": "sha256:312e89840aa7bb4e11dcbb9de81547d5306b242c95769c730863a1ece93a9385",
+      "coordinator": "sha256:1da50c02188b686126eed810d59386cd7f816efdbffd6727894c0084108dc777",
+      "rebuildPolicy": "sha256:1df6bde7b91b4f4c359b19b6e46faa28c0a3967aa3467052ed21f129ba964b64"
+    }
+  },
+  "host": {
+    "sourceHash": "sha256:7c161c42e1fe38542750cfcebfb55ccb6a5e0c8f9fd987f593b8544dc4ce0e81",
+    "schema": "kelft-installed-native-host-build/1",
+    "sdk": {
+      "root": "/home/runner/.rustup/toolchains/1.99.0-aarch64-unknown-linux-gnu",
+      "rustc": "/home/runner/.rustup/toolchains/1.99.0-aarch64-unknown-linux-gnu/bin/rustc",
+      "cargo": "/home/runner/.rustup/toolchains/1.99.0-aarch64-unknown-linux-gnu/bin/cargo",
+      "triple": "aarch64-unknown-linux-gnu",
+      "version": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+      "configurationHash": "sha256:9c9056e87c38e0067360025b73d5525d31e4fc6077958a459761fb512aeeae3c",
+      "identity": "sha256:a03d63b8476dea01b32efab46b6cb89bca0bcc04d15800431c008df2e2790772",
+      "provenance": null
+    },
+    "dependencyTree": "kelft-wasi v0.1.0 (/home/runner/work/kelft/kelft/host/driver)\n├── flate2 v1.1.5\n│   ├── crc32fast v1.5.2\n│   │   └── cfg-if v1.0.5\n│   └── miniz_oxide v0.8.9\n│       ├── adler2 v2.0.1\n│       └── simd-adler32 v0.3.10\n├── getrandom v0.3.4\n│   ├── cfg-if v1.0.5\n│   └── libc v0.2.190\n├── hmac v0.12.1\n│   └── digest v0.10.7\n│       ├── block-buffer v0.10.4\n│       │   └── generic-array v0.14.7\n│       │       └── typenum v1.20.1\n│       │       [build-dependencies]\n│       │       └── version_check v0.9.5\n│       ├── crypto-common v0.1.7\n│       │   ├── generic-array v0.14.7 (*)\n│       │   └── typenum v1.20.1\n│       └── subtle v2.6.1\n├── libc v0.2.190\n├── serde v1.0.229\n│   ├── serde_core v1.0.229\n│   └── serde_derive v1.0.229 (proc-macro)\n│       ├── proc-macro2 v1.0.107\n│       │   └── unicode-ident v1.0.27\n│       ├── quote v1.0.47\n│       │   └── proc-macro2 v1.0.107 (*)\n│       └── syn v3.0.9\n│           ├── proc-macro2 v1.0.107 (*)\n│           ├── quote v1.0.47 (*)\n│           └── unicode-ident v1.0.27\n├── serde_json v1.0.154\n│   ├── itoa v1.0.18\n│   ├── memchr v2.8.3\n│   ├── serde_core v1.0.229\n│   └── zmij v1.0.23\n└── sha2 v0.10.9\n    ├── cfg-if v1.0.5\n    ├── cpufeatures v0.2.17\n    │   └── libc v0.2.190\n    └── digest v0.10.7 (*)\n",
+    "executableSHA256": "sha256:1da50c02188b686126eed810d59386cd7f816efdbffd6727894c0084108dc777",
+    "wasmEngineLinked": false,
+    "boundarySHA256": "sha256:95cb84c99d11a7822b7a6a3775ea7ef70062f295cca55d2531aafe56867f4051",
+    "compilerSHA256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712",
+    "static": true,
+    "staticRuntimeInputs": [
+      {
+        "path": "/usr/lib/aarch64-linux-gnu/libc.a",
+        "selectedPath": "/usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libc.a",
+        "role": "static native host libc",
+        "bytes": 5248790,
+        "sha256": "sha256:c3af740b6fb3c926807bb267d366bb848ace6e6b8d48ac366287083b708695ea"
+      },
+      {
+        "path": "/usr/lib/gcc/aarch64-linux-gnu/13/libgcc.a",
+        "selectedPath": "/usr/lib/gcc/aarch64-linux-gnu/13/libgcc.a",
+        "role": "static compiler runtime with GCC Runtime Library Exception",
+        "bytes": 3099922,
+        "sha256": "sha256:4bc354241987926aa0489ba1d925e8b10356556323307944f08209f370a28ad6"
+      },
+      {
+        "path": "/usr/lib/gcc/aarch64-linux-gnu/13/libgcc_eh.a",
+        "selectedPath": "/usr/lib/gcc/aarch64-linux-gnu/13/libgcc_eh.a",
+        "role": "static compiler runtime with GCC Runtime Library Exception",
+        "bytes": 53884,
+        "sha256": "sha256:ba85797b21e8eb241afccce977b0b2ca607a9764e3ae15bb966415824a8ee8a4"
+      }
+    ]
+  },
+  "hostsRebuilt": true,
+  "policyRebuilt": true,
+  "policy": {
+    "first": {
+      "bytes": 459008,
+      "sha256": "sha256:1df6bde7b91b4f4c359b19b6e46faa28c0a3967aa3467052ed21f129ba964b64"
+    },
+    "second": {
+      "bytes": 459008,
+      "sha256": "sha256:1df6bde7b91b4f4c359b19b6e46faa28c0a3967aa3467052ed21f129ba964b64"
+    }
+  },
+  "componentProducers": {
+    "compiler": {
+      "name": "S3",
+      "producerCompilerSHA256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712",
+      "compiler": {
+        "bytes": 15423160,
+        "sha256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712"
+      },
+      "object": {
+        "bytes": 21846904,
+        "sha256": "sha256:a51f9dbc197d4f8827e2286916b0790945d8dae7eb2c1e8100d0b47701ddacbb"
+      },
+      "policies": {
+        "rebuild": {
+          "bytes": 411792,
+          "sha256": "sha256:dd99140f46589d19b3a40dcb81d85498974a9b5eb3c5b7e649fa1e488d3bed44"
+        },
+        "testing": {
+          "bytes": 1626344,
+          "sha256": "sha256:312e89840aa7bb4e11dcbb9de81547d5306b242c95769c730863a1ece93a9385"
+        }
+      },
+      "sourceInventorySHA256": "sha256:769eaaf9b797708835fa3fb8fe39a93ac0896cffb58ba4cb940a47c8dad5e55e",
+      "hosts": {
+        "coordinator": "sha256:ebc783c33bd69ce85e36c8d3b8d487946cc7418dfe881bedf10de4b94b696e30",
+        "boundary": "sha256:95cb84c99d11a7822b7a6a3775ea7ef70062f295cca55d2531aafe56867f4051"
+      },
+      "independentSourceCopy": true
+    },
+    "coordinator": {
+      "sha256": "sha256:1da50c02188b686126eed810d59386cd7f816efdbffd6727894c0084108dc777",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+    },
+    "boundary": {
+      "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+      "compilerSHA256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712",
+      "coordinatorSHA256": "sha256:ebc783c33bd69ce85e36c8d3b8d487946cc7418dfe881bedf10de4b94b696e30",
+      "boundarySHA256": "sha256:95cb84c99d11a7822b7a6a3775ea7ef70062f295cca55d2531aafe56867f4051",
+      "sourceIdentity": "authenticated corresponding source files"
+    }
+  },
+  "releaseEligible": false
+}

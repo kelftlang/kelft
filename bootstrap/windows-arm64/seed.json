@@ -3,11 +3,11 @@
   "target": "windows-arm64",
   "trust": "initial-binary-trust",
   "producer": {
-    "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+    "revision": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
     "compilerSHA256": "sha256:d1efb818c32864ad3f99780e3df09f1ddae9f904280a211fae6178b792ed6f4d",
-    "coordinatorSHA256": "sha256:4b86c802af0b92d4aad0ce851d6b1d61cfb739cdc73721f59ad36a443015c99a",
+    "coordinatorSHA256": "sha256:b5987ff051fbf7fec26971d73dd57e87f3dc6f666d09db99dffe9ef2f7a42862",
     "boundarySHA256": "sha256:b257fa4aa63bbd028f0519f0c04fe62abf34d5e6ea63f0ab08cbd027c18eb063",
-    "sourceIdentity": "authenticated corresponding source files"
+    "sourceIdentity": "per-component producers recorded in provenance/refresh.json"
   },
   "compilerProducer": {
     "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
@@ -30,15 +30,15 @@
   },
   "sources": {
     "file": "../sources/windows-arm64.tar.gz",
-    "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226"
+    "sha256": "sha256:95570171617ae6ce9eb286ccd484a3fead914b2777ccfd967d08a02715f2c075"
   },
   "compilerSources": {
     "file": "../sources/windows-arm64.tar.gz",
-    "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226"
+    "sha256": "sha256:95570171617ae6ce9eb286ccd484a3fead914b2777ccfd967d08a02715f2c075"
   },
   "hostSources": {
     "file": "../sources/windows-arm64.tar.gz",
-    "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226"
+    "sha256": "sha256:95570171617ae6ce9eb286ccd484a3fead914b2777ccfd967d08a02715f2c075"
   },
   "files": [
     {
@@ -49,152 +49,14 @@
     },
     {
       "path": "bin/kelft.exe",
-      "bytes": 3622912,
-      "sha256": "sha256:4b86c802af0b92d4aad0ce851d6b1d61cfb739cdc73721f59ad36a443015c99a",
+      "bytes": 3686400,
+      "sha256": "sha256:b5987ff051fbf7fec26971d73dd57e87f3dc6f666d09db99dffe9ef2f7a42862",
       "mode": 493
     },
     {
       "path": "manifest.json",
       "bytes": 29070,
       "sha256": "sha256:491cb7c5c3d8afe4133fa7c5b4c50ae139596817abf1dd4d12b54ade37092dff",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/compiler.exe",
-      "bytes": 12813824,
-      "sha256": "sha256:d1efb818c32864ad3f99780e3df09f1ddae9f904280a211fae6178b792ed6f4d",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/control/toolchain.json",
-      "bytes": 3189,
-      "sha256": "sha256:2274fd8ad8c3814ad4421d9923d996e60de4864ae2870504c2d13c3da758ec7d",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/policies/rebuild.exe",
-      "bytes": 410624,
-      "sha256": "sha256:4be6c0db47f3243539cb9e39e9888f6bd4967698e029251ead7860e7c8558060",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/policies/testing.exe",
-      "bytes": 1598464,
-      "sha256": "sha256:7c0d5f4f83948134fe1f96513adaa001200c86fefda940e273fb86a6884a3a1c",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/toolchain/kernel32.lib",
-      "bytes": 6976,
-      "sha256": "sha256:0d2207f512b0d561066dd133497602c140f8c21280c8b8534cc4cca1fee65b6b",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain/link.exe",
-      "bytes": 109809664,
-      "sha256": "sha256:ed92b2a6123e19a9b95c6ef5a57a61fad1185426a48812be551037adb2443bb5",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/toolchain/ntdll.lib",
-      "bytes": 1336,
-      "sha256": "sha256:b07019d3fc5fa1e8328408bc84ecc4b397aadafe2ea0d9bfd19474d65a9894ba",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain/shell32.lib",
-      "bytes": 1384,
-      "sha256": "sha256:1d92103da3d50b070909cced4c5f8c3ddd92b4d9fc55bec9823595c78aa4c956",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain-sources/kernel32.def",
-      "bytes": 536,
-      "sha256": "sha256:0a5498edf872d1638eeeb8fe258481334fd245cad20985ef8121baaad6037849",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain-sources/ntdll.def",
-      "bytes": 40,
-      "sha256": "sha256:5ca436f90c94b8538f8569ed5a2ae604422bbbd204f2b415e430b9404b3aef40",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain-sources/README.md",
-      "bytes": 266,
-      "sha256": "sha256:d9ad8be462196299d91c232e4dfed3e7ae40304c2366bb16281a1a3db1c094d1",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain-sources/shell32.def",
-      "bytes": 48,
-      "sha256": "sha256:1528edb8c10da7ea1bd081a609f84e26855c5c00e36adaccf1361bff580c2e9e",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSE-MIT",
-      "bytes": 1075,
-      "sha256": "sha256:9955e9da42ea52385656d8f84fe27f0ed7cd14580505a1cb7fc0e832449d3e8b",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSE-APACHE",
-      "bytes": 11358,
-      "sha256": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSES/CC-BY-4.0.txt",
-      "bytes": 18657,
-      "sha256": "sha256:9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSES/MIT-0.txt",
-      "bytes": 917,
-      "sha256": "sha256:1beae2bd91dbfcd86d4426296bae35c2eb834b4d0d4b26ecfab76cd4950e29be",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSE",
-      "bytes": 751,
-      "sha256": "sha256:5489357cf1c0dc507ad02551569dfd981edb992446df171455d9272b46b7de1f",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/Apache-2.0.txt",
-      "bytes": 10280,
-      "sha256": "sha256:074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/COPYRIGHT-library.html",
-      "bytes": 1499465,
-      "sha256": "sha256:5647be074c8edf7339fd863055923a8fc80bc5610a8d4661ec3b767b9d392c27",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/COPYRIGHT.html",
-      "bytes": 14423589,
-      "sha256": "sha256:d518ae2d76bc7a1f0cbf0069b8deafb56efc39c2614cab74a859ef0b467f8373",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/LLVM-exception.txt",
-      "bytes": 919,
-      "sha256": "sha256:e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/MIT.txt",
-      "bytes": 1078,
-      "sha256": "sha256:b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/NCSA.txt",
-      "bytes": 1676,
-      "sha256": "sha256:39cb0234065c92b9e6cee3830cbb52b1aa289aa8fe9ba2e66730fec5cf05c630",
       "mode": 420
     },
     {
@@ -564,6 +426,36 @@
       "mode": 420
     },
     {
+      "path": "notices/kelft/LICENSE",
+      "bytes": 751,
+      "sha256": "sha256:5489357cf1c0dc507ad02551569dfd981edb992446df171455d9272b46b7de1f",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-APACHE",
+      "bytes": 11358,
+      "sha256": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-MIT",
+      "bytes": 1075,
+      "sha256": "sha256:9955e9da42ea52385656d8f84fe27f0ed7cd14580505a1cb7fc0e832449d3e8b",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/CC-BY-4.0.txt",
+      "bytes": 18657,
+      "sha256": "sha256:9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/MIT-0.txt",
+      "bytes": 917,
+      "sha256": "sha256:1beae2bd91dbfcd86d4426296bae35c2eb834b4d0d4b26ecfab76cd4950e29be",
+      "mode": 420
+    },
+    {
       "path": "notices/llvm/LICENSE.txt",
       "bytes": 15140,
       "sha256": "sha256:3340babe8ac7bc6ae294d93aa01c310a250d43d5b760e5c12954882d4e5c83c7",
@@ -582,9 +474,57 @@
       "mode": 420
     },
     {
+      "path": "notices/rust/Apache-2.0.txt",
+      "bytes": 10280,
+      "sha256": "sha256:074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT-library.html",
+      "bytes": 1499465,
+      "sha256": "sha256:5647be074c8edf7339fd863055923a8fc80bc5610a8d4661ec3b767b9d392c27",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT.html",
+      "bytes": 14423589,
+      "sha256": "sha256:d518ae2d76bc7a1f0cbf0069b8deafb56efc39c2614cab74a859ef0b467f8373",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/LLVM-exception.txt",
+      "bytes": 919,
+      "sha256": "sha256:e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/MIT.txt",
+      "bytes": 1078,
+      "sha256": "sha256:b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/NCSA.txt",
+      "bytes": 1676,
+      "sha256": "sha256:39cb0234065c92b9e6cee3830cbb52b1aa289aa8fe9ba2e66730fec5cf05c630",
+      "mode": 420
+    },
+    {
+      "path": "provenance/compiler-qualification.json",
+      "bytes": 313594,
+      "sha256": "sha256:2f43ca7d051d7c834fb8eff63f94333c8e61396f07aea9262e7e120943eca84e",
+      "mode": 420
+    },
+    {
       "path": "provenance/generation.json",
       "bytes": 29785,
       "sha256": "sha256:b1ea6f67d2dfa7202bcbd9dc7159606944c078f589d1fa8487988650de0b98f1",
+      "mode": 420
+    },
+    {
+      "path": "provenance/refresh.json",
+      "bytes": 41219,
+      "sha256": "sha256:e4c0c4d62f259cbfe0343681f14463e4e0ff95eb20b8dc215392c628aaed1e3a",
       "mode": 420
     },
     {
@@ -594,9 +534,87 @@
       "mode": 420
     },
     {
+      "path": "release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/compiler.exe",
+      "bytes": 12813824,
+      "sha256": "sha256:d1efb818c32864ad3f99780e3df09f1ddae9f904280a211fae6178b792ed6f4d",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/control/toolchain.json",
+      "bytes": 3189,
+      "sha256": "sha256:2274fd8ad8c3814ad4421d9923d996e60de4864ae2870504c2d13c3da758ec7d",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/policies/rebuild.exe",
+      "bytes": 457216,
+      "sha256": "sha256:f60917bc78a280ccefc4b2656873e87a3dc15716cd1ad9f92a7a403e457af307",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/policies/testing.exe",
+      "bytes": 1598464,
+      "sha256": "sha256:7c0d5f4f83948134fe1f96513adaa001200c86fefda940e273fb86a6884a3a1c",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/toolchain-sources/README.md",
+      "bytes": 266,
+      "sha256": "sha256:d9ad8be462196299d91c232e4dfed3e7ae40304c2366bb16281a1a3db1c094d1",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/kernel32.def",
+      "bytes": 536,
+      "sha256": "sha256:0a5498edf872d1638eeeb8fe258481334fd245cad20985ef8121baaad6037849",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/ntdll.def",
+      "bytes": 40,
+      "sha256": "sha256:5ca436f90c94b8538f8569ed5a2ae604422bbbd204f2b415e430b9404b3aef40",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain-sources/shell32.def",
+      "bytes": 48,
+      "sha256": "sha256:1528edb8c10da7ea1bd081a609f84e26855c5c00e36adaccf1361bff580c2e9e",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain/kernel32.lib",
+      "bytes": 6976,
+      "sha256": "sha256:0d2207f512b0d561066dd133497602c140f8c21280c8b8534cc4cca1fee65b6b",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain/link.exe",
+      "bytes": 109809664,
+      "sha256": "sha256:ed92b2a6123e19a9b95c6ef5a57a61fad1185426a48812be551037adb2443bb5",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/toolchain/ntdll.lib",
+      "bytes": 1336,
+      "sha256": "sha256:b07019d3fc5fa1e8328408bc84ecc4b397aadafe2ea0d9bfd19474d65a9894ba",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain/shell32.lib",
+      "bytes": 1384,
+      "sha256": "sha256:1d92103da3d50b070909cced4c5f8c3ddd92b4d9fc55bec9823595c78aa4c956",
+      "mode": 420
+    },
+    {
       "path": "runtime-modes.json",
-      "bytes": 7979,
-      "sha256": "sha256:a9720acb336105947f6000357d1af681c978ab2cdcafa4270a7c7defdb76d05d",
+      "bytes": 8199,
+      "sha256": "sha256:7154e1a7dd4a46420f72471df72340b33ef72ac559f9b47aed870f1a161fdbe1",
       "mode": 420
     }
   ],
@@ -611,5 +629,46 @@
     "dependency redistribution and corresponding-source review",
     "exact release qualification",
     "artifact provenance and publication review"
-  ]
+  ],
+  "componentProducers": {
+    "compiler": {
+      "name": "S3",
+      "producerCompilerSHA256": "sha256:d1efb818c32864ad3f99780e3df09f1ddae9f904280a211fae6178b792ed6f4d",
+      "compiler": {
+        "bytes": 12813824,
+        "sha256": "sha256:d1efb818c32864ad3f99780e3df09f1ddae9f904280a211fae6178b792ed6f4d"
+      },
+      "object": {
+        "bytes": 15298266,
+        "sha256": "sha256:cf565f4e780313011a628c14bcdd4af8027f775f7664445888d697f172b45fc8"
+      },
+      "policies": {
+        "rebuild": {
+          "bytes": 410624,
+          "sha256": "sha256:4be6c0db47f3243539cb9e39e9888f6bd4967698e029251ead7860e7c8558060"
+        },
+        "testing": {
+          "bytes": 1598464,
+          "sha256": "sha256:7c0d5f4f83948134fe1f96513adaa001200c86fefda940e273fb86a6884a3a1c"
+        }
+      },
+      "sourceInventorySHA256": "sha256:769eaaf9b797708835fa3fb8fe39a93ac0896cffb58ba4cb940a47c8dad5e55e",
+      "hosts": {
+        "coordinator": "sha256:4b86c802af0b92d4aad0ce851d6b1d61cfb739cdc73721f59ad36a443015c99a",
+        "boundary": "sha256:b257fa4aa63bbd028f0519f0c04fe62abf34d5e6ea63f0ab08cbd027c18eb063"
+      },
+      "independentSourceCopy": true
+    },
+    "coordinator": {
+      "sha256": "sha256:b5987ff051fbf7fec26971d73dd57e87f3dc6f666d09db99dffe9ef2f7a42862",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+    },
+    "boundary": {
+      "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+      "compilerSHA256": "sha256:d1efb818c32864ad3f99780e3df09f1ddae9f904280a211fae6178b792ed6f4d",
+      "coordinatorSHA256": "sha256:4b86c802af0b92d4aad0ce851d6b1d61cfb739cdc73721f59ad36a443015c99a",
+      "boundarySHA256": "sha256:b257fa4aa63bbd028f0519f0c04fe62abf34d5e6ea63f0ab08cbd027c18eb063",
+      "sourceIdentity": "authenticated corresponding source files"
+    }
+  }
 }

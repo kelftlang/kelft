@@ -2,7 +2,7 @@
 import {treeHash} from './build-inputs.mjs';
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
 import {repo,hash,writeJson} from './ai/common.mjs';import {inventorySDK,nativeFileHash} from './direct-toolchain.mjs';
-export function buildMacosInstalledHost({directory,packageRoot,compiler,configuration,session,toolchain,run,testingPolicy=null,rebuildPolicy=null,verifyControls=false}){
+export function buildMacosInstalledHost({directory,packageRoot,compiler,configuration,session,toolchain,run,testingPolicy=null,rebuildPolicy=null,verifyControls=false,retainedBoundary=null}){
  assert.equal(process.platform,'darwin');assert.ok(['x64','arm64'].includes(process.arch));fs.mkdirSync(directory,{recursive:true});
  const hostInputs=['driver/Cargo.toml','driver/Cargo.lock','driver/build.rs','driver/release.json'],sourceHash=treeHash(repo,['driver/src'],hostInputs),rebuildPolicySHA256=rebuildPolicy?hash(fs.readFileSync(rebuildPolicy)):null;
  const triple=(process.arch==='arm64'?'aarch64':'x86_64')+'-apple-darwin',sdk=process.env.KELFT_NATIVE_RUST_TOOLCHAIN??'1.99.0-'+triple;
@@ -20,9 +20,10 @@ export function buildMacosInstalledHost({directory,packageRoot,compiler,configur
  if(verifyControls)for(const filter of ['macos_linker::tests','macos_linked_image::tests'])run('rustup',[...cargo,'test',...base,'--release','--target',triple,'--lib',filter],'controls-'+filter.replaceAll('::','-'),{env,timeout:300000});
  const signingEnv={PATH:'',CODESIGN_ALLOCATE:toolchain.signerHelper};const signerSHA256=nativeFileHash(toolchain.signer),signerHelperSHA256=nativeFileHash(toolchain.signerHelper),linkerSHA256=nativeFileHash(toolchain.linker),rustLinkerSHA256=nativeFileHash(toolchain.rustLinker);
  const build=name=>{run('rustup',[...cargo,'build',...base,'--release','--target',triple,'--bin',name],'build-'+name,{env,timeout:300000});const file=path.join(directory,'target',triple,'release',name),unsignedSHA256=nativeFileHash(file);run(toolchain.signer,[...toolchain.signingFlags,file],name+'-adhoc-sign',{env:signingEnv});run(toolchain.signer,['--verify','--strict',file],name+'-verify-signature',{env:signingEnv});return {file,unsignedSHA256,signedSHA256:nativeFileHash(file)};};
- const boundary=build('kelft-macos-installed-boundary');fs.copyFileSync(boundary.file,path.join(bin,'kelft-boundary'));fs.chmodSync(path.join(bin,'kelft-boundary'),0o555);fs.writeFileSync(pins,prefix+'pub(crate) const BOUNDARY_SHA256:&str='+JSON.stringify(boundary.signedSHA256)+';\n');
+ const boundary=retainedBoundary?{file:retainedBoundary,signedSHA256:nativeFileHash(retainedBoundary),reused:true}:build('kelft-macos-installed-boundary');if(path.resolve(boundary.file)!==path.resolve(path.join(bin,'kelft-boundary')))fs.copyFileSync(boundary.file,path.join(bin,'kelft-boundary'));fs.chmodSync(path.join(bin,'kelft-boundary'),0o555);fs.writeFileSync(pins,prefix+'pub(crate) const BOUNDARY_SHA256:&str='+JSON.stringify(boundary.signedSHA256)+';\n');
  if(verifyControls&&rebuildPolicy)run('rustup',[...cargo,'test',...base,'--release','--target',triple,'--bin','kelft-native-host','installed_rebuild::tests'],'controls-runtime-staging',{env,timeout:300000});
  const coordinator=build('kelft-native-host');fs.copyFileSync(coordinator.file,path.join(bin,'kelft'));fs.chmodSync(path.join(bin,'kelft'),0o555);
+ assert.equal(nativeFileHash(path.join(bin,'kelft-boundary')),boundary.signedSHA256,'retained boundary changed');
  for(const [file,expected]of [[compiler,compilerHash],[configuration,configurationHash],[session,sessionHash],[toolchain.signer,signerSHA256],[toolchain.signerHelper,signerHelperSHA256],[toolchain.linker,linkerSHA256],[toolchain.rustLinker,rustLinkerSHA256]])assert.equal(nativeFileHash(file),expected);
  if(engineProfilesHash)assert.equal(nativeFileHash(engineManifest),engineProfilesHash);
  assert.equal(nativeFileHash(rustc),rustcSHA256);assert.equal(nativeFileHash(cargoPath),cargoSHA256);assert.deepEqual(inventorySDK(path.join(sysroot,'lib')),rustLibraries);assert.equal(nativeFileHash(path.join(repo,'driver/Cargo.lock')),lockSHA256);
