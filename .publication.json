@@ -1,7 +1,7 @@
 {
   "schema": "kelft.public-export/1",
   "kind": "compiler",
-  "sourceRevision": "6ad922226b253a702f288ddbf479d66174c40cf2",
+  "sourceRevision": "deeff2ee4b8eae04de658c55e70aa9a7b80f94ae",
   "sourceDirty": true,
   "publication": "prepared-not-published",
   "files": [
@@ -77,8 +77,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "sha256:b4c9942de1e1dbe154a074c8e3a2cc8e7190e6f91f2dd88b092fbe95b586a24b",
-      "bytes": 2756
+      "sha256": "sha256:6980ed1d2bed0505febd510a5e363875138a72c8db8232bd99c850b82c8ce8ff",
+      "bytes": 2865
     },
     {
       "path": "RELEASES.md",

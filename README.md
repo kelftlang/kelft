@@ -1,5 +1,7 @@
 # Kelft compiler
 
+**[Download the alpha — v0.1.0-alpha.2](https://github.com/kelftlang/kelft/releases/tag/v0.1.0-alpha.2)**
+
 Kelft compiles typed programs to native code. Its self-hosted compiler is written
 in Kelft and includes source checking, deterministic object emission, and
 capability-controlled execution. Core describes executable programs; Intent
