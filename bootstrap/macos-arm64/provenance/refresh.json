@@ -1,0 +1,1078 @@
+{
+  "schema": "kelft.seed-components/1",
+  "target": "macos-arm64",
+  "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+  "hostInputSHA256": "sha256:5c25a18c1eea06247520546ea75e91879e833bc65aab474f66a94996823ef8c3",
+  "policyInputSHA256": "sha256:0c347e4791287dff74ce93acf67094baa290f3456b1013503e49e0fe349097f4",
+  "coreInputSHA256": "sha256:315ba9ff3cc521a2eb7a311762c089df59f54c3e3fd9475edfe032f3b8b30fb8",
+  "adoption": {
+    "schema": "kelft.compiler-adoption/1",
+    "target": "macos-arm64",
+    "compiler": {
+      "bytes": 12833056,
+      "sha256": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500"
+    },
+    "object": {
+      "bytes": 14379677,
+      "sha256": "sha256:e15aefb9bb21a9179d2feb8484e4ed52730e3f281dd75bcaae6faf6290a789df"
+    },
+    "coreSources": [
+      {
+        "path": "selfhost/core.kelft",
+        "bytes": 14844,
+        "sha256": "sha256:28038a5feb2a5b2ad9bb58f7d5278df822a5abf8dd690220ff5c8bad5d6bab63"
+      },
+      {
+        "path": "selfhost/direct/aggregate-runtime.kelft",
+        "bytes": 14722,
+        "sha256": "sha256:19bf9389374217abf533a918970068396c0c0c2bae16a20482a20cbee1f0b9e1"
+      },
+      {
+        "path": "selfhost/direct/aggregate.kelft",
+        "bytes": 89767,
+        "sha256": "sha256:a8318273bc4b2c4fca8672f09b0d690a4ae17bf870939492d7308edec2251d11"
+      },
+      {
+        "path": "selfhost/direct/arm64.kelft",
+        "bytes": 14263,
+        "sha256": "sha256:17fa68d12e28a290fe2b6b60bab8cfe92f574965067c81602b4c97c5e170e6c5"
+      },
+      {
+        "path": "selfhost/direct/artifact-runtime.kelft",
+        "bytes": 99134,
+        "sha256": "sha256:d28f61c9fe349fcf8a1cc03c0af4217b92847cedfdc209aee0713fee46dee188"
+      },
+      {
+        "path": "selfhost/direct/binary.kelft",
+        "bytes": 3083,
+        "sha256": "sha256:3bad316e772c3af25b0cf49244c3e9da9ede5b35d1694e8cd2daf53f2c93dd16"
+      },
+      {
+        "path": "selfhost/direct/builder.kelft",
+        "bytes": 4680,
+        "sha256": "sha256:aaeccc6214a7b756bff318408c56e07fcaca3c3e2d5a58eab61efea4140146b9"
+      },
+      {
+        "path": "selfhost/direct/darwin-api.kelft",
+        "bytes": 1598,
+        "sha256": "sha256:b35cd3bde01f0c33c61fbfb4374d23ad814e006aa6c1dd7383c21ddda866b554"
+      },
+      {
+        "path": "selfhost/direct/darwin-arm-aggregate.kelft",
+        "bytes": 26136,
+        "sha256": "sha256:d8632c3ce11e6bce3f00a367403d670cb200919f16d8161e3ac52b4c3c282511"
+      },
+      {
+        "path": "selfhost/direct/darwin-arm64.kelft",
+        "bytes": 7825,
+        "sha256": "sha256:4a491ee2dc79f8ab3c036ac75ae615394a1cae66c3380342c17ca643c2b13731"
+      },
+      {
+        "path": "selfhost/direct/darwin-fs-runtime.kelft",
+        "bytes": 56247,
+        "sha256": "sha256:8dbd942fd9b48027a7c987344a53debfee87c1f386d57d2ea611a7cd78ef6b1b"
+      },
+      {
+        "path": "selfhost/direct/darwin-guest-runtime.kelft",
+        "bytes": 164032,
+        "sha256": "sha256:50e6c325ae5a8fe2faa87e249929541a511eb57d97d074ee8f217ed084c27329"
+      },
+      {
+        "path": "selfhost/direct/darwin-link-driver.kelft",
+        "bytes": 4934,
+        "sha256": "sha256:ed4c37770c8aff4a2362aef0653be1a2e797c6ef0dd09db96f933dd8a1e0400c"
+      },
+      {
+        "path": "selfhost/direct/elf.kelft",
+        "bytes": 9800,
+        "sha256": "sha256:33ff3ef10bec320fd824aa7edae58bc8569e1797f860345cfb5d0005679caae8"
+      },
+      {
+        "path": "selfhost/direct/engine-boundary.kelft",
+        "bytes": 2933,
+        "sha256": "sha256:5cba7e4b3a0ebfe1241bb03856b4528c8fd2f094c4da04693b1e788010bfa17f"
+      },
+      {
+        "path": "selfhost/direct/fs-policy-runtime.kelft",
+        "bytes": 33242,
+        "sha256": "sha256:0b5ab0ad9da3a10187c4d0ddaabf24898cb49e04819736d93c96399c850daa6c"
+      },
+      {
+        "path": "selfhost/direct/fs-runtime.kelft",
+        "bytes": 41892,
+        "sha256": "sha256:f3b4b82f25e6fd354d19637f2b81da365d76b27daf87029501413ecb992592a5"
+      },
+      {
+        "path": "selfhost/direct/graph-runtime.kelft",
+        "bytes": 17295,
+        "sha256": "sha256:fa8afaa0c8d5689b01e94e4f1f92844c5dbd8428614ee87fab3b76c7d5c3a93b"
+      },
+      {
+        "path": "selfhost/direct/heap.kelft",
+        "bytes": 12568,
+        "sha256": "sha256:918f5fc881a55aa28b3e85f153328a0fe897c11eb1ad2d16655322325f0cf2c5"
+      },
+      {
+        "path": "selfhost/direct/host-policy.kelft",
+        "bytes": 1336,
+        "sha256": "sha256:da7914b99da55319f10bbb904e980dac64a5e4a6bbafd1a52fb13d2ae4a51d84"
+      },
+      {
+        "path": "selfhost/direct/host-runtime.kelft",
+        "bytes": 41451,
+        "sha256": "sha256:e897abf49470ba938b0572d17956151901408cfa4fc64b703b74b02795105f44"
+      },
+      {
+        "path": "selfhost/direct/ir.kelft",
+        "bytes": 19078,
+        "sha256": "sha256:1cbad7c64bf78223904b70c32da1bfb2181fe78ea5d77c86bd45614c5df4535f"
+      },
+      {
+        "path": "selfhost/direct/linux-arm-services.kelft",
+        "bytes": 10455,
+        "sha256": "sha256:e4013ef20bf3095341b55791b0ed6a8ca1c92a8c655266d088ba30f837fa58b0"
+      },
+      {
+        "path": "selfhost/direct/macho-arm.kelft",
+        "bytes": 11211,
+        "sha256": "sha256:839816d6e9dbd0050cdf4ce0f126e610198079ff86f0fe7492f3b66da84a8221"
+      },
+      {
+        "path": "selfhost/direct/map-runtime.kelft",
+        "bytes": 6541,
+        "sha256": "sha256:579112b7c858170e93a7905ffc13980d8177521f8ac32e0caf9b255e4c56d458"
+      },
+      {
+        "path": "selfhost/direct/native-target.kelft",
+        "bytes": 663,
+        "sha256": "sha256:1dcc5facb98c02c6800ecc0fda199ec8e3768618a7f86d71ca2f9e86852cba4d"
+      },
+      {
+        "path": "selfhost/direct/opcodes.kelft",
+        "bytes": 3211,
+        "sha256": "sha256:12d22d71a2c7305cbed38d62b1742d7478b99c400f33f60b23b636e497386974"
+      },
+      {
+        "path": "selfhost/direct/packed-runtime.kelft",
+        "bytes": 6799,
+        "sha256": "sha256:21c96e22f742eced2b53c5200d02059f6a5d4bb8cd500c77e7c2a0440da8a943"
+      },
+      {
+        "path": "selfhost/direct/path-runtime.kelft",
+        "bytes": 29725,
+        "sha256": "sha256:fb23367bdc429095b60104db1470d66bbbeeb4e2939f0054100decc50694bcab"
+      },
+      {
+        "path": "selfhost/direct/pool.kelft",
+        "bytes": 14194,
+        "sha256": "sha256:e0bc6fb72e0527887c1d7cb198c65db9ce5b630f78faa5432a438dad24c66939"
+      },
+      {
+        "path": "selfhost/direct/process-runtime.kelft",
+        "bytes": 5021,
+        "sha256": "sha256:51733fe1aeae5f8246e01355478edef577235bb5af10534ed77408e007841bed"
+      },
+      {
+        "path": "selfhost/direct/protocol-darwin-arm.kelft",
+        "bytes": 2364,
+        "sha256": "sha256:8456be5eda0a8f9bf49e1a71ad815f5b2ac8938516ea6cba33d7f8b3a96b5ffd"
+      },
+      {
+        "path": "selfhost/direct/runtime-ir.kelft",
+        "bytes": 2523,
+        "sha256": "sha256:1b1e0212ab6022ff14abe4af7dd5a2ac3a7115e1f9c610e2e96c289fb58a21b6"
+      },
+      {
+        "path": "selfhost/direct/scalar-runtime.kelft",
+        "bytes": 1380,
+        "sha256": "sha256:cbb1457a5e8be7a02ba638c895aeed18a21a7bdcdc83c715fb7f9d4796e50b7f"
+      },
+      {
+        "path": "selfhost/direct/stream-runtime.kelft",
+        "bytes": 3011,
+        "sha256": "sha256:d9979fd99a19ff1ec6c8fc96e9238a3c38d571957f73a3cfcea849b64f3208d5"
+      },
+      {
+        "path": "selfhost/direct/string-runtime.kelft",
+        "bytes": 25493,
+        "sha256": "sha256:bb651883e730ff17042df9ca2811ec11c515d51f80f8b3309017b0d413ce7b10"
+      },
+      {
+        "path": "selfhost/direct/string-transform-runtime.kelft",
+        "bytes": 8069,
+        "sha256": "sha256:80dd9c28bfbedcb7f3c144e09fa2334ec78d497ba225ea4c69e0c7c08a5ded4d"
+      },
+      {
+        "path": "selfhost/direct/verification-artifact-darwin-arm.kelft",
+        "bytes": 1636,
+        "sha256": "sha256:5b46a5288d22c0657d96c0a854b1158a77d55c2b674b70217f1f6e76e326406c"
+      },
+      {
+        "path": "selfhost/direct/write-runtime.kelft",
+        "bytes": 19687,
+        "sha256": "sha256:fa88ddb14de80df26005ac414074aa5322d7279199647a68e53ca2462ab85546"
+      },
+      {
+        "path": "selfhost/direct/x86_64.kelft",
+        "bytes": 15255,
+        "sha256": "sha256:d727b57d461c4f3b1df3d55f1190337b853d9f503b9c85b849dc845a7c6a85cb"
+      },
+      {
+        "path": "selfhost/driver-native.kelft",
+        "bytes": 16733,
+        "sha256": "sha256:18a96105d7b59321c310cead03d09e6fed3b95e802d29aed0af7f9247ee092b4"
+      },
+      {
+        "path": "selfhost/hash.kelft",
+        "bytes": 5165,
+        "sha256": "sha256:bd7caf9a8f4cc04bbf67218d60679c5aa7b3698e329ba54ca305a3e51ba583d9"
+      },
+      {
+        "path": "selfhost/intent.kelft",
+        "bytes": 14187,
+        "sha256": "sha256:236f4705c0e55059d0f9e1e8eb449061e3a6e0e2899619ee437533e61f0a191a"
+      },
+      {
+        "path": "selfhost/intent_bindings.kelft",
+        "bytes": 4122,
+        "sha256": "sha256:207e0f9ae65a662bb091d6f171cf7004fca4f8435e53b7feb1dd214ac779b6a4"
+      },
+      {
+        "path": "selfhost/intent_capabilities.kelft",
+        "bytes": 5902,
+        "sha256": "sha256:ee50d6057862bb333ac61b6dc3a50b5d9b343e2058f333fa08274367f61d2c69"
+      },
+      {
+        "path": "selfhost/intent_domain.kelft",
+        "bytes": 14822,
+        "sha256": "sha256:736476fdcfc7ed0fcf4feaba94756f53c35cdd53de3b450280c0948ec5984be7"
+      },
+      {
+        "path": "selfhost/intent_enforce.kelft",
+        "bytes": 16134,
+        "sha256": "sha256:470bfb062452d13a4ce2155fca28f554ad4b0a2a775811417394ec09249952cb"
+      },
+      {
+        "path": "selfhost/intent_public.kelft",
+        "bytes": 12887,
+        "sha256": "sha256:90b9423e486bc47735611aea30e76156e3ff8cc328fdad0a4c87218c36744f4a"
+      },
+      {
+        "path": "selfhost/intent_source.kelft",
+        "bytes": 23868,
+        "sha256": "sha256:16315ae4a4ecf86c92227fdadcfed9c4fe0f713adf0138aafcc8901a5885fae2"
+      },
+      {
+        "path": "selfhost/intrinsics.kelft",
+        "bytes": 6730,
+        "sha256": "sha256:b5d38ad6ea148bedc607ed6ff8c10111cb91bf2bc4a668f57730d9e176415c3f"
+      },
+      {
+        "path": "selfhost/json.kelft",
+        "bytes": 8770,
+        "sha256": "sha256:003a9e326a4a8e12c2ffa38c916f7bbd17c1ec98df3af24062d829b670202771"
+      },
+      {
+        "path": "selfhost/lexer.kelft",
+        "bytes": 5108,
+        "sha256": "sha256:bb99c6d8e43cc3b57252039be7fe4e1a9a4f0e99a3ae42c686b531656ca2f8d2"
+      },
+      {
+        "path": "selfhost/modules.kelft",
+        "bytes": 2694,
+        "sha256": "sha256:7182f17c594e42ac61ee571f17d0186ef6f2a146bf4ea468597dadf2e96ec951"
+      },
+      {
+        "path": "selfhost/native-darwin-arm-driver.kelft",
+        "bytes": 2750,
+        "sha256": "sha256:436d3ebfbdbff2a241a24b37872b25ffba1f8b32aa1c624b3d98dc3451662a8b"
+      },
+      {
+        "path": "selfhost/native-darwin-arm-installed.kelft",
+        "bytes": 859,
+        "sha256": "sha256:47491e0f9c1301f799958e024ebfd26ce71d8fc7a5b795d4e54da55ceaa1083f"
+      },
+      {
+        "path": "selfhost/native-darwin-arm-object.kelft",
+        "bytes": 4226,
+        "sha256": "sha256:ea1fc240989022f7fae9b558698076b64e8cb6ff070e1711421288fb05308ffe"
+      },
+      {
+        "path": "selfhost/parser.kelft",
+        "bytes": 19498,
+        "sha256": "sha256:ed2341ebb251d90ed3becee1c235e1d6a83083d426d245a9af7802030224c88b"
+      },
+      {
+        "path": "selfhost/semantic.kelft",
+        "bytes": 40859,
+        "sha256": "sha256:63a7256e96617ac546a757ca802508de6844cdf6b7eef733da226c32e95af4bd"
+      },
+      {
+        "path": "selfhost/syntax.kelft",
+        "bytes": 5687,
+        "sha256": "sha256:9589e5668c9f21cfa3fbe3cc938f49c7078e86a10d8edcd2c22154b1c0bda71b"
+      },
+      {
+        "path": "selfhost/toolchain/host-capabilities.kelft",
+        "bytes": 10539,
+        "sha256": "sha256:d647fb8a7f4c66a2a329336fc2c554fccbdaaec95de59ab86336244e314d9d10"
+      },
+      {
+        "path": "selfhost/toolchain/inspect.kelft",
+        "bytes": 5096,
+        "sha256": "sha256:cac24083932f0d4312ccecc455b675ef4af91f6d793d75ea36ab91cd9b60b5d5"
+      },
+      {
+        "path": "selfhost/toolchain/object.kelft",
+        "bytes": 2113,
+        "sha256": "sha256:c774332dd863701e01fc6662c1ccdd08c81e447930aa08b6e439eb008257e81e"
+      },
+      {
+        "path": "selfhost/verification-native.kelft",
+        "bytes": 14566,
+        "sha256": "sha256:7b15d77be760e21387c67eeff55aaa9e950cc49c2806c74da52c8d7948c9ca11"
+      },
+      {
+        "path": "stdlib/bootstrap/strings.kelft",
+        "bytes": 730,
+        "sha256": "sha256:9f0556492ce4f36f327495fc21015b144d210ce991f705d5f2c2f8362418f5ec"
+      }
+    ],
+    "executionInputs": [
+      {
+        "path": "bootstrap/macos-arm64/bin/kelft-boundary",
+        "bytes": 1351632,
+        "sha256": "sha256:3136e774524fca9f8166316eeda1318ef036d8d36886b54ea3c2314835ded6da"
+      },
+      {
+        "path": "bootstrap/macos-arm64/parts/2c44bde3a6a01d9e-000",
+        "bytes": 50331648,
+        "sha256": "sha256:7b19addfef0a4ae0e00ecaf23898de05863689f142c53b1c0fc1b3ab64f0b0c8"
+      },
+      {
+        "path": "bootstrap/macos-arm64/parts/2c44bde3a6a01d9e-001",
+        "bytes": 50331648,
+        "sha256": "sha256:c2e0ad82dbd4e342d70d5252bd4cfbc688b7e44680d19a049d83c38e03f6669c"
+      },
+      {
+        "path": "bootstrap/macos-arm64/parts/2c44bde3a6a01d9e-002",
+        "bytes": 42946176,
+        "sha256": "sha256:924eed506974dedd36cae4f2c1b40018e357ff2cf5847cf848961fa9fd96eab5"
+      },
+      {
+        "path": "bootstrap/macos-arm64/rootfs/compiler",
+        "bytes": 12833056,
+        "sha256": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500"
+      },
+      {
+        "path": "bootstrap/macos-arm64/rootfs/control/linker.json",
+        "bytes": 822,
+        "sha256": "sha256:24789f01f5a6ad43eded7080d086a40f8936f7f6e70a908a8f049f514ed78b99"
+      },
+      {
+        "path": "bootstrap/macos-arm64/rootfs/control/toolchain.json",
+        "bytes": 188,
+        "sha256": "sha256:6220f69f20ce2974f41f9dba633bf2dc52099bdee39419b748a697212a4bc6c9"
+      },
+      {
+        "path": "bootstrap/macos-arm64/rootfs/toolchain/sdk/usr/lib/libSystem.tbd",
+        "bytes": 375,
+        "sha256": "sha256:55e085c053d8846d9179bbccb908be882558b493aceb307d211361754c4c3086"
+      },
+      {
+        "path": "bootstrap/macos-arm64/rootfs/toolchain/usr/bin/ld",
+        "bytes": 5716832,
+        "sha256": "sha256:98be468184f763f2874b6321494fa6a7abdb6b8fd95082fbbde064dd86306ea1"
+      }
+    ],
+    "languageReusable": true,
+    "originalSnapshotID": "sha256:958416883845807639591515188cb6220f9718682d45bde6bc119d7218b69780",
+    "originalReportSHA256": "sha256:fe9e7866b44c03d4176c35d7e1efb551c467310fb385ece1bdcf9e64c580d264",
+    "producerCommit": "64b4da174db450ff96a9ce7a04555d3514758fe9",
+    "compilerGenerationsRebuilt": false
+  },
+  "evidence": {
+    "compilerRetained": true,
+    "boundaryRetained": true,
+    "testingPolicyRetained": true,
+    "metadata": {
+      "status": "passed",
+      "installedVersion": true,
+      "projectMetadataIgnored": true,
+      "malformedRejected": true,
+      "oversizedRejected": true,
+      "legacyFallback": true,
+      "emptyRuntimePATH": true
+    },
+    "policy": {
+      "status": "passed",
+      "cases": 3
+    },
+    "hello": true,
+    "componentHashes": {
+      "compiler": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500",
+      "boundary": "sha256:3136e774524fca9f8166316eeda1318ef036d8d36886b54ea3c2314835ded6da",
+      "testingPolicy": "sha256:d3b996f34b4ec6a9c7a6f7d04f39e081566aa01a0e28ed6d7c9d5a2667d890a2",
+      "coordinator": "sha256:4a62838fa963e63ac09a0945fbccca9cd9512f8b5dbe82fa4508c5fe617bcf0a",
+      "rebuildPolicy": "sha256:9c6a6f9cd7d58a73424904e35bdf192f073e3d0f0a54edc4c7ea523609345413"
+    }
+  },
+  "host": {
+    "sourceHash": "sha256:5e90b3d0fe7f258d5fa327d53f1d8bfa765a32d37848ad6f0ab2a01ebc384a6d",
+    "rebuildPolicySHA256": "sha256:9c6a6f9cd7d58a73424904e35bdf192f073e3d0f0a54edc4c7ea523609345413",
+    "schema": "kelft-macos-installed-host-build/1",
+    "triple": "aarch64-apple-darwin",
+    "version": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+    "cargo": {
+      "path": "/Users/runner/.rustup/toolchains/1.99.0-aarch64-apple-darwin/bin/cargo",
+      "sha256": "sha256:fc7aa5077deca8abc0651f329e8ec1d968f520e996a93b428f9935014362b382"
+    },
+    "rustLibraries": {
+      "sha256": "sha256:ac2a99dfb6028778abf060718dee185e4c66a2b4f716337806cfa80fb490b81b",
+      "files": [
+        {
+          "path": "libLLVM.dylib",
+          "kind": "file",
+          "size": 143609472,
+          "sha256": "sha256:0a09edaac7d0047e8db420bb9594359c73e602a2138def76f51197f1afd39252"
+        },
+        {
+          "path": "librustc-stable_rt.asan.dylib",
+          "kind": "file",
+          "size": 4431648,
+          "sha256": "sha256:9bf9c724902efa7900e56b4335e97d95ef1e102a93b7859cfc219bd2b86b2fe2"
+        },
+        {
+          "path": "librustc-stable_rt.lsan.dylib",
+          "kind": "file",
+          "size": 1842416,
+          "sha256": "sha256:b9193084923227813a6d3d45ec6e4f926dcf28e1b93ae953290a9bb600edfefa"
+        },
+        {
+          "path": "librustc-stable_rt.rtsan.dylib",
+          "kind": "file",
+          "size": 1523664,
+          "sha256": "sha256:d40726b2adeb8f7f054c7809f5969ccf449946a5e4ac94d4e58f544782a22c95"
+        },
+        {
+          "path": "librustc-stable_rt.tsan.dylib",
+          "kind": "file",
+          "size": 3828208,
+          "sha256": "sha256:531087d89d6e0cc6572dd280084df0ead8067f1c8eed8259b772bcc90447946b"
+        },
+        {
+          "path": "librustc_driver-09a1a87b4d568b8a.dylib",
+          "kind": "file",
+          "size": 83384232,
+          "sha256": "sha256:17b7b2520e11aaa79087493fb8ad1140382b959eed3f00c3e8635cc000b63a4d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/gcc-ld/ld.lld",
+          "kind": "file",
+          "size": 377408,
+          "sha256": "sha256:a56a8ad83d00e6b00f62f5cece28d97ac0bd98e511037820d9c85586386eeba6"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/gcc-ld/ld64.lld",
+          "kind": "file",
+          "size": 377408,
+          "sha256": "sha256:a56a8ad83d00e6b00f62f5cece28d97ac0bd98e511037820d9c85586386eeba6"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/gcc-ld/lld-link",
+          "kind": "file",
+          "size": 377408,
+          "sha256": "sha256:a56a8ad83d00e6b00f62f5cece28d97ac0bd98e511037820d9c85586386eeba6"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/gcc-ld/wasm-ld",
+          "kind": "file",
+          "size": 377408,
+          "sha256": "sha256:a56a8ad83d00e6b00f62f5cece28d97ac0bd98e511037820d9c85586386eeba6"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/rust-lld",
+          "kind": "file",
+          "size": 5716832,
+          "sha256": "sha256:98be468184f763f2874b6321494fa6a7abdb6b8fd95082fbbde064dd86306ea1"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/rust-objcopy",
+          "kind": "file",
+          "size": 244992,
+          "sha256": "sha256:41f770659a8429c0d1239b103da688041df424998529775bfa9b6d97a0011e95"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/bin/wasm-component-ld",
+          "kind": "file",
+          "size": 4611520,
+          "sha256": "sha256:ccfa94cf60bb9e86c065e11bdb303c46f94fbf93f4262e694f0bf4ea19c801a8"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libaddr2line-1fcce633f893f9c0.rlib",
+          "kind": "file",
+          "size": 27480,
+          "sha256": "sha256:2fa9b93ee9ab719af4732608dc8decaeea82febf89b3d35811ec03ab6ef70ddf"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libaddr2line-1fcce633f893f9c0.rmeta",
+          "kind": "file",
+          "size": 479725,
+          "sha256": "sha256:321446d2a21c716dd289d45bce5fbd0efdc944988d5d5ba72972ac21a2714607"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libadler2-e6629d44a3d79d9f.rlib",
+          "kind": "file",
+          "size": 9312,
+          "sha256": "sha256:18d9e043aa0d80f5d452013e43aecec9b879d8cfc6a3a0fe942dfd4f2d216141"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libadler2-e6629d44a3d79d9f.rmeta",
+          "kind": "file",
+          "size": 20755,
+          "sha256": "sha256:910bfa54e260b7a6f45f1b4e95922f153d0811a02874cf14d78341548502a465"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/liballoc-d519ed569a95083f.rlib",
+          "kind": "file",
+          "size": 849720,
+          "sha256": "sha256:8db86b5025e753397c934b48b1d7822fe01311070385e222e1e3c6b4e26fb68d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/liballoc-d519ed569a95083f.rmeta",
+          "kind": "file",
+          "size": 8801815,
+          "sha256": "sha256:91ecc4e36e508aa7faff83da17b9f9894c2f52aed6b23294c287b8f58e4c68dc"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libcfg_if-f24c89a82180b47a.rlib",
+          "kind": "file",
+          "size": 5112,
+          "sha256": "sha256:c5efe36b35d3cc62e2997de6998f15255be4f746c3f0f8c4880a1902fa3b8f50"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libcfg_if-f24c89a82180b47a.rmeta",
+          "kind": "file",
+          "size": 5526,
+          "sha256": "sha256:445d1f87c649eefaeaec167a997ac342755578c7c74cf7817feba20e03113fd0"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-ea0c92e5ddda664a.rlib",
+          "kind": "file",
+          "size": 3525600,
+          "sha256": "sha256:5eee82ad53b66f6141b9f7e11a3d9b283f30481530d965420532c0fb8ba49117"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-ea0c92e5ddda664a.rmeta",
+          "kind": "file",
+          "size": 2014567,
+          "sha256": "sha256:352c097a62e15844d3837e8ac711ba5dd5cfa7ac038a1fa1f762e9e1a62c6a64"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libcore-adfbfa4d4eb69204.rlib",
+          "kind": "file",
+          "size": 2641056,
+          "sha256": "sha256:32ca92bc96c64df4d8df456514292d4ccae992d1ae7daea66408af87781c8a49"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libcore-adfbfa4d4eb69204.rmeta",
+          "kind": "file",
+          "size": 67014951,
+          "sha256": "sha256:ddeca09b6f36a00c133a1d065a706d8718bdecd5909dfb8970d54318036773ef"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libgetopts-9882a4ced95dff14.rlib",
+          "kind": "file",
+          "size": 623464,
+          "sha256": "sha256:e5167ac9ab9a32d3656760a671d686b3d7dd681358d8ba3eea0eeb44a1feafac"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libgetopts-9882a4ced95dff14.rmeta",
+          "kind": "file",
+          "size": 219487,
+          "sha256": "sha256:cb3fdf1609e744735175a2900c21941e278e229cb07bd0e9a551750f6dfb34a7"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libgimli-cf95bec50dc78989.rlib",
+          "kind": "file",
+          "size": 883544,
+          "sha256": "sha256:1796d769f09765f0304c7136c724805741dd0c9dab87d30a66de873e15ceaeaf"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libgimli-cf95bec50dc78989.rmeta",
+          "kind": "file",
+          "size": 5941911,
+          "sha256": "sha256:fb2cd025af440a4a27eea2be69675ecdafdbb069dbecec31ec69ca7143a41891"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libhashbrown-b349454826601b4a.rlib",
+          "kind": "file",
+          "size": 39992,
+          "sha256": "sha256:884bfa54b3c3b9ba7c4e06e10bcc27d7ea05c7f6696fd13d249f14c02da3cb65"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libhashbrown-b349454826601b4a.rmeta",
+          "kind": "file",
+          "size": 1733914,
+          "sha256": "sha256:8d7360d4380b4d90c967e601049e93955f9b5c30b214409118f43990729be15d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/liblibc-9a3b9d64a9792b7b.rlib",
+          "kind": "file",
+          "size": 17624,
+          "sha256": "sha256:088c105230d196ffe5b268e4d1e6f49dca4afa4cd9e3e1e89aaa2afbbe09c174"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/liblibc-9a3b9d64a9792b7b.rmeta",
+          "kind": "file",
+          "size": 2602338,
+          "sha256": "sha256:df5d91a3bfdd44ee5df88b7fca8495e81ece71c4624a100104c4ba758072e71d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libmemchr-39c75608087ee003.rlib",
+          "kind": "file",
+          "size": 196376,
+          "sha256": "sha256:c2840273f6b45d7d6bb57b2bbadc411003ef682e62864424ea40808088ea459d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libmemchr-39c75608087ee003.rmeta",
+          "kind": "file",
+          "size": 1197546,
+          "sha256": "sha256:d4cea6592a8e396a169c6c292f838a4621d2efa04e92a236fe4866ae02a1831b"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libminiz_oxide-392a6144c809c38c.rlib",
+          "kind": "file",
+          "size": 100552,
+          "sha256": "sha256:1470d10c4a430b5e61cb7d144ef67e9795c30e40d2a3ce49c1d6134892263d2d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libminiz_oxide-392a6144c809c38c.rmeta",
+          "kind": "file",
+          "size": 140135,
+          "sha256": "sha256:54d3fb60978731bc4f63bc476ae02f5eaa6295f7b212eb3e45d6e52b5ba65578"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libobject-72a135be0d797d23.rlib",
+          "kind": "file",
+          "size": 274720,
+          "sha256": "sha256:cc259374e306359022c1e4b4c027cf6f88906780e5dffc42911118eb3d41e5fe"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libobject-72a135be0d797d23.rmeta",
+          "kind": "file",
+          "size": 8930283,
+          "sha256": "sha256:77d076e251e109d5f9db73a620de7456cb2928e788fa976a87c043a736604aea"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libpanic_abort-f45620cbe6c56abe.rlib",
+          "kind": "file",
+          "size": 10128,
+          "sha256": "sha256:017a2d146141faadc3ed1ef4fc8f8ab94c1b12a144cd91812a1a41f362206d38"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libpanic_abort-f45620cbe6c56abe.rmeta",
+          "kind": "file",
+          "size": 2741,
+          "sha256": "sha256:806db0cfdc80c1b987896c21f62cad58bacee864e680f39563e4e0ba12650230"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libpanic_unwind-1ec688e737f2b4e0.rlib",
+          "kind": "file",
+          "size": 33200,
+          "sha256": "sha256:39cc17e5b1af49cef7a0931c56c214de4034de2e4eb3a00dc8dde406621f81f6"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libpanic_unwind-1ec688e737f2b4e0.rmeta",
+          "kind": "file",
+          "size": 7115,
+          "sha256": "sha256:b8825c99eaad4813c452c9b3977e5b662734d4b414725bcca90f91aa5fcf2e31"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libproc_macro-61870ce1914b45d5.rlib",
+          "kind": "file",
+          "size": 3807176,
+          "sha256": "sha256:365ead1b0af1d62a19dae7a737ce43f9f9b64ecea838b55adb8b707cba5ecc14"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libproc_macro-61870ce1914b45d5.rmeta",
+          "kind": "file",
+          "size": 1167697,
+          "sha256": "sha256:f268c44b4a43ecfbf2b6cdba83e4867c42f0c8a7784b78a06725458b73cc2daf"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libprofiler_builtins-3a814c20973b234a.rlib",
+          "kind": "file",
+          "size": 302736,
+          "sha256": "sha256:a5f0951b4f8f8b54e338cd21190d3500a18f9170f03afd97cc3fd8af4cb0b27e"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libprofiler_builtins-3a814c20973b234a.rmeta",
+          "kind": "file",
+          "size": 1350,
+          "sha256": "sha256:af8f3c0c699f865825f155d568cfffb54d277b8f2a4e50c513d685ca95d80790"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc-stable_rt.asan.dylib",
+          "kind": "file",
+          "size": 4431648,
+          "sha256": "sha256:9bf9c724902efa7900e56b4335e97d95ef1e102a93b7859cfc219bd2b86b2fe2"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc-stable_rt.lsan.dylib",
+          "kind": "file",
+          "size": 1842416,
+          "sha256": "sha256:b9193084923227813a6d3d45ec6e4f926dcf28e1b93ae953290a9bb600edfefa"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc-stable_rt.rtsan.dylib",
+          "kind": "file",
+          "size": 1523664,
+          "sha256": "sha256:d40726b2adeb8f7f054c7809f5969ccf449946a5e4ac94d4e58f544782a22c95"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc-stable_rt.tsan.dylib",
+          "kind": "file",
+          "size": 3828208,
+          "sha256": "sha256:531087d89d6e0cc6572dd280084df0ead8067f1c8eed8259b772bcc90447946b"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_demangle-66a23321031cee6d.rlib",
+          "kind": "file",
+          "size": 218128,
+          "sha256": "sha256:b4a82c35214fc06c3d01fc97a5a0113fec871178f5dace77adc602e428fa8ecc"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_demangle-66a23321031cee6d.rmeta",
+          "kind": "file",
+          "size": 92674,
+          "sha256": "sha256:fc6103904c52c0b459c2f59aa3982294f4955dd20e352eea974b0aa63ea32f4b"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_literal_escaper-0c3555b4892e70e5.rlib",
+          "kind": "file",
+          "size": 5272,
+          "sha256": "sha256:df2fe825668a05c70c7050bde2d5405b64f4ff34a753d54607f79633d98ee666"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_literal_escaper-0c3555b4892e70e5.rmeta",
+          "kind": "file",
+          "size": 123939,
+          "sha256": "sha256:d561ae0636326e60182d1c5984e8ca84d2d50a304dbbfa3897173f5ce0656231"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_alloc-ab5d7cd3d1a753c0.rlib",
+          "kind": "file",
+          "size": 5352,
+          "sha256": "sha256:d496cc5bb45d9de23e0d3342a4ee8824927194f1e5751b732a4197f108a3ab9d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_alloc-ab5d7cd3d1a753c0.rmeta",
+          "kind": "file",
+          "size": 2209,
+          "sha256": "sha256:86e9f8e18ca645e30dcf6d872c30c77bf5fba854194a4c560d97853d6fc9b2b1"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_core-a3b0f667de4d24b5.rlib",
+          "kind": "file",
+          "size": 5328,
+          "sha256": "sha256:0c9cdfd7d6d1aeb00c84fa374862f73fc11248191b545d8cc43e91ea3335bff9"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_core-a3b0f667de4d24b5.rmeta",
+          "kind": "file",
+          "size": 6107,
+          "sha256": "sha256:d21c1eade54df2ae17cc83b25d4eee1a276af7ae7b31ceb2eb8afa683de2033d"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_std-58d9d1087d19146a.rlib",
+          "kind": "file",
+          "size": 5344,
+          "sha256": "sha256:252a0f327fd1b4b90ee38dd2fa0e60b0889897b5a1889e402a1d3aa224252cf1"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_std-58d9d1087d19146a.rmeta",
+          "kind": "file",
+          "size": 7182,
+          "sha256": "sha256:670ec5bf8860e5fd78918e20bfa14223e0ef9bede3fe2ceddc8cea903d929b81"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libstd-614bb9b33bbc23af.dylib",
+          "kind": "file",
+          "size": 1517248,
+          "sha256": "sha256:002c518a224aa56d11371aa4fd9d3526c69a2796393a344b8e43e6e4a2392671"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libstd-614bb9b33bbc23af.rlib",
+          "kind": "file",
+          "size": 9833432,
+          "sha256": "sha256:41aff1ea650f81c0f167871b67c73e58bee80e547c3cd77ec77c6ca3cbf03a24"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libstd-614bb9b33bbc23af.rmeta",
+          "kind": "file",
+          "size": 7480342,
+          "sha256": "sha256:afe08416c611b4eeaba06671adf0c55bddc858c96f2e8e377c7b9b1df82ee050"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libstd_detect-380907238456b1be.rlib",
+          "kind": "file",
+          "size": 74384,
+          "sha256": "sha256:54cb2ea36d2fb382918721e5f3fbcc08435b0cc41343b09e93164f575b27cde8"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libstd_detect-380907238456b1be.rmeta",
+          "kind": "file",
+          "size": 281938,
+          "sha256": "sha256:f29f52f1d211cc608bf4fa294af37930cbb836b3c9eee43c82cdbbd3731aa5e0"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libsysroot-80896d0ccbb7f6b0.rlib",
+          "kind": "file",
+          "size": 5200,
+          "sha256": "sha256:73640952092c3b8a49ad055016627086f8ebc21db8467a0218cbad30eb5a0e34"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libsysroot-80896d0ccbb7f6b0.rmeta",
+          "kind": "file",
+          "size": 2246,
+          "sha256": "sha256:9e96aa629bd281e343fb9d897af6efc5f4b66d4a07cbef89bf81298437c48689"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libtest-4776fb23835d0a5e.rlib",
+          "kind": "file",
+          "size": 6243208,
+          "sha256": "sha256:b5ca4daea9e84750bab77e52c04fa2eee8af14db4db73e55ea51897e5ba93a10"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libtest-4776fb23835d0a5e.rmeta",
+          "kind": "file",
+          "size": 1035334,
+          "sha256": "sha256:4d3018ebd0db987faecec4a91d583c3edd7c6c5508f2e48ccfdf1d68b8a9f60e"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libunwind-23adb8d702f99b48.rlib",
+          "kind": "file",
+          "size": 5168,
+          "sha256": "sha256:38bddf0b0420a1028ec57729f24cdecf2c0bf4b4f402cc747c377982c6af7b8e"
+        },
+        {
+          "path": "rustlib/aarch64-apple-darwin/lib/libunwind-23adb8d702f99b48.rmeta",
+          "kind": "file",
+          "size": 20012,
+          "sha256": "sha256:78745ce4c1a8788e63bb32b468fb7316deab2ea4ae532ed780bae78d68c68278"
+        },
+        {
+          "path": "rustlib/components",
+          "kind": "file",
+          "size": 84,
+          "sha256": "sha256:384d9eabb448c486143914db184ae616f5fb82686ae34002de6522974788cbfc"
+        },
+        {
+          "path": "rustlib/etc/gdb_load_rust_pretty_printers.py",
+          "kind": "file",
+          "size": 504,
+          "sha256": "sha256:a32e7857651bc7ed7c52dfc71131cbbea01a5cd1886399876032c4de60fa4886"
+        },
+        {
+          "path": "rustlib/etc/gdb_lookup.py",
+          "kind": "file",
+          "size": 3833,
+          "sha256": "sha256:e0b68235a6c2874ef24922e2cd903baf91b258b9590a60ab8779b989d84927ae"
+        },
+        {
+          "path": "rustlib/etc/gdb_providers.py",
+          "kind": "file",
+          "size": 16984,
+          "sha256": "sha256:cb65879ac99f0b654035e3d8ba7504608c00f428db495dad517876a6f9b05034"
+        },
+        {
+          "path": "rustlib/etc/lldb_lookup.py",
+          "kind": "file",
+          "size": 17524,
+          "sha256": "sha256:183b7ad0118b2f27e713dfaf4052908ddc6bd50544e724725112d1ae4291fa4b"
+        },
+        {
+          "path": "rustlib/etc/lldb_providers.py",
+          "kind": "file",
+          "size": 54408,
+          "sha256": "sha256:79b6372863088b358db4a386655cedfad77c6d7af4abbc91d280fea7f6ecff20"
+        },
+        {
+          "path": "rustlib/etc/rust_types.py",
+          "kind": "file",
+          "size": 4232,
+          "sha256": "sha256:e1bb4a46461b943999c9e2346c71808168a982cbf812587622d9c807f32d5bb5"
+        },
+        {
+          "path": "rustlib/manifest-cargo-aarch64-apple-darwin",
+          "kind": "file",
+          "size": 1532,
+          "sha256": "sha256:5b2160ec3635b8c8f3129f12cbeee078d55d882f9362313e56e9fd484febe8ba"
+        },
+        {
+          "path": "rustlib/manifest-rust-std-aarch64-apple-darwin",
+          "kind": "file",
+          "size": 4624,
+          "sha256": "sha256:8dd73c5266ee80d699ccc341c697fb8f7692335e4be82c367a56eac39603e84b"
+        },
+        {
+          "path": "rustlib/manifest-rustc-aarch64-apple-darwin",
+          "kind": "file",
+          "size": 1725,
+          "sha256": "sha256:5ba70b8ab539f2675bb6a2ec5ff1e11e19fa34658ecedcc29a5527d75d238afe"
+        },
+        {
+          "path": "rustlib/multirust-channel-manifest.toml",
+          "kind": "file",
+          "size": 1086673,
+          "sha256": "sha256:3bd93d33248db8d373f1b7d53d344ee12ae2815c11653449ce5f227a0ec9d3cb"
+        },
+        {
+          "path": "rustlib/multirust-config.toml",
+          "kind": "file",
+          "size": 273,
+          "sha256": "sha256:92dfee57e9fc12192ce71d84b5423620ecc1feefb71600bc8f4766aed79d247c"
+        },
+        {
+          "path": "rustlib/rust-installer-version",
+          "kind": "file",
+          "size": 1,
+          "sha256": "sha256:4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+        }
+      ]
+    },
+    "lockSHA256": "sha256:654008459f4163e97a880ffd500a62db1a8221172d5a13c4728ccabdf8a5c722",
+    "rustc": {
+      "path": "/Users/runner/.rustup/toolchains/1.99.0-aarch64-apple-darwin/bin/rustc",
+      "sha256": "sha256:dd6f58440b3418aa9157ae3f05d71eecff741ca41bc4eec120e7e8f2d933b9a0"
+    },
+    "compilerHash": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500",
+    "configurationHash": "sha256:24789f01f5a6ad43eded7080d086a40f8936f7f6e70a908a8f049f514ed78b99",
+    "sessionHash": "sha256:6220f69f20ce2974f41f9dba633bf2dc52099bdee39419b748a697212a4bc6c9",
+    "boundary": {
+      "file": "/Users/runner/work/kelft/kelft/build/seed-refresh/installation/bin/kelft-boundary",
+      "signedSHA256": "sha256:3136e774524fca9f8166316eeda1318ef036d8d36886b54ea3c2314835ded6da",
+      "reused": true
+    },
+    "coordinator": {
+      "file": "/Users/runner/work/kelft/kelft/build/seed-refresh/host/target/aarch64-apple-darwin/release/kelft-native-host",
+      "unsignedSHA256": "sha256:de670715416ebdb129b4255dd87e42d282e84ad4da5a1c489fe94ce82ae2d0d1",
+      "signedSHA256": "sha256:4a62838fa963e63ac09a0945fbccca9cd9512f8b5dbe82fa4508c5fe617bcf0a"
+    },
+    "engineProfilesHash": null,
+    "signerSHA256": "sha256:2c2c5205345cadfa0ad45d1590599529d1288f8d40508f2fbd89cc3e76964158",
+    "signerHelperSHA256": "sha256:f22511586792c37a503222cbcfaf11db75f4f0dbf11d27e0b436765cbb81b8de",
+    "linkerSHA256": "sha256:baa4f178e00429c83c782a67ea6872216b9970e5180bc7e603dcce917b2b6109",
+    "rustLinkerSHA256": "sha256:784df96b97c9f606b92cedd700abde10bc5708e1d64d5761906e64f61a39fd86",
+    "flags": [
+      "-C",
+      "link-arg=--ld-path=/Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+      "-C",
+      "link-arg=-isysroot",
+      "-C",
+      "link-arg=/Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=-arch",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=arm64",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=-platform_version",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=macos",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=14.0",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=14.5",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=-syslibroot",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=/Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=-lSystem",
+      "-C",
+      "link-arg=-Xlinker",
+      "-C",
+      "link-arg=-no_uuid",
+      "-C",
+      "link-arg=-Wl,-no_adhoc_codesign",
+      "--remap-path-prefix=/Users/runner/work/kelft/kelft/host=/source",
+      "--remap-path-prefix=/Users/runner/work/kelft/kelft/build/seed-refresh/host=/build"
+    ],
+    "wasmEngineLinked": false,
+    "dependencyTree": "kelft-wasi v0.1.0 (/Users/runner/work/kelft/kelft/host/driver)\n├── flate2 v1.1.5\n│   ├── crc32fast v1.5.2\n│   │   └── cfg-if v1.0.5\n│   └── miniz_oxide v0.8.9\n│       ├── adler2 v2.0.1\n│       └── simd-adler32 v0.3.10\n├── getrandom v0.3.4\n│   ├── cfg-if v1.0.5\n│   └── libc v0.2.190\n├── hmac v0.12.1\n│   └── digest v0.10.7\n│       ├── block-buffer v0.10.4\n│       │   └── generic-array v0.14.7\n│       │       └── typenum v1.20.1\n│       │       [build-dependencies]\n│       │       └── version_check v0.9.5\n│       ├── crypto-common v0.1.7\n│       │   ├── generic-array v0.14.7 (*)\n│       │   └── typenum v1.20.1\n│       └── subtle v2.6.1\n├── libc v0.2.190\n├── mach2 v0.6.0\n├── serde v1.0.229\n│   ├── serde_core v1.0.229\n│   └── serde_derive v1.0.229 (proc-macro)\n│       ├── proc-macro2 v1.0.107\n│       │   └── unicode-ident v1.0.27\n│       ├── quote v1.0.47\n│       │   └── proc-macro2 v1.0.107 (*)\n│       └── syn v3.0.9\n│           ├── proc-macro2 v1.0.107 (*)\n│           ├── quote v1.0.47 (*)\n│           └── unicode-ident v1.0.27\n├── serde_json v1.0.154\n│   ├── itoa v1.0.18\n│   ├── memchr v2.8.3\n│   ├── serde_core v1.0.229\n│   └── zmij v1.0.23\n└── sha2 v0.10.9\n    ├── cfg-if v1.0.5\n    ├── cpufeatures v0.2.17\n    │   └── libc v0.2.190\n    └── digest v0.10.7 (*)\n",
+    "certified": false
+  },
+  "hostsRebuilt": true,
+  "policyRebuilt": true,
+  "policy": {
+    "first": {
+      "bytes": 495440,
+      "sha256": "sha256:9c6a6f9cd7d58a73424904e35bdf192f073e3d0f0a54edc4c7ea523609345413"
+    },
+    "second": {
+      "bytes": 495440,
+      "sha256": "sha256:9c6a6f9cd7d58a73424904e35bdf192f073e3d0f0a54edc4c7ea523609345413"
+    }
+  },
+  "componentProducers": {
+    "compiler": {
+      "name": "S3",
+      "producerCompilerSHA256": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500",
+      "compiler": {
+        "bytes": 12833056,
+        "sha256": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500"
+      },
+      "object": {
+        "bytes": 14379677,
+        "sha256": "sha256:e15aefb9bb21a9179d2feb8484e4ed52730e3f281dd75bcaae6faf6290a789df"
+      },
+      "policies": {
+        "rebuild": {
+          "bytes": 444944,
+          "sha256": "sha256:5ec12ed3692e4f131380a260e9f180f2d4db99d4ddefa99e18f0bfa5eee90160"
+        },
+        "testing": {
+          "bytes": 1661712,
+          "sha256": "sha256:d3b996f34b4ec6a9c7a6f7d04f39e081566aa01a0e28ed6d7c9d5a2667d890a2"
+        }
+      },
+      "sourceInventorySHA256": "sha256:769eaaf9b797708835fa3fb8fe39a93ac0896cffb58ba4cb940a47c8dad5e55e",
+      "hosts": {
+        "coordinator": "sha256:b5ceb86fe6d38bf5684f073aae27adbed6330e154793721a61ddca52616a7257",
+        "boundary": "sha256:3136e774524fca9f8166316eeda1318ef036d8d36886b54ea3c2314835ded6da"
+      },
+      "independentSourceCopy": true
+    },
+    "coordinator": {
+      "sha256": "sha256:4a62838fa963e63ac09a0945fbccca9cd9512f8b5dbe82fa4508c5fe617bcf0a",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+    },
+    "boundary": {
+      "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+      "compilerSHA256": "sha256:bee54f1159def076cdc9d0f358b0c6425ad5a3effd74f0f7da3ada86e5d07500",
+      "coordinatorSHA256": "sha256:b5ceb86fe6d38bf5684f073aae27adbed6330e154793721a61ddca52616a7257",
+      "boundarySHA256": "sha256:3136e774524fca9f8166316eeda1318ef036d8d36886b54ea3c2314835ded6da",
+      "sourceIdentity": "authenticated corresponding source files"
+    }
+  },
+  "releaseEligible": false
+}

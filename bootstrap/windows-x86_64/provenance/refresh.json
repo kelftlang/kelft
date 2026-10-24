@@ -1,0 +1,990 @@
+{
+  "schema": "kelft.seed-components/1",
+  "target": "windows-x86_64",
+  "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+  "hostInputSHA256": "sha256:5c25a18c1eea06247520546ea75e91879e833bc65aab474f66a94996823ef8c3",
+  "policyInputSHA256": "sha256:0c347e4791287dff74ce93acf67094baa290f3456b1013503e49e0fe349097f4",
+  "coreInputSHA256": "sha256:098122abeb506fe1ed9b256f4d8043420f9b6501805f51dfd9b51b516e458285",
+  "adoption": {
+    "schema": "kelft.compiler-adoption/1",
+    "target": "windows-x86_64",
+    "compiler": {
+      "bytes": 21675520,
+      "sha256": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d"
+    },
+    "object": {
+      "bytes": 24542908,
+      "sha256": "sha256:ba4576c7d4369cd0e8d9e45fc7f1cebb8348f576aaaf2f78ae76daef176f2a77"
+    },
+    "coreSources": [
+      {
+        "path": "selfhost/core.kelft",
+        "bytes": 14844,
+        "sha256": "sha256:28038a5feb2a5b2ad9bb58f7d5278df822a5abf8dd690220ff5c8bad5d6bab63"
+      },
+      {
+        "path": "selfhost/direct/aggregate-runtime.kelft",
+        "bytes": 14722,
+        "sha256": "sha256:19bf9389374217abf533a918970068396c0c0c2bae16a20482a20cbee1f0b9e1"
+      },
+      {
+        "path": "selfhost/direct/aggregate.kelft",
+        "bytes": 89767,
+        "sha256": "sha256:a8318273bc4b2c4fca8672f09b0d690a4ae17bf870939492d7308edec2251d11"
+      },
+      {
+        "path": "selfhost/direct/artifact-runtime.kelft",
+        "bytes": 99134,
+        "sha256": "sha256:d28f61c9fe349fcf8a1cc03c0af4217b92847cedfdc209aee0713fee46dee188"
+      },
+      {
+        "path": "selfhost/direct/binary.kelft",
+        "bytes": 3083,
+        "sha256": "sha256:3bad316e772c3af25b0cf49244c3e9da9ede5b35d1694e8cd2daf53f2c93dd16"
+      },
+      {
+        "path": "selfhost/direct/builder.kelft",
+        "bytes": 4680,
+        "sha256": "sha256:aaeccc6214a7b756bff318408c56e07fcaca3c3e2d5a58eab61efea4140146b9"
+      },
+      {
+        "path": "selfhost/direct/channel-runtime.kelft",
+        "bytes": 88896,
+        "sha256": "sha256:a286d3d88905ba1ba2e4f19423b60fd062dc4c0ea2e044d187fcc5a1013bbacd"
+      },
+      {
+        "path": "selfhost/direct/coff.kelft",
+        "bytes": 8090,
+        "sha256": "sha256:dbc5ced9bb176ca1789aaa9166d895b879665645830e07f6ba349a7ccc1b94a5"
+      },
+      {
+        "path": "selfhost/direct/elf.kelft",
+        "bytes": 9800,
+        "sha256": "sha256:33ff3ef10bec320fd824aa7edae58bc8569e1797f860345cfb5d0005679caae8"
+      },
+      {
+        "path": "selfhost/direct/engine-boundary.kelft",
+        "bytes": 2933,
+        "sha256": "sha256:5cba7e4b3a0ebfe1241bb03856b4528c8fd2f094c4da04693b1e788010bfa17f"
+      },
+      {
+        "path": "selfhost/direct/fs-policy-runtime.kelft",
+        "bytes": 33242,
+        "sha256": "sha256:0b5ab0ad9da3a10187c4d0ddaabf24898cb49e04819736d93c96399c850daa6c"
+      },
+      {
+        "path": "selfhost/direct/fs-runtime.kelft",
+        "bytes": 41892,
+        "sha256": "sha256:f3b4b82f25e6fd354d19637f2b81da365d76b27daf87029501413ecb992592a5"
+      },
+      {
+        "path": "selfhost/direct/graph-runtime.kelft",
+        "bytes": 17295,
+        "sha256": "sha256:fa8afaa0c8d5689b01e94e4f1f92844c5dbd8428614ee87fab3b76c7d5c3a93b"
+      },
+      {
+        "path": "selfhost/direct/heap.kelft",
+        "bytes": 12568,
+        "sha256": "sha256:918f5fc881a55aa28b3e85f153328a0fe897c11eb1ad2d16655322325f0cf2c5"
+      },
+      {
+        "path": "selfhost/direct/host-policy.kelft",
+        "bytes": 1336,
+        "sha256": "sha256:da7914b99da55319f10bbb904e980dac64a5e4a6bbafd1a52fb13d2ae4a51d84"
+      },
+      {
+        "path": "selfhost/direct/host-runtime.kelft",
+        "bytes": 41451,
+        "sha256": "sha256:e897abf49470ba938b0572d17956151901408cfa4fc64b703b74b02795105f44"
+      },
+      {
+        "path": "selfhost/direct/ir.kelft",
+        "bytes": 19078,
+        "sha256": "sha256:1cbad7c64bf78223904b70c32da1bfb2181fe78ea5d77c86bd45614c5df4535f"
+      },
+      {
+        "path": "selfhost/direct/linux-aggregate.kelft",
+        "bytes": 8729,
+        "sha256": "sha256:d85356961604166799f044b47b5fd92373cb0e79e709a65d81fcaef9d12670b0"
+      },
+      {
+        "path": "selfhost/direct/linux-guest-runtime.kelft",
+        "bytes": 46539,
+        "sha256": "sha256:0ba9adf5b32a15ee6587f82c311b1faf57dcfa523fb3e8f867b15f8c2a9ac2c9"
+      },
+      {
+        "path": "selfhost/direct/map-runtime.kelft",
+        "bytes": 6541,
+        "sha256": "sha256:579112b7c858170e93a7905ffc13980d8177521f8ac32e0caf9b255e4c56d458"
+      },
+      {
+        "path": "selfhost/direct/native-target.kelft",
+        "bytes": 663,
+        "sha256": "sha256:1dcc5facb98c02c6800ecc0fda199ec8e3768618a7f86d71ca2f9e86852cba4d"
+      },
+      {
+        "path": "selfhost/direct/opcodes.kelft",
+        "bytes": 3211,
+        "sha256": "sha256:12d22d71a2c7305cbed38d62b1742d7478b99c400f33f60b23b636e497386974"
+      },
+      {
+        "path": "selfhost/direct/packed-runtime.kelft",
+        "bytes": 6799,
+        "sha256": "sha256:21c96e22f742eced2b53c5200d02059f6a5d4bb8cd500c77e7c2a0440da8a943"
+      },
+      {
+        "path": "selfhost/direct/path-runtime.kelft",
+        "bytes": 29725,
+        "sha256": "sha256:fb23367bdc429095b60104db1470d66bbbeeb4e2939f0054100decc50694bcab"
+      },
+      {
+        "path": "selfhost/direct/pool.kelft",
+        "bytes": 14194,
+        "sha256": "sha256:e0bc6fb72e0527887c1d7cb198c65db9ce5b630f78faa5432a438dad24c66939"
+      },
+      {
+        "path": "selfhost/direct/process-runtime.kelft",
+        "bytes": 5021,
+        "sha256": "sha256:51733fe1aeae5f8246e01355478edef577235bb5af10534ed77408e007841bed"
+      },
+      {
+        "path": "selfhost/direct/protocol-windows.kelft",
+        "bytes": 2364,
+        "sha256": "sha256:c22c1bca91bd02e0267758db8bc3e0b1f9ed6e50a49f8a162d542b0de84a2280"
+      },
+      {
+        "path": "selfhost/direct/runtime-ir.kelft",
+        "bytes": 2523,
+        "sha256": "sha256:1b1e0212ab6022ff14abe4af7dd5a2ac3a7115e1f9c610e2e96c289fb58a21b6"
+      },
+      {
+        "path": "selfhost/direct/scalar-runtime.kelft",
+        "bytes": 1380,
+        "sha256": "sha256:cbb1457a5e8be7a02ba638c895aeed18a21a7bdcdc83c715fb7f9d4796e50b7f"
+      },
+      {
+        "path": "selfhost/direct/stream-runtime.kelft",
+        "bytes": 3011,
+        "sha256": "sha256:d9979fd99a19ff1ec6c8fc96e9238a3c38d571957f73a3cfcea849b64f3208d5"
+      },
+      {
+        "path": "selfhost/direct/string-runtime.kelft",
+        "bytes": 25493,
+        "sha256": "sha256:bb651883e730ff17042df9ca2811ec11c515d51f80f8b3309017b0d413ce7b10"
+      },
+      {
+        "path": "selfhost/direct/string-transform-runtime.kelft",
+        "bytes": 8069,
+        "sha256": "sha256:80dd9c28bfbedcb7f3c144e09fa2334ec78d497ba225ea4c69e0c7c08a5ded4d"
+      },
+      {
+        "path": "selfhost/direct/verification-artifact-windows.kelft",
+        "bytes": 1660,
+        "sha256": "sha256:29d4338953d31c9b571f44457be989095fc158c0c24a391e5bd985cfeb6af395"
+      },
+      {
+        "path": "selfhost/direct/windows-aggregate.kelft",
+        "bytes": 22448,
+        "sha256": "sha256:ae618efb730fe80315dd7bb896aebb31d02859932fbd0b6814f92b50b0b3fa94"
+      },
+      {
+        "path": "selfhost/direct/windows-api.kelft",
+        "bytes": 3203,
+        "sha256": "sha256:56be9657c22d29536a11daa1d5e95688e78b53afa10ad7c0715ba1b6a3981edb"
+      },
+      {
+        "path": "selfhost/direct/windows-artifact-runtime.kelft",
+        "bytes": 23981,
+        "sha256": "sha256:7e0f41eccc1ed9129f7ea4e95c99561e03c3f50f26b30757461a90fcd2b78b19"
+      },
+      {
+        "path": "selfhost/direct/windows-fs-runtime.kelft",
+        "bytes": 380719,
+        "sha256": "sha256:c8231578f0eb7e10598c3bb44267f2aaa4f5d2d5692f8b94f4f929e1e1773230"
+      },
+      {
+        "path": "selfhost/direct/windows-guest-runtime.kelft",
+        "bytes": 62060,
+        "sha256": "sha256:e31eb3edfa88fe3c8cde8233854ac8a56200f2adbf11a74b744ef52e2c79ff90"
+      },
+      {
+        "path": "selfhost/direct/windows-link-driver.kelft",
+        "bytes": 4233,
+        "sha256": "sha256:711b52724a4a12dccf17793cea8777b226ece738fc1bf843ab5704d5db4d0dab"
+      },
+      {
+        "path": "selfhost/direct/windows-path-runtime.kelft",
+        "bytes": 89078,
+        "sha256": "sha256:acc7597f8516ad1cfdbe494c51a8fcd5e4374c0a13013a63381d53a6a28d915a"
+      },
+      {
+        "path": "selfhost/direct/windows-process-runtime.kelft",
+        "bytes": 9681,
+        "sha256": "sha256:df8a23da540b758736d4444ebaffda6bc011bdbc2c4143514b660189c55befd9"
+      },
+      {
+        "path": "selfhost/direct/windows-x86_64.kelft",
+        "bytes": 10725,
+        "sha256": "sha256:329c5b40ba10be6504856fc177803c73c1f3c40b494b90f1af765b884602067d"
+      },
+      {
+        "path": "selfhost/direct/write-runtime.kelft",
+        "bytes": 19687,
+        "sha256": "sha256:fa88ddb14de80df26005ac414074aa5322d7279199647a68e53ca2462ab85546"
+      },
+      {
+        "path": "selfhost/direct/x86_64.kelft",
+        "bytes": 15255,
+        "sha256": "sha256:d727b57d461c4f3b1df3d55f1190337b853d9f503b9c85b849dc845a7c6a85cb"
+      },
+      {
+        "path": "selfhost/driver-native.kelft",
+        "bytes": 16733,
+        "sha256": "sha256:18a96105d7b59321c310cead03d09e6fed3b95e802d29aed0af7f9247ee092b4"
+      },
+      {
+        "path": "selfhost/hash.kelft",
+        "bytes": 5165,
+        "sha256": "sha256:bd7caf9a8f4cc04bbf67218d60679c5aa7b3698e329ba54ca305a3e51ba583d9"
+      },
+      {
+        "path": "selfhost/intent.kelft",
+        "bytes": 14187,
+        "sha256": "sha256:236f4705c0e55059d0f9e1e8eb449061e3a6e0e2899619ee437533e61f0a191a"
+      },
+      {
+        "path": "selfhost/intent_bindings.kelft",
+        "bytes": 4122,
+        "sha256": "sha256:207e0f9ae65a662bb091d6f171cf7004fca4f8435e53b7feb1dd214ac779b6a4"
+      },
+      {
+        "path": "selfhost/intent_capabilities.kelft",
+        "bytes": 5902,
+        "sha256": "sha256:ee50d6057862bb333ac61b6dc3a50b5d9b343e2058f333fa08274367f61d2c69"
+      },
+      {
+        "path": "selfhost/intent_domain.kelft",
+        "bytes": 14822,
+        "sha256": "sha256:736476fdcfc7ed0fcf4feaba94756f53c35cdd53de3b450280c0948ec5984be7"
+      },
+      {
+        "path": "selfhost/intent_enforce.kelft",
+        "bytes": 16134,
+        "sha256": "sha256:470bfb062452d13a4ce2155fca28f554ad4b0a2a775811417394ec09249952cb"
+      },
+      {
+        "path": "selfhost/intent_public.kelft",
+        "bytes": 12887,
+        "sha256": "sha256:90b9423e486bc47735611aea30e76156e3ff8cc328fdad0a4c87218c36744f4a"
+      },
+      {
+        "path": "selfhost/intent_source.kelft",
+        "bytes": 23868,
+        "sha256": "sha256:16315ae4a4ecf86c92227fdadcfed9c4fe0f713adf0138aafcc8901a5885fae2"
+      },
+      {
+        "path": "selfhost/intrinsics.kelft",
+        "bytes": 6730,
+        "sha256": "sha256:b5d38ad6ea148bedc607ed6ff8c10111cb91bf2bc4a668f57730d9e176415c3f"
+      },
+      {
+        "path": "selfhost/json.kelft",
+        "bytes": 8770,
+        "sha256": "sha256:003a9e326a4a8e12c2ffa38c916f7bbd17c1ec98df3af24062d829b670202771"
+      },
+      {
+        "path": "selfhost/lexer.kelft",
+        "bytes": 5108,
+        "sha256": "sha256:bb99c6d8e43cc3b57252039be7fe4e1a9a4f0e99a3ae42c686b531656ca2f8d2"
+      },
+      {
+        "path": "selfhost/modules.kelft",
+        "bytes": 2694,
+        "sha256": "sha256:7182f17c594e42ac61ee571f17d0186ef6f2a146bf4ea468597dadf2e96ec951"
+      },
+      {
+        "path": "selfhost/native-windows-installed.kelft",
+        "bytes": 3351,
+        "sha256": "sha256:4ea3957f5aa04a17b1a4fc2cf5c5c66f0ef3eb848aeeb705dbedd65e5f2322da"
+      },
+      {
+        "path": "selfhost/native-windows-object.kelft",
+        "bytes": 3834,
+        "sha256": "sha256:d2bc39953760f10d1bf6d5f9b544a89457f248b5de9450e6e9c443397911e64d"
+      },
+      {
+        "path": "selfhost/parser.kelft",
+        "bytes": 19498,
+        "sha256": "sha256:ed2341ebb251d90ed3becee1c235e1d6a83083d426d245a9af7802030224c88b"
+      },
+      {
+        "path": "selfhost/semantic.kelft",
+        "bytes": 40859,
+        "sha256": "sha256:63a7256e96617ac546a757ca802508de6844cdf6b7eef733da226c32e95af4bd"
+      },
+      {
+        "path": "selfhost/syntax.kelft",
+        "bytes": 5687,
+        "sha256": "sha256:9589e5668c9f21cfa3fbe3cc938f49c7078e86a10d8edcd2c22154b1c0bda71b"
+      },
+      {
+        "path": "selfhost/toolchain/cross.kelft",
+        "bytes": 1651,
+        "sha256": "sha256:01e7dcccf5ad86f4e5d1c73e5524683c438854c28b3c8101d33ef44ccbd1d921"
+      },
+      {
+        "path": "selfhost/toolchain/host-capabilities.kelft",
+        "bytes": 10539,
+        "sha256": "sha256:d647fb8a7f4c66a2a329336fc2c554fccbdaaec95de59ab86336244e314d9d10"
+      },
+      {
+        "path": "selfhost/toolchain/inspect.kelft",
+        "bytes": 5096,
+        "sha256": "sha256:cac24083932f0d4312ccecc455b675ef4af91f6d793d75ea36ab91cd9b60b5d5"
+      },
+      {
+        "path": "selfhost/toolchain/object.kelft",
+        "bytes": 2113,
+        "sha256": "sha256:c774332dd863701e01fc6662c1ccdd08c81e447930aa08b6e439eb008257e81e"
+      },
+      {
+        "path": "selfhost/verification-native.kelft",
+        "bytes": 14566,
+        "sha256": "sha256:7b15d77be760e21387c67eeff55aaa9e950cc49c2806c74da52c8d7948c9ca11"
+      },
+      {
+        "path": "stdlib/bootstrap/strings.kelft",
+        "bytes": 730,
+        "sha256": "sha256:9f0556492ce4f36f327495fc21015b144d210ce991f705d5f2c2f8362418f5ec"
+      }
+    ],
+    "executionInputs": [
+      {
+        "path": "bootstrap/windows-x86_64/bin/kelft-boundary.exe",
+        "bytes": 1309184,
+        "sha256": "sha256:33c31b41231c91061970f3658750b2ccb921b6f932dbc494ad4d53f450d55188"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/parts/000f664e330689d0-000",
+        "bytes": 50331648,
+        "sha256": "sha256:49f4fda20d24dcdffcdf4b6ab3cea311321fec2c04712a1f99266f87ae365797"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/parts/000f664e330689d0-001",
+        "bytes": 50331648,
+        "sha256": "sha256:3987fb712b68ddf8f88c84a6d21d2dec0d937ef1b831749ea16b369cce58ad07"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/parts/000f664e330689d0-002",
+        "bytes": 21943296,
+        "sha256": "sha256:fe35a2e67d90ceff731e3a69b6aeff546f2e4642c1dead3a0b5b056f49da3deb"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/compiler.exe",
+        "bytes": 21675520,
+        "sha256": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/control/toolchain.json",
+        "bytes": 3190,
+        "sha256": "sha256:15e97f1917f69eee22604569e14c023ada53099856bae4d039af5ebd9fcc553a"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain-sources/README.md",
+        "bytes": 266,
+        "sha256": "sha256:d9ad8be462196299d91c232e4dfed3e7ae40304c2366bb16281a1a3db1c094d1"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain-sources/kernel32.def",
+        "bytes": 536,
+        "sha256": "sha256:0a5498edf872d1638eeeb8fe258481334fd245cad20985ef8121baaad6037849"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain-sources/ntdll.def",
+        "bytes": 40,
+        "sha256": "sha256:5ca436f90c94b8538f8569ed5a2ae604422bbbd204f2b415e430b9404b3aef40"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain-sources/shell32.def",
+        "bytes": 48,
+        "sha256": "sha256:1528edb8c10da7ea1bd081a609f84e26855c5c00e36adaccf1361bff580c2e9e"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain/kernel32.lib",
+        "bytes": 6976,
+        "sha256": "sha256:29f4d7178d1ee1a336d1b98334c06d76a53d6bed629343a2daa1823006f09509"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain/ntdll.lib",
+        "bytes": 1336,
+        "sha256": "sha256:bb2038721381275d15b06d8dfeacf1b9b5ad98f596b6abbe53f902d195de77e2"
+      },
+      {
+        "path": "bootstrap/windows-x86_64/rootfs/toolchain/shell32.lib",
+        "bytes": 1384,
+        "sha256": "sha256:6aa8507b7363616143498e88d15f7bfc954514f5f298c6e3632c121bb5b18f60"
+      }
+    ],
+    "languageReusable": true,
+    "originalSnapshotID": "sha256:958416883845807639591515188cb6220f9718682d45bde6bc119d7218b69780",
+    "originalReportSHA256": "sha256:f41026350e702c03336ccd7b5854a6fc364fa5b0c73a2877e965da03c12fd18b",
+    "producerCommit": "64b4da174db450ff96a9ce7a04555d3514758fe9",
+    "compilerGenerationsRebuilt": false
+  },
+  "evidence": {
+    "compilerRetained": true,
+    "boundaryRetained": true,
+    "testingPolicyRetained": true,
+    "metadata": {
+      "status": "passed",
+      "installedVersion": true,
+      "projectMetadataIgnored": true,
+      "malformedRejected": true,
+      "oversizedRejected": true,
+      "legacyFallback": true,
+      "emptyRuntimePATH": true
+    },
+    "policy": {
+      "status": "passed",
+      "cases": 3
+    },
+    "hello": true,
+    "componentHashes": {
+      "compiler": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d",
+      "boundary": "sha256:33c31b41231c91061970f3658750b2ccb921b6f932dbc494ad4d53f450d55188",
+      "testingPolicy": "sha256:9ed73efe90c36f0e3ac6d3b63296d538b0ad7df7321a7eb96a96cd12fa4f7557",
+      "coordinator": "sha256:1378f307876b99c21139399fe35b5b549676a35dcbdf3217112fa186e5fd64d4",
+      "rebuildPolicy": "sha256:0485665c9ee6d810672c03be3426fec3fd4190d5929fb360cd8a98c2d5efa8da"
+    }
+  },
+  "host": {
+    "sourceHash": "sha256:5e90b3d0fe7f258d5fa327d53f1d8bfa765a32d37848ad6f0ab2a01ebc384a6d",
+    "rebuildPolicySHA256": "sha256:0485665c9ee6d810672c03be3426fec3fd4190d5929fb360cd8a98c2d5efa8da",
+    "boundaryReused": true,
+    "schema": "kelft-windows-installed-host-build/1",
+    "triple": "x86_64-pc-windows-msvc",
+    "version": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-pc-windows-msvc\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+    "cargo": {
+      "path": "C:\\Users\\runneradmin\\.rustup\\toolchains\\1.99.0-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+      "sha256": "sha256:c9b44417dc8228b81923a1068a3c09e32d2793f2cced2a816789cf433c1f0d46"
+    },
+    "rustLibraries": {
+      "sha256": "sha256:4cc8eaee43e1403936cb157c54cb1081dde34994d3bbe6446773a081fb3c6d8d",
+      "files": [
+        {
+          "path": "rustlib/components",
+          "kind": "file",
+          "size": 90,
+          "sha256": "sha256:db0b48254f13e1ff45545427e9c5c9600edec9fdbbd56c509398a52351174c70"
+        },
+        {
+          "path": "rustlib/etc/gdb_load_rust_pretty_printers.py",
+          "kind": "file",
+          "size": 504,
+          "sha256": "sha256:a32e7857651bc7ed7c52dfc71131cbbea01a5cd1886399876032c4de60fa4886"
+        },
+        {
+          "path": "rustlib/etc/gdb_lookup.py",
+          "kind": "file",
+          "size": 3833,
+          "sha256": "sha256:e0b68235a6c2874ef24922e2cd903baf91b258b9590a60ab8779b989d84927ae"
+        },
+        {
+          "path": "rustlib/etc/gdb_providers.py",
+          "kind": "file",
+          "size": 16984,
+          "sha256": "sha256:cb65879ac99f0b654035e3d8ba7504608c00f428db495dad517876a6f9b05034"
+        },
+        {
+          "path": "rustlib/etc/intrinsic.natvis",
+          "kind": "file",
+          "size": 30319,
+          "sha256": "sha256:b02c8ed02c876061d2ff782fb1517c10c83bf09dd4e7503dcd528515c04e4c62"
+        },
+        {
+          "path": "rustlib/etc/liballoc.natvis",
+          "kind": "file",
+          "size": 8033,
+          "sha256": "sha256:aa59eb147bedcc03a7596e4b08ff386290d824dbd6b60a4076b9c593d84749c6"
+        },
+        {
+          "path": "rustlib/etc/libcore.natvis",
+          "kind": "file",
+          "size": 4461,
+          "sha256": "sha256:840c5d32034d0881337a749a371fda83090a6e871c73c79fce30addf74f72c7a"
+        },
+        {
+          "path": "rustlib/etc/libstd.natvis",
+          "kind": "file",
+          "size": 4773,
+          "sha256": "sha256:2752f6eb93700921f0a08881c8abd9aa6a7354e1c962825070ebe7410dd7f16a"
+        },
+        {
+          "path": "rustlib/etc/lldb_lookup.py",
+          "kind": "file",
+          "size": 17524,
+          "sha256": "sha256:183b7ad0118b2f27e713dfaf4052908ddc6bd50544e724725112d1ae4291fa4b"
+        },
+        {
+          "path": "rustlib/etc/lldb_providers.py",
+          "kind": "file",
+          "size": 54408,
+          "sha256": "sha256:79b6372863088b358db4a386655cedfad77c6d7af4abbc91d280fea7f6ecff20"
+        },
+        {
+          "path": "rustlib/etc/rust_types.py",
+          "kind": "file",
+          "size": 4232,
+          "sha256": "sha256:e1bb4a46461b943999c9e2346c71808168a982cbf812587622d9c807f32d5bb5"
+        },
+        {
+          "path": "rustlib/manifest-cargo-x86_64-pc-windows-msvc",
+          "kind": "file",
+          "size": 1555,
+          "sha256": "sha256:322efcf81d60aee4be386fb3f38b8d5b88b6c836359bc6ba272d56f9f53b52c1"
+        },
+        {
+          "path": "rustlib/manifest-rust-std-x86_64-pc-windows-msvc",
+          "kind": "file",
+          "size": 3666,
+          "sha256": "sha256:8e64346ed112ae3108d35b4f80d4c58b7ab9a1b987d5cd03d5b982251126038c"
+        },
+        {
+          "path": "rustlib/manifest-rustc-x86_64-pc-windows-msvc",
+          "kind": "file",
+          "size": 2254,
+          "sha256": "sha256:ccfcb2089a8ce9b03449d2a62ee4d02d85f290536dff5b0763612b18aac4b6f9"
+        },
+        {
+          "path": "rustlib/multirust-channel-manifest.toml",
+          "kind": "file",
+          "size": 1086673,
+          "sha256": "sha256:3bd93d33248db8d373f1b7d53d344ee12ae2815c11653449ce5f227a0ec9d3cb"
+        },
+        {
+          "path": "rustlib/multirust-config.toml",
+          "kind": "file",
+          "size": 279,
+          "sha256": "sha256:68b2d821945d9b80dc2fd8b4ecb94aaacaddcd79aa0df83689c922bda2c5cdfb"
+        },
+        {
+          "path": "rustlib/rust-installer-version",
+          "kind": "file",
+          "size": 1,
+          "sha256": "sha256:4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/ld.lld.exe",
+          "kind": "file",
+          "size": 332800,
+          "sha256": "sha256:dafc965162fb6135b4589ea455f8558b45e2255dabb162fbd8ee04be80d21ecd"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/ld.lld.pdb",
+          "kind": "file",
+          "size": 4648960,
+          "sha256": "sha256:f2e8c380c502721c3301eddb6719d8add7be761840ba3bafa65403a514d0fce1"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/ld64.lld.exe",
+          "kind": "file",
+          "size": 332800,
+          "sha256": "sha256:dafc965162fb6135b4589ea455f8558b45e2255dabb162fbd8ee04be80d21ecd"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/ld64.lld.pdb",
+          "kind": "file",
+          "size": 4648960,
+          "sha256": "sha256:f2e8c380c502721c3301eddb6719d8add7be761840ba3bafa65403a514d0fce1"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/lld-link.exe",
+          "kind": "file",
+          "size": 332800,
+          "sha256": "sha256:dafc965162fb6135b4589ea455f8558b45e2255dabb162fbd8ee04be80d21ecd"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/lld-link.pdb",
+          "kind": "file",
+          "size": 4648960,
+          "sha256": "sha256:f2e8c380c502721c3301eddb6719d8add7be761840ba3bafa65403a514d0fce1"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/wasm-ld.exe",
+          "kind": "file",
+          "size": 332800,
+          "sha256": "sha256:dafc965162fb6135b4589ea455f8558b45e2255dabb162fbd8ee04be80d21ecd"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/gcc-ld/wasm-ld.pdb",
+          "kind": "file",
+          "size": 4648960,
+          "sha256": "sha256:f2e8c380c502721c3301eddb6719d8add7be761840ba3bafa65403a514d0fce1"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/rust-lld.exe",
+          "kind": "file",
+          "size": 122606592,
+          "sha256": "sha256:b4b3a7e91505e6ab40f97493bebe398908f63582d686b72111e8ca8b08351bf5"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/rust-objcopy.exe",
+          "kind": "file",
+          "size": 4666368,
+          "sha256": "sha256:82695f1363a1d050fd79253f70d490448df8a4b53d0d207af6d999f7aad8f8ee"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/wasm-component-ld.exe",
+          "kind": "file",
+          "size": 5347840,
+          "sha256": "sha256:1f5e61fe191de2fccef10069fd54b713225049cf33a91a433afb8665eb7229ab"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/bin/wasm-component-ld.pdb",
+          "kind": "file",
+          "size": 5959680,
+          "sha256": "sha256:5d9a8e5727f7afd53b703eb6e896de7383ce54b8da812c817b54f28e247e5fe7"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/liballoc-a363f509dabb8931.rlib",
+          "kind": "file",
+          "size": 746784,
+          "sha256": "sha256:f67abc76c7b8e81e64c43a049d99581e9df4130040a434db32d16d2aa41f3942"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/liballoc-a363f509dabb8931.rmeta",
+          "kind": "file",
+          "size": 8804895,
+          "sha256": "sha256:105c3e7d149ab3228152a1773e04e14173d9efb7b76d561fd96b553efdb52e8e"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libcfg_if-61530a3e12046ff9.rlib",
+          "kind": "file",
+          "size": 4718,
+          "sha256": "sha256:75e8e9d55828dd0983e4a8bc333b3e886ff30ad8b0bf5d4ec926eda98627bc33"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libcfg_if-61530a3e12046ff9.rmeta",
+          "kind": "file",
+          "size": 5528,
+          "sha256": "sha256:53141b1fc768407dc82a7b829f0346acbc6ea97064754b5352f6394f503eebb2"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libcompiler_builtins-a775fe6e194ff2d3.rlib",
+          "kind": "file",
+          "size": 3214484,
+          "sha256": "sha256:b5b5aa1c4c55a144f25707b00feedf7128355938e02310456fc54c1eeabc1979"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libcompiler_builtins-a775fe6e194ff2d3.rmeta",
+          "kind": "file",
+          "size": 2034437,
+          "sha256": "sha256:ae704dfceaed2c8ea50679d31e14f80741b2522a9927937e2c90265e97193885"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libcore-4783344a2f21d44d.rlib",
+          "kind": "file",
+          "size": 2489610,
+          "sha256": "sha256:a188bd90eaf7a38a1db1398f1276bb005cd7f96788259d695592b16dc5fcd311"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libcore-4783344a2f21d44d.rmeta",
+          "kind": "file",
+          "size": 68110923,
+          "sha256": "sha256:1f91f520e30e67fdb05798f343556626129c47218ae6bb5cc982202716c7c9d4"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libgetopts-898878340f7829a0.rlib",
+          "kind": "file",
+          "size": 531820,
+          "sha256": "sha256:86a403a0b57c04d03f09c04ec5202c2b3c91792f2ef1b7cf0702fcb64fc38e48"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libgetopts-898878340f7829a0.rmeta",
+          "kind": "file",
+          "size": 219549,
+          "sha256": "sha256:c3a9ab081c0a5c0ae657b07362846555dec77c3992e43497e728eb13af73f92f"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libhashbrown-127e4acb9a2b8e23.rlib",
+          "kind": "file",
+          "size": 36378,
+          "sha256": "sha256:ee13f6fc6ef51d350bb2adc2c003b581e3d9fd13ed22ebf18b69e8887dae816e"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libhashbrown-127e4acb9a2b8e23.rmeta",
+          "kind": "file",
+          "size": 1733013,
+          "sha256": "sha256:5c3dd18aaf83101729ed04c67999a02535edf40f207523b7b14f752107fa86dc"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libpanic_abort-a5dfefaf5531647d.rlib",
+          "kind": "file",
+          "size": 9736,
+          "sha256": "sha256:74c9b1232c49dbd4ef6f344d90ff3d6f4a68a10a6459c23fc7cec7fa58a1a577"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libpanic_abort-a5dfefaf5531647d.rmeta",
+          "kind": "file",
+          "size": 2743,
+          "sha256": "sha256:238145b99fe6c4bcd69b3883555dce1f234f2aaad90914d3d07d42eef250f738"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libpanic_unwind-9a6982b5613ae144.rlib",
+          "kind": "file",
+          "size": 32254,
+          "sha256": "sha256:76f373e1a4cba8b94642e927aeb1b786b90fc664263e499df302fe2e26fbb031"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libpanic_unwind-9a6982b5613ae144.rmeta",
+          "kind": "file",
+          "size": 19941,
+          "sha256": "sha256:845ac098131077f8cb72b1f12e9658cdc858b39c58fa54297e44354c862c4986"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libproc_macro-420b1f4ed5a959c9.rlib",
+          "kind": "file",
+          "size": 3392126,
+          "sha256": "sha256:dbb9e15372b197614addae3a09939a0b76ef5e2fa5fe61f063ff5ac986d27b9c"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libproc_macro-420b1f4ed5a959c9.rmeta",
+          "kind": "file",
+          "size": 1167634,
+          "sha256": "sha256:3ffbd50c7cc61906c9abecdca0fdc6145b175cc5786fecea3a5f9f1e0f3c52b6"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libprofiler_builtins-081e5f134b6ad2c2.rlib",
+          "kind": "file",
+          "size": 378988,
+          "sha256": "sha256:e3c658fd0b18f0fddcacf7cd4b7962f33dc5917b6fe3f88a97f792fd39770c9e"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libprofiler_builtins-081e5f134b6ad2c2.rmeta",
+          "kind": "file",
+          "size": 1352,
+          "sha256": "sha256:3316f682e426546f867f5bcd79955acb02f8ceac9a12c04f83a5efc1768229fb"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_demangle-b90cf45bba421ef1.rlib",
+          "kind": "file",
+          "size": 229700,
+          "sha256": "sha256:aee5251d3cd413811fa6f8a793781376dd5b58da28e4398163f5557ebe929108"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_demangle-b90cf45bba421ef1.rmeta",
+          "kind": "file",
+          "size": 92743,
+          "sha256": "sha256:fad77bd8de3cf34363336c2cbdca6f3354a5724fc584f403aecace7e401d8b04"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_literal_escaper-4ab2b250cd0fbd51.rlib",
+          "kind": "file",
+          "size": 4976,
+          "sha256": "sha256:a9b9d5ea18b0edf762f4fa8f5d09ed0c4ba2cfb17d81c820cbc5725e0f246ca3"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_literal_escaper-4ab2b250cd0fbd51.rmeta",
+          "kind": "file",
+          "size": 124046,
+          "sha256": "sha256:fb5a6067253a6de92721a85339405946a50125dfb1a47f609845d816687e8989"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_alloc-76c33a2f4e55dbc7.rlib",
+          "kind": "file",
+          "size": 5116,
+          "sha256": "sha256:82b1072dea8a697b1f9d3e8639f9fe1682ed9149aa179ea32473edd68ea6b467"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_alloc-76c33a2f4e55dbc7.rmeta",
+          "kind": "file",
+          "size": 2211,
+          "sha256": "sha256:e73ae721fa7bfdd8a786b5ccab2f974628e95232f6fd9f1c041981b8f78499b5"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_core-d884e447843196b3.rlib",
+          "kind": "file",
+          "size": 5102,
+          "sha256": "sha256:f4ebbcff98bb9a2c6f810484fc991732d803a012b7a9fbaf344c4a57b43257f0"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_core-d884e447843196b3.rmeta",
+          "kind": "file",
+          "size": 6111,
+          "sha256": "sha256:3bfef291e8188bfad50a47cacf23bbbdeee727144eb253a95f586fabba283cc9"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_std-dabb1b9b396304ee.rlib",
+          "kind": "file",
+          "size": 5086,
+          "sha256": "sha256:1e6ef6ebe50f69237dd72981176e915e2968517c30323393cff973b19663182b"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_std-dabb1b9b396304ee.rmeta",
+          "kind": "file",
+          "size": 6907,
+          "sha256": "sha256:f3c53bc4aff8f1188132f6e9aec3231195a72f409be12084d8a18041804c7dfb"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libstd-512d688ad63bc3c4.rlib",
+          "kind": "file",
+          "size": 6010210,
+          "sha256": "sha256:6b1d0581a7d28133c12c58ed61388a968fbcf1c2029bc237df5074fda258b084"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libstd-512d688ad63bc3c4.rmeta",
+          "kind": "file",
+          "size": 8755049,
+          "sha256": "sha256:c4e5b75cc98f4fd6364ec507071f83a2a8d5bfec63b7f66897d777b449e1c9f2"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libstd_detect-2e160def0ea9d132.rlib",
+          "kind": "file",
+          "size": 60460,
+          "sha256": "sha256:fcd74c76a621127e5f2d9d34bab5130d95f198e141145943c019127c0804f470"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libstd_detect-2e160def0ea9d132.rmeta",
+          "kind": "file",
+          "size": 581978,
+          "sha256": "sha256:7135bfd9cc4bf794ced9c3150443c1702c53c4ffee9eb94f8d7fca4ffba9a6e1"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libsysroot-1cb5b46afa3fa0b5.rlib",
+          "kind": "file",
+          "size": 4856,
+          "sha256": "sha256:839711606f27e003fbe88fa6167b3a664aa59c3f9ff007eeffdded56acb9f85a"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libsysroot-1cb5b46afa3fa0b5.rmeta",
+          "kind": "file",
+          "size": 1971,
+          "sha256": "sha256:a9aea9958f6e2a7f7e2f41205b303de1af0605cea5e9c01da6547a12ad209e07"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libtest-d303f45be7ac867f.rlib",
+          "kind": "file",
+          "size": 5517262,
+          "sha256": "sha256:c581a46b78fdee7b30d15a04289e5d90f59df9c1146919cdde6e3bc42b3b47a7"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libtest-d303f45be7ac867f.rmeta",
+          "kind": "file",
+          "size": 1050043,
+          "sha256": "sha256:8bd7310c2e2ff97492583380d5b1c361f186e5f3da40b15d65f3fa73842eb0af"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libunwind-aa4157fe466f159e.rlib",
+          "kind": "file",
+          "size": 4844,
+          "sha256": "sha256:19887b58781d56c23bb27f5403384c20f2a41cb09f41fa75c9dd17848da7a0ce"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libunwind-aa4157fe466f159e.rmeta",
+          "kind": "file",
+          "size": 1798,
+          "sha256": "sha256:4b899d75e25a072278163ea3f02874134661b58de0317b7c47fe8c8d8848f81e"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libwindows_link-52ff9cba00c16b00.rlib",
+          "kind": "file",
+          "size": 4932,
+          "sha256": "sha256:5bf7856ebbcec9123f1001dc42d873e101a686b82636354f212ccfc95ff18be7"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/libwindows_link-52ff9cba00c16b00.rmeta",
+          "kind": "file",
+          "size": 3757,
+          "sha256": "sha256:508144936a019ed0711839612759ea4614d129079876ff314c99e10f4667e513"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/std-512d688ad63bc3c4.dll",
+          "kind": "file",
+          "size": 864256,
+          "sha256": "sha256:c6150d2d75b07f0dd1bda89f33ca51736a7ef6ae22abcd302a8896e824cc891a"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/std-512d688ad63bc3c4.dll.lib",
+          "kind": "file",
+          "size": 818298,
+          "sha256": "sha256:0e29edbcab9ec7ef685e84352d66deca6240beed3386a957012aa66072341244"
+        },
+        {
+          "path": "rustlib/x86_64-pc-windows-msvc/lib/std-512d688ad63bc3c4.pdb",
+          "kind": "file",
+          "size": 6017024,
+          "sha256": "sha256:13939dc5c5e7dcc275a3d85eb63cfda2b501b99c625d0ac32f29b252dc05690b"
+        }
+      ]
+    },
+    "lockSHA256": "sha256:654008459f4163e97a880ffd500a62db1a8221172d5a13c4728ccabdf8a5c722",
+    "rustc": {
+      "path": "C:\\Users\\runneradmin\\.rustup\\toolchains\\1.99.0-x86_64-pc-windows-msvc\\bin\\rustc.exe",
+      "sha256": "sha256:fc40f1c8b65095a22a48c111aadc279c26a049b7e4161e8b99ffe3eb23873e86"
+    },
+    "compilerHash": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d",
+    "configurationHash": "sha256:15e97f1917f69eee22604569e14c023ada53099856bae4d039af5ebd9fcc553a",
+    "boundaryHash": "sha256:33c31b41231c91061970f3658750b2ccb921b6f932dbc494ad4d53f450d55188",
+    "coordinatorHash": "sha256:1378f307876b99c21139399fe35b5b549676a35dcbdf3217112fa186e5fd64d4",
+    "workspacePolicySHA256": null,
+    "engineProfilesHash": null,
+    "crossProfileHash": null,
+    "systemInputBinding": "package-sha256/1",
+    "wasmEngineLinked": false,
+    "dependencyTree": "kelft-wasi v0.1.0 (D:\\a\\kelft\\kelft\\host\\driver)\n├── flate2 v1.1.5\n│   ├── crc32fast v1.5.2\n│   │   └── cfg-if v1.0.5\n│   └── miniz_oxide v0.8.9\n│       ├── adler2 v2.0.1\n│       └── simd-adler32 v0.3.10\n├── getrandom v0.3.4\n│   └── cfg-if v1.0.5\n├── hmac v0.12.1\n│   └── digest v0.10.7\n│       ├── block-buffer v0.10.4\n│       │   └── generic-array v0.14.7\n│       │       └── typenum v1.20.1\n│       │       [build-dependencies]\n│       │       └── version_check v0.9.5\n│       ├── crypto-common v0.1.7\n│       │   ├── generic-array v0.14.7 (*)\n│       │   └── typenum v1.20.1\n│       └── subtle v2.6.1\n├── serde v1.0.229\n│   ├── serde_core v1.0.229\n│   └── serde_derive v1.0.229 (proc-macro)\n│       ├── proc-macro2 v1.0.107\n│       │   └── unicode-ident v1.0.27\n│       ├── quote v1.0.47\n│       │   └── proc-macro2 v1.0.107 (*)\n│       └── syn v3.0.9\n│           ├── proc-macro2 v1.0.107 (*)\n│           ├── quote v1.0.47 (*)\n│           └── unicode-ident v1.0.27\n├── serde_json v1.0.154\n│   ├── itoa v1.0.18\n│   ├── memchr v2.8.3\n│   ├── serde_core v1.0.229\n│   └── zmij v1.0.23\n├── sha2 v0.10.9\n│   ├── cfg-if v1.0.5\n│   ├── cpufeatures v0.2.17\n│   └── digest v0.10.7 (*)\n└── windows-sys v0.61.2\n    └── windows-link v0.2.1\n"
+  },
+  "hostsRebuilt": true,
+  "policyRebuilt": true,
+  "policy": {
+    "first": {
+      "bytes": 644096,
+      "sha256": "sha256:0485665c9ee6d810672c03be3426fec3fd4190d5929fb360cd8a98c2d5efa8da"
+    },
+    "second": {
+      "bytes": 644096,
+      "sha256": "sha256:0485665c9ee6d810672c03be3426fec3fd4190d5929fb360cd8a98c2d5efa8da"
+    }
+  },
+  "componentProducers": {
+    "compiler": {
+      "name": "S3",
+      "producerCompilerSHA256": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d",
+      "compiler": {
+        "bytes": 21675520,
+        "sha256": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d"
+      },
+      "object": {
+        "bytes": 24542908,
+        "sha256": "sha256:ba4576c7d4369cd0e8d9e45fc7f1cebb8348f576aaaf2f78ae76daef176f2a77"
+      },
+      "policies": {
+        "rebuild": {
+          "bytes": 578560,
+          "sha256": "sha256:1935289fef45bb531cbd6db9a08457dde40b474dc0845170d9ad82724b756d1b"
+        },
+        "testing": {
+          "bytes": 2248192,
+          "sha256": "sha256:9ed73efe90c36f0e3ac6d3b63296d538b0ad7df7321a7eb96a96cd12fa4f7557"
+        }
+      },
+      "sourceInventorySHA256": "sha256:769eaaf9b797708835fa3fb8fe39a93ac0896cffb58ba4cb940a47c8dad5e55e",
+      "hosts": {
+        "coordinator": "sha256:30d11493d7dea84cf54ab059829183e7f0918107e541119f78822093eabaeb7d",
+        "boundary": "sha256:33c31b41231c91061970f3658750b2ccb921b6f932dbc494ad4d53f450d55188"
+      },
+      "independentSourceCopy": true
+    },
+    "coordinator": {
+      "sha256": "sha256:1378f307876b99c21139399fe35b5b549676a35dcbdf3217112fa186e5fd64d4",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+    },
+    "boundary": {
+      "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+      "compilerSHA256": "sha256:756320eda46b0adb947e9f8053c6f9527d05c201013d147c81db5f2e1a30354d",
+      "coordinatorSHA256": "sha256:30d11493d7dea84cf54ab059829183e7f0918107e541119f78822093eabaeb7d",
+      "boundarySHA256": "sha256:33c31b41231c91061970f3658750b2ccb921b6f932dbc494ad4d53f450d55188",
+      "sourceIdentity": "authenticated corresponding source files"
+    }
+  },
+  "releaseEligible": false
+}

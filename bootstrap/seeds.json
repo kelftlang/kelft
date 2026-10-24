@@ -1,6 +1,6 @@
 {
   "schema": "kelft.native-seeds/1",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "hosts": [
     {
       "target": "linux-x86_64",
@@ -11,7 +11,11 @@
         "Ubuntu 24.04 with the recorded boundary input identities",
         "bubblewrap and a policy permitting unprivileged user namespaces"
       ],
-      "releaseEligible": false
+      "releaseEligible": false,
+      "componentRefresh": {
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+        "reportSHA256": "sha256:46cfcd94693fdb21e519aacfc25dfe4fab96547a07f1d1df16b5160a93baacdb"
+      }
     },
     {
       "target": "linux-arm64",
@@ -22,7 +26,11 @@
         "Ubuntu 24.04 with the recorded boundary input identities",
         "bubblewrap and a policy permitting unprivileged user namespaces"
       ],
-      "releaseEligible": false
+      "releaseEligible": false,
+      "componentRefresh": {
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+        "reportSHA256": "sha256:69477f1dc68838d94c79dcc5683e542b7cb7b5531c30da6341f4d7e2de8e61f3"
+      }
     },
     {
       "target": "windows-x86_64",
@@ -33,7 +41,11 @@
         "Windows 11 or Windows Server 2025 on the native architecture",
         "Named System32 modules required by the boundary"
       ],
-      "releaseEligible": false
+      "releaseEligible": false,
+      "componentRefresh": {
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+        "reportSHA256": "sha256:ce0d5a9c31dcaa5534d715c10cca612a0bfc83c3cac2093584569fbc691abe17"
+      }
     },
     {
       "target": "windows-arm64",
@@ -44,7 +56,11 @@
         "Windows 11 on ARM64",
         "Named System32 modules required by the boundary"
       ],
-      "releaseEligible": false
+      "releaseEligible": false,
+      "componentRefresh": {
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+        "reportSHA256": "sha256:ed82c1df7e955ca9c46d2eedd5ee5b5d69653f0575f8d3a57a6334fe9f674846"
+      }
     },
     {
       "target": "macos-x86_64",
@@ -54,7 +70,11 @@
       "platformPrerequisites": [
         "macOS 15 on Intel"
       ],
-      "releaseEligible": false
+      "releaseEligible": false,
+      "componentRefresh": {
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+        "reportSHA256": "sha256:7f13c3514a117aaf30cd0d5f7edf609b404d15220a0f62d9677baa84c8ae684e"
+      }
     },
     {
       "target": "macos-arm64",
@@ -64,7 +84,11 @@
       "platformPrerequisites": [
         "macOS 14 or newer on Apple Silicon"
       ],
-      "releaseEligible": false
+      "releaseEligible": false,
+      "componentRefresh": {
+        "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
+        "reportSHA256": "sha256:84f928fb2115ebb9ce4203d62f26e8aa7693cf587d98046b69e2dd39952b82e8"
+      }
     }
   ],
   "releaseEligible": false

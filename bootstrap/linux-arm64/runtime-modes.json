@@ -1052,6 +1052,18 @@
     {
       "path": "provenance/seed.json",
       "mode": 420
+    },
+    {
+      "path": "release.json",
+      "mode": 420
+    },
+    {
+      "path": "provenance/compiler-qualification.json",
+      "mode": 420
+    },
+    {
+      "path": "provenance/refresh.json",
+      "mode": 420
     }
   ]
 }

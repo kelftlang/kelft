@@ -3,11 +3,11 @@
   "target": "macos-x86_64",
   "trust": "initial-binary-trust",
   "producer": {
-    "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+    "revision": "93ddd919c9f98274f48cb2dca966b86f0ccab509",
     "compilerSHA256": "sha256:213dc4136f608660476b4dde31c094d2c6f2271251f308049ccfce105d16099d",
-    "coordinatorSHA256": "sha256:df725c8cb0754dc93afe768a851e4cfe3ef037c966a3020673d2b6dd0001dc9d",
+    "coordinatorSHA256": "sha256:a678e2a01535673051411c59332bf418b3c93d40d14b9b0b13ce14ee9fbee79a",
     "boundarySHA256": "sha256:d47e4fb737000362f5ad2a49ffa25aa777d0d3b924b205f889f07232da37042f",
-    "sourceIdentity": "authenticated corresponding source files"
+    "sourceIdentity": "per-component producers recorded in provenance/refresh.json"
   },
   "compilerProducer": {
     "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
@@ -30,21 +30,21 @@
   },
   "sources": {
     "file": "../sources/macos-x86_64.tar.gz",
-    "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226"
+    "sha256": "sha256:a0446f932a285e7d09f11a6943b3b3955749c613d5e943db3caafe879823a258"
   },
   "compilerSources": {
     "file": "../sources/macos-x86_64.tar.gz",
-    "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226"
+    "sha256": "sha256:a0446f932a285e7d09f11a6943b3b3955749c613d5e943db3caafe879823a258"
   },
   "hostSources": {
     "file": "../sources/macos-x86_64.tar.gz",
-    "sha256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226"
+    "sha256": "sha256:a0446f932a285e7d09f11a6943b3b3955749c613d5e943db3caafe879823a258"
   },
   "files": [
     {
       "path": "bin/kelft",
-      "bytes": 4112032,
-      "sha256": "sha256:df725c8cb0754dc93afe768a851e4cfe3ef037c966a3020673d2b6dd0001dc9d",
+      "bytes": 4190496,
+      "sha256": "sha256:a678e2a01535673051411c59332bf418b3c93d40d14b9b0b13ce14ee9fbee79a",
       "mode": 493
     },
     {
@@ -52,120 +52,6 @@
       "bytes": 1438800,
       "sha256": "sha256:d47e4fb737000362f5ad2a49ffa25aa777d0d3b924b205f889f07232da37042f",
       "mode": 493
-    },
-    {
-      "path": "rootfs/compiler",
-      "bytes": 17138544,
-      "sha256": "sha256:213dc4136f608660476b4dde31c094d2c6f2271251f308049ccfce105d16099d",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/control/linker.json",
-      "bytes": 823,
-      "sha256": "sha256:3353f42784e46905fcc2be58679c9542c5d8b5a52da4087c70068f655b7fe663",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/control/toolchain.json",
-      "bytes": 189,
-      "sha256": "sha256:72c5fd560e41db15721ee038b8935f73ce5f34f637725adc5072962ad8372928",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/policies/rebuild",
-      "bytes": 568784,
-      "sha256": "sha256:0603b83a1fa6d9974b93198bf260c8f1c87f2b52707c56449925bc71ae82cc15",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/policies/testing",
-      "bytes": 2215840,
-      "sha256": "sha256:a72c7adfb7163dbf10040897b2879afe80f0809236f7aed7ba7302924aaca160",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/toolchain/sdk/usr/lib/libSystem.tbd",
-      "bytes": 375,
-      "sha256": "sha256:55e085c053d8846d9179bbccb908be882558b493aceb307d211361754c4c3086",
-      "mode": 420
-    },
-    {
-      "path": "rootfs/toolchain/usr/bin/ld",
-      "bytes": 6184360,
-      "sha256": "sha256:da64643a2d21e003258681fb863f717280c33bfac99454f87aa4d67ab3ad5dd0",
-      "mode": 493
-    },
-    {
-      "path": "rootfs/toolchain/usr/lib/libLLVM.dylib",
-      "bytes": 149559520,
-      "sha256": "sha256:79d99a31722ec54fca6a96092108405c421f467c1d8a5ffb0e1a68c7919cb5b4",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSE-MIT",
-      "bytes": 1075,
-      "sha256": "sha256:9955e9da42ea52385656d8f84fe27f0ed7cd14580505a1cb7fc0e832449d3e8b",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSE-APACHE",
-      "bytes": 11358,
-      "sha256": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSES/CC-BY-4.0.txt",
-      "bytes": 18657,
-      "sha256": "sha256:9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSES/MIT-0.txt",
-      "bytes": 917,
-      "sha256": "sha256:1beae2bd91dbfcd86d4426296bae35c2eb834b4d0d4b26ecfab76cd4950e29be",
-      "mode": 420
-    },
-    {
-      "path": "notices/kelft/LICENSE",
-      "bytes": 751,
-      "sha256": "sha256:5489357cf1c0dc507ad02551569dfd981edb992446df171455d9272b46b7de1f",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/Apache-2.0.txt",
-      "bytes": 10280,
-      "sha256": "sha256:074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/COPYRIGHT-library.html",
-      "bytes": 1499465,
-      "sha256": "sha256:5647be074c8edf7339fd863055923a8fc80bc5610a8d4661ec3b767b9d392c27",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/COPYRIGHT.html",
-      "bytes": 14423589,
-      "sha256": "sha256:d518ae2d76bc7a1f0cbf0069b8deafb56efc39c2614cab74a859ef0b467f8373",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/LLVM-exception.txt",
-      "bytes": 919,
-      "sha256": "sha256:e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/MIT.txt",
-      "bytes": 1078,
-      "sha256": "sha256:b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
-      "mode": 420
-    },
-    {
-      "path": "notices/rust/NCSA.txt",
-      "bytes": 1676,
-      "sha256": "sha256:39cb0234065c92b9e6cee3830cbb52b1aa289aa8fe9ba2e66730fec5cf05c630",
-      "mode": 420
     },
     {
       "path": "notices/cargo/adler2-2.0.1/LICENSE-0BSD",
@@ -540,6 +426,36 @@
       "mode": 420
     },
     {
+      "path": "notices/kelft/LICENSE",
+      "bytes": 751,
+      "sha256": "sha256:5489357cf1c0dc507ad02551569dfd981edb992446df171455d9272b46b7de1f",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-APACHE",
+      "bytes": 11358,
+      "sha256": "sha256:cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSE-MIT",
+      "bytes": 1075,
+      "sha256": "sha256:9955e9da42ea52385656d8f84fe27f0ed7cd14580505a1cb7fc0e832449d3e8b",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/CC-BY-4.0.txt",
+      "bytes": 18657,
+      "sha256": "sha256:9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411",
+      "mode": 420
+    },
+    {
+      "path": "notices/kelft/LICENSES/MIT-0.txt",
+      "bytes": 917,
+      "sha256": "sha256:1beae2bd91dbfcd86d4426296bae35c2eb834b4d0d4b26ecfab76cd4950e29be",
+      "mode": 420
+    },
+    {
       "path": "notices/llvm/LICENSE.txt",
       "bytes": 15140,
       "sha256": "sha256:3340babe8ac7bc6ae294d93aa01c310a250d43d5b760e5c12954882d4e5c83c7",
@@ -552,9 +468,57 @@
       "mode": 420
     },
     {
+      "path": "notices/rust/Apache-2.0.txt",
+      "bytes": 10280,
+      "sha256": "sha256:074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT-library.html",
+      "bytes": 1499465,
+      "sha256": "sha256:5647be074c8edf7339fd863055923a8fc80bc5610a8d4661ec3b767b9d392c27",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/COPYRIGHT.html",
+      "bytes": 14423589,
+      "sha256": "sha256:d518ae2d76bc7a1f0cbf0069b8deafb56efc39c2614cab74a859ef0b467f8373",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/LLVM-exception.txt",
+      "bytes": 919,
+      "sha256": "sha256:e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/MIT.txt",
+      "bytes": 1078,
+      "sha256": "sha256:b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+      "mode": 420
+    },
+    {
+      "path": "notices/rust/NCSA.txt",
+      "bytes": 1676,
+      "sha256": "sha256:39cb0234065c92b9e6cee3830cbb52b1aa289aa8fe9ba2e66730fec5cf05c630",
+      "mode": 420
+    },
+    {
+      "path": "provenance/compiler-qualification.json",
+      "bytes": 313494,
+      "sha256": "sha256:d6a45ad03409cf30e8f99d25252a2e12cdc74d6bf7c08785cdbb536c7c0ce48b",
+      "mode": 420
+    },
+    {
       "path": "provenance/generation.json",
       "bytes": 29784,
       "sha256": "sha256:bffe95fe87190c6199b5b1c58dd1a3fa9413e37d640d6451ed7e439fdba6d75b",
+      "mode": 420
+    },
+    {
+      "path": "provenance/refresh.json",
+      "bytes": 47970,
+      "sha256": "sha256:d2cdd226c6370cdb3b8cb8ee06a49bc0d9099f0f7c371f0b749cae2bf04169b2",
       "mode": 420
     },
     {
@@ -564,9 +528,63 @@
       "mode": 420
     },
     {
+      "path": "release.json",
+      "bytes": 123,
+      "sha256": "sha256:2d404c9409d0215d6fd10d5800b5ed09b4fbb650f5b39cfb0996b97e3de52322",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/compiler",
+      "bytes": 17138544,
+      "sha256": "sha256:213dc4136f608660476b4dde31c094d2c6f2271251f308049ccfce105d16099d",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/control/linker.json",
+      "bytes": 823,
+      "sha256": "sha256:3353f42784e46905fcc2be58679c9542c5d8b5a52da4087c70068f655b7fe663",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/control/toolchain.json",
+      "bytes": 189,
+      "sha256": "sha256:72c5fd560e41db15721ee038b8935f73ce5f34f637725adc5072962ad8372928",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/policies/rebuild",
+      "bytes": 635792,
+      "sha256": "sha256:077ae82a3c1dcbdebfca861135d21386d66710a85daee0368fe18544d7ac29fa",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/policies/testing",
+      "bytes": 2215840,
+      "sha256": "sha256:a72c7adfb7163dbf10040897b2879afe80f0809236f7aed7ba7302924aaca160",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/toolchain/sdk/usr/lib/libSystem.tbd",
+      "bytes": 375,
+      "sha256": "sha256:55e085c053d8846d9179bbccb908be882558b493aceb307d211361754c4c3086",
+      "mode": 420
+    },
+    {
+      "path": "rootfs/toolchain/usr/bin/ld",
+      "bytes": 6184360,
+      "sha256": "sha256:da64643a2d21e003258681fb863f717280c33bfac99454f87aa4d67ab3ad5dd0",
+      "mode": 493
+    },
+    {
+      "path": "rootfs/toolchain/usr/lib/libLLVM.dylib",
+      "bytes": 149559520,
+      "sha256": "sha256:79d99a31722ec54fca6a96092108405c421f467c1d8a5ffb0e1a68c7919cb5b4",
+      "mode": 420
+    },
+    {
       "path": "runtime-modes.json",
-      "bytes": 7561,
-      "sha256": "sha256:dd2c3b5f81716f89447760e65e81aa5dc3b0c0b5b533a6b67cfab82788e6a19b",
+      "bytes": 7781,
+      "sha256": "sha256:df23d057e8758789ac38e25877b30cc8a6c6ccc27c0dce3013d855e142bc81e9",
       "mode": 420
     }
   ],
@@ -580,5 +598,46 @@
     "dependency redistribution and corresponding-source review",
     "exact release qualification",
     "artifact provenance and publication review"
-  ]
+  ],
+  "componentProducers": {
+    "compiler": {
+      "name": "S3",
+      "producerCompilerSHA256": "sha256:213dc4136f608660476b4dde31c094d2c6f2271251f308049ccfce105d16099d",
+      "compiler": {
+        "bytes": 17138544,
+        "sha256": "sha256:213dc4136f608660476b4dde31c094d2c6f2271251f308049ccfce105d16099d"
+      },
+      "object": {
+        "bytes": 18572519,
+        "sha256": "sha256:d8cc836f9807bdb80577ce4a0870ab376d431af8d646857afa0f40623cb39eed"
+      },
+      "policies": {
+        "rebuild": {
+          "bytes": 568784,
+          "sha256": "sha256:0603b83a1fa6d9974b93198bf260c8f1c87f2b52707c56449925bc71ae82cc15"
+        },
+        "testing": {
+          "bytes": 2215840,
+          "sha256": "sha256:a72c7adfb7163dbf10040897b2879afe80f0809236f7aed7ba7302924aaca160"
+        }
+      },
+      "sourceInventorySHA256": "sha256:769eaaf9b797708835fa3fb8fe39a93ac0896cffb58ba4cb940a47c8dad5e55e",
+      "hosts": {
+        "coordinator": "sha256:df725c8cb0754dc93afe768a851e4cfe3ef037c966a3020673d2b6dd0001dc9d",
+        "boundary": "sha256:d47e4fb737000362f5ad2a49ffa25aa777d0d3b924b205f889f07232da37042f"
+      },
+      "independentSourceCopy": true
+    },
+    "coordinator": {
+      "sha256": "sha256:a678e2a01535673051411c59332bf418b3c93d40d14b9b0b13ce14ee9fbee79a",
+      "sourceCommit": "93ddd919c9f98274f48cb2dca966b86f0ccab509"
+    },
+    "boundary": {
+      "revision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+      "compilerSHA256": "sha256:213dc4136f608660476b4dde31c094d2c6f2271251f308049ccfce105d16099d",
+      "coordinatorSHA256": "sha256:df725c8cb0754dc93afe768a851e4cfe3ef037c966a3020673d2b6dd0001dc9d",
+      "boundarySHA256": "sha256:d47e4fb737000362f5ad2a49ffa25aa777d0d3b924b205f889f07232da37042f",
+      "sourceIdentity": "authenticated corresponding source files"
+    }
+  }
 }
