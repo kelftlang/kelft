@@ -1,0 +1,10 @@
+--- !tapi-tbd
+tbd-version: 4
+targets: [ x86_64-macos, arm64-macos ]
+install-name: /usr/lib/libSystem.B.dylib
+current-version: 1.0.0
+compatibility-version: 1.0.0
+exports:
+  - targets: [ x86_64-macos, arm64-macos ]
+    symbols: [ ___error, __exit, _close, _fchmod, _fcntl, _getcwd, _getenv, _mkdirat, _mmap, _munmap, _openat, _read, _readlinkat, _write, dyld_stub_binder ]
+...

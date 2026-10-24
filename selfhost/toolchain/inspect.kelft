@@ -1,0 +1,60 @@
+// Read-only frontend: optional emitters and artifact execution stay outside it.
+import "../syntax.kelft" as syntax;
+import "../lexer.kelft" as lexer;
+import "../modules.kelft" as modules;
+import "../semantic.kelft" as semantic;
+import "../core.kelft" as core;
+import "../json.kelft" as json;
+import "../intent_source.kelft" as intent_source;
+import "../intent_domain.kelft" as intent_domain;
+import "../intent_public.kelft" as intent_public;
+import "../intent_capabilities.kelft" as intent_capabilities;
+import "../intent_enforce.kelft" as intent_enforce;
+fn read(file:string)->string {
+ match read_file(file) {
+  Result::Ok(bytes)=>{match utf8_decode(bytes) {Result::Ok(value)=>{return value;},Result::Error(message)=>{syntax::error("K0005","source is not valid UTF-8",syntax::span(file,0,0));}}},
+  Result::Error(message)=>{syntax::error("K0211",message,syntax::span(file,0,0));}
+ }
+ return "";
+}
+pub fn command(arguments:Array<string>)->bool {
+ if array_len::<string>(arguments)==0 {return false;}
+ let name:string=arguments[0];
+ if name!="check"&&name!="tokens"&&name!="ast"&&name!="ir" {return false;}
+ if array_len::<string>(arguments)<2 {eprint("missing entry\n");exit(1);}
+ let entry:string=arguments[1];let mut root:string=current_dir();let mut target:string="javascript";let mut profile:string="";let mut declarations:string="";let mut bindings:string="";let mut host_policy:bool=false;let mut index:i32=2;
+ while index<array_len::<string>(arguments) {
+  let flag:string=arguments[index];
+  if flag=="--" {break;}
+  if flag=="--json" {}
+  else if flag=="--json-module"||flag=="--wire-module" {eprint(flag+" requires wire-models\n");exit(1);}
+  else if flag=="-o"||flag=="--project-root"||flag=="--target"||flag=="--runtime-profile"||flag=="--intent"||flag=="--bindings"||flag=="--capabilities"||flag=="--host-policy" {
+   index=index+1;let value:string=arguments[index];
+   if flag=="--project-root" {root=value;}else if flag=="--target" {target=value;}else if flag=="--runtime-profile" {profile=value;}else if flag=="--intent" {declarations=value;}else if flag=="--bindings" {bindings=value;}else if flag=="--host-policy" {json::parse(read(value));host_policy=true;}else if flag=="--capabilities" {json::canonical(json::parse(read(value)));}
+  }else {eprint("unknown option "+flag+"\n");exit(1);}
+  index=index+1;
+ }
+ if target!="javascript"&&target!="wasm"&&target!="c" {eprint("error[K0401]: unsupported target "+target+"\n");exit(1);}
+ if profile!=""&&(target=="wasm"&&profile!="wasi-preview1"&&profile!="browser-events-v1"||target=="javascript"&&profile!="node24") {eprint("error[K0402]: unsupported runtime profile\n");exit(1);}
+ let input:string=read(entry);
+ if intent_source::is_source(input) {
+  let relative:string=path_relative(canonical_path(root),canonical_path(entry));if relative==".."||syntax::starts(relative,"../")||syntax::has(relative,":") {syntax::error("K0211","module outside project root",syntax::span(entry,0,0));}
+  if string_len(entry)<6||syntax::slice(entry,string_len(entry)-6,string_len(entry))!=".kelft" {syntax::error("K0211","source must use .kelft",syntax::span(entry,0,0));}
+  let tree:syntax::Node=intent_source::parse(input,entry);
+  if name=="ast" {println("["+syntax::node_json(tree)+"]");return true;}
+  let graph:json::Value=intent_source::dependencies(intent_source::lower(tree),entry,root);intent_domain::check(graph);intent_public::extract(graph);intent_capabilities::lower(graph);
+  if name=="ir" {println(json::canonical(graph));return true;}
+  if name=="check" {
+   let obligations:json::Value=intent_source::obligations(graph);let mut state:string="checked";for obligation in json::array(obligations) {if json::string(json::field(obligation,"method"))=="blocked" {state="needs-human";}}
+   let mut result:json::Value=json::parse("{\"schemaVersion\":\"0.2\"}");result=json::set(result,"hash",json::Value::Text(intent_source::semantic_hash(graph)));result=json::set(result,"state",json::Value::Text(state));result=json::set(result,"obligations",obligations);println(json::canonical(result));if state=="needs-human" {exit(2);}return true;
+  }
+ }
+ if name=="tokens" {println(syntax::tokens_json(lexer::lex(input,entry)));return true;}
+ let mods:Array<modules::Module>=modules::load(entry,root);
+ if name=="ast" {let mut trees:Array<string>=[];for mod in mods {array_push::<string>(inout trees,syntax::node_json(mod.tree));}println("["+syntax::join(trees,",")+"]");return true;}
+ let mut program:core::Program=semantic::analyze(mods);
+ if declarations!="" {let graph:json::Value=intent_enforce::source_graph(declarations,root,bindings);intent_capabilities::lower(graph);program=intent_enforce::enforce(graph,program,mods,path_relative(canonical_path(root),canonical_path(declarations)));}else if bindings!="" {syntax::error("K0713","implementation bindings require --intent",syntax::span(bindings,0,0));}
+ if host_policy&&(target!="wasm"||profile!="browser-events-v1") {syntax::error("K0402","host restrictions require the browser event profile",syntax::span("",0,0));}
+ if name=="ir" {println(core::program_json(program));}
+ return true;
+}

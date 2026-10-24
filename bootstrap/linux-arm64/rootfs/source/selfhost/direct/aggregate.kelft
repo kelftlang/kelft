@@ -1,0 +1,487 @@
+import "./opcodes.kelft" as opcodes;
+import "../json.kelft" as j;
+import "./fs-policy-runtime.kelft" as fs_policy;
+import "./artifact-runtime.kelft" as artifact_runtime;
+import "./write-runtime.kelft" as write_runtime;
+import "./fs-runtime.kelft" as fs_runtime;
+import "./process-runtime.kelft" as process_runtime;
+import "./path-runtime.kelft" as path_runtime;
+import "./graph-runtime.kelft" as graph_runtime;
+import "./stream-runtime.kelft" as stream_runtime;
+import "./map-runtime.kelft" as map_runtime;
+// Development Core lowering, intentionally not registered as a public target.
+import "../core.kelft" as c;
+import "../syntax.kelft" as s;
+import "./ir.kelft" as ir;
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./elf.kelft" as elf;
+import "./heap.kelft" as runtime;
+import "./aggregate-runtime.kelft" as aggregate_runtime;
+import "./builder.kelft" as g;
+import "./string-runtime.kelft" as string_runtime;
+struct Layout {ty:string,kind:string,fields:Array<c::Node>,variants:Array<c::Node>,symbol:string}
+struct Owner {slot:i32,local:bool,consumed:bool}
+struct Loop {stop:string,next:string,mark:i32}
+struct Builder {functions:Array<c::Node>,indices:Map<string,i32>,names:Map<string,string>,fn_node:c::Node,slots:Array<string>,blocks:Array<ir::Block>,locals:Map<string,i32>,locations:Map<string,i32>,serial:i32,current:i32,terminated:bool,context:i32,old_depth:i32,loops:Array<Loop>,owners:Array<Owner>,layouts:Array<Layout>,graph:graph_runtime::Table,data:Array<elf::Data>,cached:Array<i32>,cached_index:i32,replaying:bool,cached_key:i32}
+fn fail(message:string,n:c::Node)->void {s::error("K0403",message,n.span);}
+fn scalar(ty:string)->bool {return ty=="i32"||ty=="bool"||ty=="u8";}
+fn array(ty:string)->bool {return s::starts(ty,"Array<");}
+fn map_type(ty:string)->bool {return s::starts(ty,"Map<");}
+fn width(ty:string,n:c::Node)->string {if ty=="i32"||ty=="bool" {return "i32";}if ty=="u8" {return "u8";}return "ptr";}
+fn register(inout layouts:Array<Layout>,ty:string,n:c::Node,types:Array<c::Node>,active:Array<string>)->void {
+ if ty=="void"||scalar(ty) {return;}for l in layouts {if l.ty==ty {return;}}if array_len::<string>(active)>=64 {fail("excessive aggregate layout",n);}
+ let mut fields:Array<c::Node>=[];let mut variants:Array<c::Node>=[];let mut kind:string="record";
+ if ty=="string" {kind="string";}
+ else if s::starts(ty,"Option<")||s::starts(ty,"Result<") {kind="enum";let parts:(string,Array<string>)=s::type_parts(ty);let mut first:string="Some";let mut second:string="None";let mut second_fields:Array<c::Node>=[];if parts.0=="Result" {first="Ok";second="Error";array_push::<c::Node>(inout second_fields,c::make("field","0",parts.1[1],[],n.span,false));}let first_fields:Array<c::Node>=[c::make("field","0",parts.1[0],[],n.span,false)];variants=[c::make("variant",first,ty,first_fields,n.span,false),c::make("variant",second,ty,second_fields,n.span,false)];}
+ else if array(ty) {kind="array";let parts:(string,Array<string>)=s::type_parts(ty);array_push::<c::Node>(inout fields,c::make("field","[]",parts.1[0],[],n.span,false));}
+ else if map_type(ty) {kind="map";let parts:(string,Array<string>)=s::type_parts(ty);if array_len::<string>(parts.1)!=2 {fail("invalid map layout",n);}let key:string=parts.1[0];if key!="string"&&!scalar(key) {fail("invalid map layout",n);}array_push::<c::Node>(inout fields,c::make("field","[]","("+key+","+parts.1[1]+")",[],n.span,false));}
+ else if s::starts(ty,"(") {kind="tuple";let parts:(string,Array<string>)=s::type_parts(ty);let mut index:i32=0;for t in parts.1 {array_push::<c::Node>(inout fields,c::make("field",i32_to_string(index),t,[],n.span,false));index=index+1;}}
+ else {let mut found:bool=false;for def in types {if def.name==ty {if def.op=="struct" {fields=def.args;found=true;}else if def.op=="enum" {kind="enum";variants=def.args;found=true;}}}if !found {fail("development aggregate type is unavailable: "+ty,n);}for field in fields {if field.op!="field"||array_len::<c::Node>(field.args)!=0 {fail("invalid aggregate fields",n);}}}
+ let mut seen:Map<string,i32>=map_new::<string,i32>();for field in fields {if field.ty=="void" {fail("invalid aggregate fields",n);}match map_get::<string,i32>(seen,field.name) {Option::Some(value)=>{fail("invalid aggregate fields",n);},Option::None=>{}}map_set::<string,i32>(inout seen,field.name,1);}
+ let mut variant_names:Map<string,i32>=map_new::<string,i32>();for v in variants {if v.op!="variant"||v.ty!=ty||v.name=="" {fail("invalid enum variants",n);}match map_get::<string,i32>(variant_names,v.name) {Option::Some(old)=>{fail("invalid enum variants",n);},Option::None=>{}}map_set::<string,i32>(inout variant_names,v.name,1);let mut at:i32=0;for field in v.args {if field.op!="field"||array_len::<c::Node>(field.args)!=0||field.name!=i32_to_string(at)||field.ty=="void" {fail("invalid enum variants",n);}at=at+1;}}
+ let symbol:string="kbm"+i32_to_string(array_len::<Layout>(layouts));array_push::<Layout>(inout layouts,Layout {ty:ty,kind:kind,fields:fields,variants:variants,symbol:symbol});let mut path:Array<string>=active;array_push::<string>(inout path,ty);for field in fields {register(inout layouts,field.ty,n,types,path);}for v in variants {for field in v.args {register(inout layouts,field.ty,n,types,path);}}
+}
+fn gather(inout layouts:Array<Layout>,n:c::Node,types:Array<c::Node>)->void {let mut pending:Array<c::Node>=[n];while array_len::<c::Node>(pending)>0 {let node:c::Node=pending[array_len::<c::Node>(pending)-1];array_pop::<c::Node>(inout pending);register(inout layouts,node.ty,node,types,[]);let mut i:i32=array_len::<c::Node>(node.args)-1;while i>=0 {array_push::<c::Node>(inout pending,node.args[i]);i=i-1;}}}
+fn find_layout(layouts:Array<Layout>,ty:string,n:c::Node)->Layout {for l in layouts {if l.ty==ty {return l;}}fail("aggregate layout is unavailable",n);return Layout {ty:ty,kind:"",fields:[],variants:[],symbol:""};}
+struct ShapePattern {node:c::Node,ty:string}
+fn pattern_shape(p:c::Node,ty:string,layouts:Array<Layout>)->void {let mut pending:Array<ShapePattern>=[ShapePattern {node:p,ty:ty}];while array_len::<ShapePattern>(pending)>0 {let f:ShapePattern=pending[array_len::<ShapePattern>(pending)-1];array_pop::<ShapePattern>(inout pending);let fields:Array<c::Node>=pattern_fields(f.node,f.ty,layouts);let mut i:i32=array_len::<c::Node>(f.node.args)-1;while i>=0 {array_push::<ShapePattern>(inout pending,ShapePattern {node:f.node.args[i],ty:fields[i].ty});i=i-1;}}}
+fn pattern_fields(p:c::Node,ty:string,layouts:Array<Layout>)->Array<c::Node> {
+ if p.ty!=ty {fail("invalid aggregate pattern type",p);}if p.op=="pattern" {if array_len::<c::Node>(p.args)!=0||(p.name=="true"||p.name=="false")&&ty!="bool" {fail("invalid aggregate pattern",p);}return [];}
+ let l:Layout=find_layout(layouts,ty,p);let mut fields:Array<c::Node>=[];let mut found:bool=false;if p.op=="tuple_pattern"&&l.kind=="tuple" {fields=l.fields;found=true;}if p.op=="variant_pattern"&&l.kind=="enum" {for v in l.variants {if v.name==p.name {fields=v.args;found=true;}}}if !found||array_len::<c::Node>(fields)!=array_len::<c::Node>(p.args) {fail("invalid aggregate pattern",p);}return fields;
+}
+fn irrefutable(p:c::Node,layouts:Array<Layout>)->bool {let mut pending:Array<c::Node>=[p];while array_len::<c::Node>(pending)>0 {let node:c::Node=pending[array_len::<c::Node>(pending)-1];array_pop::<c::Node>(inout pending);if node.op=="pattern" {if node.name=="true"||node.name=="false" {return false;}}else {let mut allowed:bool=node.op=="tuple_pattern";if node.op=="variant_pattern" {let l:Layout=find_layout(layouts,node.ty,node);allowed=array_len::<c::Node>(l.variants)==1;}if !allowed {return false;}let mut i:i32=array_len::<c::Node>(node.args)-1;while i>=0 {array_push::<c::Node>(inout pending,node.args[i]);i=i-1;}}}return true;}
+struct ShapeFrame {node:c::Node,index:i32,entered:bool,seen:Map<string,i32>}
+fn shape_frame(n:c::Node)->ShapeFrame {return ShapeFrame {node:n,index:0,entered:false,seen:map_new::<string,i32>()};}
+fn shape(root:c::Node,layouts:Array<Layout>)->void {
+ let mut pending:Array<ShapeFrame>=[shape_frame(root)];while array_len::<ShapeFrame>(pending)>0 {let mut f:ShapeFrame=shape_frame(root);match array_pop::<ShapeFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let n:c::Node=f.node;
+  if !f.entered {if n.op=="record"||n.op=="tuple" {let construction:Layout=find_layout(layouts,n.ty,n);if construction.kind!="record"&&construction.kind!="tuple"||(n.op=="tuple")!=s::starts(n.ty,"(")||array_len::<c::Node>(n.args)!=array_len::<c::Node>(construction.fields) {fail("invalid aggregate construction",n);}}else {shape_one(n,layouts);}f.entered=true;}
+  if f.index<array_len::<c::Node>(n.args) {let at:i32=f.index;let item:c::Node=n.args[at];let mut child:c::Node=item;
+   if n.op=="record"||n.op=="tuple" {let construction:Layout=find_layout(layouts,n.ty,n);let fields:Array<c::Node>=construction.fields;let mut field:c::Node=item;let mut value:c::Node=item;let mut found:bool=false;if n.op=="record" {for f in fields {if f.name==item.name {field=f;found=true;}}if !found||item.op!="field"||array_len::<c::Node>(item.args)!=1 {fail("invalid aggregate construction",n);}value=item.args[0];match map_get::<string,i32>(f.seen,item.name) {Option::Some(v)=>{fail("invalid aggregate construction",n);},Option::None=>{}}map_set::<string,i32>(inout f.seen,item.name,1);if item.ty!=field.ty {fail("invalid aggregate construction",n);}}else {field=fields[at];}if value.ty!=field.ty {fail("invalid aggregate construction",n);}child=value;}
+   f.index=f.index+1;array_push::<ShapeFrame>(inout pending,f);array_push::<ShapeFrame>(inout pending,shape_frame(child));
+  }
+ }
+}
+fn shape_one(n:c::Node,layouts:Array<Layout>)->void {
+ if n.op=="literal"&&n.ty=="string" {if array_len::<c::Node>(n.args)!=0||bytes_to_string(string_to_bytes(n.name))!=n.name {fail("invalid UTF-8 string literal",n);}}
+ if n.op=="variant" {let l:Layout=find_layout(layouts,n.ty,n);let mut found:bool=false;for v in l.variants {if v.name==n.name {found=true;if array_len::<c::Node>(v.args)!=array_len::<c::Node>(n.args) {fail("invalid enum construction",n);}let mut at:i32=0;for field in v.args {if field.ty!=n.args[at].ty {fail("invalid enum construction",n);}at=at+1;}}}if l.kind!="enum"||!found {fail("invalid enum construction",n);}}
+ if n.op=="array" {if !array(n.ty) {fail("invalid array construction",n);}let mut element:string="";for l in layouts {if l.ty==n.ty {element=l.fields[0].ty;}}if element=="" {fail("invalid array construction",n);}for item in n.args {if item.ty!=element {fail("invalid array construction",n);}}}
+ if n.op=="index" {let base:c::Node=n.args[0];let index:c::Node=n.args[1];if !array(base.ty) {fail("invalid array index access",n);}let mut element:string="";for l in layouts {if l.ty==base.ty {element=l.fields[0].ty;}}if !array(base.ty)||index.ty!="i32"||element!=n.ty {fail("invalid array index access",n);}}
+ if n.op=="for" {let p:c::Node=n.args[0];let source:c::Node=n.args[1];let l:Layout=find_layout(layouts,source.ty,n);if l.kind!="array"&&l.kind!="map" {fail("unsupported array iteration",n);}pattern_shape(p,l.fields[0].ty,layouts);if !irrefutable(p,layouts) {fail("refutable array iteration pattern",n);}}
+ if n.op=="match" {if array_len::<c::Node>(n.args)<2 {fail("missing aggregate match arms",n);}let mut at:i32=1;while at<array_len::<c::Node>(n.args) {let arm:c::Node=n.args[at];if arm.op!="arm"||array_len::<c::Node>(arm.args)!=2 {fail("invalid aggregate match arm",n);}pattern_shape(arm.args[0],n.args[0].ty,layouts);at=at+1;}}
+ if n.op=="field" {if array_len::<c::Node>(n.args)!=1 {fail("invalid aggregate field access",n);}let accessed:Layout=find_layout(layouts,n.args[0].ty,n);if accessed.kind!="record"&&accessed.kind!="tuple" {fail("invalid aggregate field access",n);}let mut found:bool=false;for l in layouts {if l.ty==n.args[0].ty {for f in l.fields {if f.name==n.name&&f.ty==n.ty {found=true;}}}}if !found {fail("invalid aggregate field access",n);}}
+
+}
+fn layout(state:Builder,ty:string,n:c::Node)->Layout {for l in state.layouts {if l.ty==ty {return l;}}fail("aggregate layout is unavailable",n);return Layout {ty:ty,kind:"",fields:[],variants:[],symbol:""};}
+fn field_index(state:Builder,ty:string,key:string,n:c::Node)->i32 {let l:Layout=layout(state,ty,n);let mut index:i32=0;for field in l.fields {if field.name==key {return index;}index=index+1;}fail("aggregate field is unavailable",n);return -1;}
+fn parameters(f:c::Node)->Array<c::Node> {let mut out:Array<c::Node>=[];for p in f.args {if p.op=="param" {array_push::<c::Node>(inout out,p);}}return out;}
+fn name(names:Map<string,string>,key:string)->string {match map_get::<string,string>(names,key) {Option::Some(value)=>{return value;},Option::None=>{b::error("unresolved scalar function");}}return "";}
+fn fresh(inout state:Builder,w:string)->i32 {let out:i32=array_len::<string>(state.slots);if out>=4096 {fail("development native slot limit exceeded",state.fn_node);}array_push::<string>(inout state.slots,w);return out;}
+fn label(inout state:Builder)->string {let out:string="b"+i32_to_string(state.serial);state.serial=state.serial+1;return out;}
+fn terminal(op:string,value:i32,label:string,condition:i32,yes:string,no:string)->ir::End {return ir::End {op:op,value:value,label:label,condition:condition,yes:yes,no:no};}
+fn begin(inout state:Builder,name:string)->void {let at:i32=array_len::<ir::Block>(state.blocks);array_push::<ir::Block>(inout state.blocks,ir::Block {label:name,instructions:[],end:terminal("trap",-1,"",-1,"","")});state.current=at;state.terminated=false;}
+fn emit(inout state:Builder,i:ir::Instruction)->void {if state.terminated {b::error("scalar builder emitted after terminator");}let at:i32=state.current;array_push::<ir::Instruction>(inout state.blocks[at].instructions,i);}
+fn end(inout state:Builder,t:ir::End)->void {let at:i32=state.current;state.blocks[at].end=t;state.terminated=true;}
+fn constant(inout state:Builder,value:i32,w:string)->i32 {let out:i32=fresh(inout state,w);let mut i:ir::Instruction=ir::instruction("const",out);i.value=value;emit(inout state,i);return out;}
+fn copy(inout state:Builder,value:i32)->i32 {let w:string=state.slots[value];let out:i32=fresh(inout state,w);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=value;emit(inout state,i);return out;}
+fn binary(inout state:Builder,kind:string,left:i32,right:i32)->i32 {let out:i32=fresh(inout state,"i32");let mut i:ir::Instruction=ir::instruction("binary",out);i.kind=kind;i.left=left;i.right=right;emit(inout state,i);return out;}
+fn widen(inout state:Builder,value:i32)->i32 {if state.slots[value]=="i32" {return value;}let out:i32=fresh(inout state,"i32");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=value;emit(inout state,i);return out;}
+fn panic(inout state:Builder,code:string)->void {let mut i:ir::Instruction=ir::instruction("call",-1);i.symbol="k_panic_"+code;emit(inout state,i);end(inout state,terminal("trap",-1,"",-1,"",""));}
+fn guard(inout state:Builder,condition:i32,code:string)->void {let bad:string=label(inout state);let good:string=label(inout state);end(inout state,terminal("branch",-1,"",condition,bad,good));begin(inout state,bad);panic(inout state,code);begin(inout state,good);}
+fn call(inout state:Builder,symbol:string,args:Array<i32>,result:string,locations:Array<i32>)->i32 {let mut out:i32=-1;if result!="void" {out=fresh(inout state,result);}let mut i:ir::Instruction=ir::instruction("call",out);i.symbol=symbol;i.args=args;i.locations=locations;emit(inout state,i);return out;}
+fn load(inout state:Builder,base:i32,offset:i32,w:string)->i32 {let out:i32=fresh(inout state,w);let mut i:ir::Instruction=ir::instruction("load",out);i.base=base;i.offset=offset;emit(inout state,i);return out;}
+fn address(inout state:Builder,slot:i32)->i32 {let out:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("slot_address",out);i.slot=slot;emit(inout state,i);return out;}
+fn pointer(inout state:Builder,base:i32,offset:i32)->i32 {let out:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("ptr_add",out);i.base=base;i.offset=offset;emit(inout state,i);return out;}
+fn length(inout state:Builder,base:i32)->i32 {let bytes:i32=load(inout state,base,8,"i32");let shift:i32=call(inout state,"k_array_shift",[base],"i32",[]);return binary(inout state,"shr_u",bytes,shift);}
+fn cleanup(inout state:Builder,mark:i32,temps:bool)->void {let owners:Array<Owner>=state.owners;let mut index:i32=mark;while index<array_len::<Owner>(owners) {let o:Owner=owners[index];if !o.consumed&&(!temps||!o.local) {call(inout state,"k_heap_release",[o.slot],"void",[]);let mut i:ir::Instruction=ir::instruction("const",o.slot);i.value=0;emit(inout state,i);}index=index+1;}}
+fn owner(inout state:Builder,is_local:bool)->i32 {let out:i32=fresh(inout state,"ptr");array_push::<Owner>(inout state.owners,Owner {slot:out,local:is_local,consumed:false});return out;}
+// Owner slots are appended in strictly increasing order. No traversal history is retained.
+fn temporary_owner(owners:Array<Owner>,slot:i32)->i32 {let mut low:i32=0;let mut high:i32=array_len::<Owner>(owners);while low<high {let middle:i32=low+(high-low)/2;if owners[middle].slot<slot {low=middle+1;}else {high=middle;}}if low<array_len::<Owner>(owners)&&owners[low].slot==slot&&!owners[low].local&&!owners[low].consumed {return low;}return -1;}
+// Call only after a managed child has been retained. Locations and named owners
+// remain owned; completed receiver slots no longer need statement cleanup.
+fn consume_projection(inout state:Builder,slot:i32)->void {let index:i32=temporary_owner(state.owners,slot);if index<0 {return;}call(inout state,"k_heap_release",[slot],"void",[]);let mut zero:ir::Instruction=ir::instruction("const",slot);zero.value=0;emit(inout state,zero);state.owners[index].consumed=true;}
+fn take(inout state:Builder,out:i32,raw:i32)->i32 {call(inout state,"k_heap_release",[out],"void",[]);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=raw;emit(inout state,i);return out;}
+fn own(inout state:Builder,raw:i32)->i32 {let out:i32=owner(inout state,false);return take(inout state,out,raw);}
+fn hold(inout state:Builder,raw:i32)->i32 {let value:i32=call(inout state,"k_heap_retain",[raw],"ptr",[]);return own(inout state,value);}
+fn assign(inout state:Builder,out:i32,value:i32)->void {if state.slots[out]=="ptr" {let retained:i32=call(inout state,"k_heap_retain",[value],"ptr",[]);take(inout state,out,retained);}else {let mut i:ir::Instruction=ir::instruction("copy",out);i.value=value;emit(inout state,i);}}
+fn local(inout state:Builder,n:c::Node)->i32 {match map_get::<string,i32>(state.locals,n.name) {Option::Some(out)=>{return out;},Option::None=>{}}let w:string=width(n.ty,n);let mut out:i32=-1;if w=="ptr" {out=owner(inout state,true);}else {out=fresh(inout state,w);}map_set::<string,i32>(inout state.locals,n.name,out);return out;}
+fn construct_variant(inout state:Builder,ty:string,name:string,values:Array<i32>,n:c::Node)->i32 {
+ let l:Layout=layout(state,ty,n);let mut tag:i32=-1;let mut at:i32=0;for v in l.variants {if v.name==name {tag=at;}at=at+1;}let descriptor:i32=fresh(inout state,"ptr");let mut address:ir::Instruction=ir::instruction("address",descriptor);address.symbol=l.symbol+"v"+i32_to_string(tag);emit(inout state,address);
+ let tag_slot:i32=constant(inout state,tag,"i32");let arity:i32=constant(inout state,array_len::<i32>(values),"i32");let out:i32=call(inout state,"k_variant_alloc",[tag_slot,arity,descriptor],"ptr",[]);
+ let mut index:i32=0;for v in values {let mut stored:i32=v;if state.slots[v]=="ptr" {stored=call(inout state,"k_heap_retain",[v],"ptr",[]);}let mut store:ir::Instruction=ir::instruction("store",-1);store.base=out;store.offset=48+index*8;store.value=stored;emit(inout state,store);index=index+1;}return out;
+}
+struct PatternFrame {node:c::Node,subject:i32,index:i32,step:i32,out:i32,done:string}
+fn pattern_frame(p:c::Node,subject:i32)->PatternFrame {return PatternFrame {node:p,subject:subject,index:0,step:0,out:-1,done:""};}
+fn condition(inout state:Builder,p:c::Node,subject:i32)->i32 {return process_pattern(inout state,p,subject,false);}
+fn bind_pattern(inout state:Builder,p:c::Node,subject:i32)->void {process_pattern(inout state,p,subject,true);}
+fn process_pattern(inout state:Builder,p:c::Node,subject:i32,bind:bool)->i32 {
+ let mut pending:Array<PatternFrame>=[pattern_frame(p,subject)];let mut result:i32=-1;
+ while array_len::<PatternFrame>(pending)>0 {let mut f:PatternFrame=pattern_frame(p,subject);match array_pop::<PatternFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:c::Node=f.node;
+  if node.op=="pattern" {if bind {if node.name!="_"&&node.name!="true"&&node.name!="false" {let slot:i32=local(inout state,node);assign(inout state,slot,f.subject);}}else if node.name=="true" {result=f.subject;}else if node.name=="false" {let zero:i32=constant(inout state,0,"i32");result=binary(inout state,"eq",f.subject,zero);}else {result=constant(inout state,1,"i32");}continue;}
+  if f.step==0 {if !bind {let l:Layout=layout(state,node.ty,node);if node.op=="variant_pattern" {let mut tag:i32=-1;let mut at:i32=0;for v in l.variants {if v.name==node.name {tag=at;}at=at+1;}let stored:i32=load(inout state,f.subject,40,"i32");let expected:i32=constant(inout state,tag,"i32");f.out=binary(inout state,"eq",stored,expected);let body:string=label(inout state);f.done=label(inout state);end(inout state,terminal("branch",-1,"",f.out,body,f.done));begin(inout state,body);}else {f.out=constant(inout state,1,"i32");}}f.step=2;
+  }else if f.step==1 {if !bind {let both:i32=binary(inout state,"and",f.out,result);let mut save:ir::Instruction=ir::instruction("copy",f.out);save.value=both;emit(inout state,save);}f.step=2;}
+  if f.index<array_len::<c::Node>(node.args) {let child:c::Node=node.args[f.index];let mut prefix:i32=40;if node.op=="variant_pattern" {prefix=48;}let field:i32=load(inout state,f.subject,prefix+8*f.index,width(child.ty,child));f.index=f.index+1;f.step=1;array_push::<PatternFrame>(inout pending,f);array_push::<PatternFrame>(inout pending,pattern_frame(child,field));}
+  else {if f.done!="" {end(inout state,terminal("goto",-1,f.done,-1,"",""));begin(inout state,f.done);}result=f.out;}
+ }return result;
+}
+fn place(inout state:Builder,n:c::Node)->i32 {if state.replaying {return operand(inout state,n);}return evaluate(inout state,n,true);}
+fn emit_place(inout state:Builder,n:c::Node)->i32 {
+ let mut parent:i32=-1;let mut offset:i32=0;let mut index:i32=-1;
+ if n.op=="local" {match map_get::<string,i32>(state.locations,n.name) {Option::Some(out)=>{return out;},Option::None=>{}}let slot:i32=local(inout state,n);parent=address(inout state,slot);offset=-1;}
+ else if n.op=="field" {parent=place(inout state,n.args[0]);offset=40+8*field_index(state,n.args[0].ty,n.name,n);}
+ else if n.op=="index" {parent=place(inout state,n.args[0]);index=value(inout state,n.args[1]);offset=-2;}else {fail("development aggregate locations support locals, fields and array indices only",n);}
+ let base:i32=fresh(inout state,"ptr");let key:i32=fresh(inout state,"i32");let mut evaluated:i32=-1;if index>=0 {evaluated=fresh(inout state,"i32");}let mut copy:ir::Instruction=ir::instruction("copy",base);copy.value=parent;emit(inout state,copy);let mut c:ir::Instruction=ir::instruction("const",key);c.value=offset;emit(inout state,c);if evaluated>=0 {let mut saved:ir::Instruction=ir::instruction("copy",evaluated);saved.value=index;emit(inout state,saved);}return address(inout state,base);
+}
+fn equal(inout state:Builder,ty:string,left:i32,right:i32,n:c::Node)->i32 {
+ let graph:graph_runtime::Table=state.graph;
+ let table:i32=fresh(inout state,"ptr");let mut table_address:ir::Instruction=ir::instruction("address",table);table_address.symbol="k_graph_types";emit(inout state,table_address);
+ let size:i32=constant(inout state,array_len::<u8>(graph.bytes),"i32");let offset:i32=constant(inout state,b::get(graph.offsets,ty),"i32");let a:i32=address(inout state,left);let z:i32=address(inout state,right);return call(inout state,"k_graph_equal",[table,size,offset,a,z],"i32",[]);
+}
+fn string_literal(inout state:Builder,text:string)->i32 {
+ let bytes:Bytes=string_to_bytes(text);let symbol:string="kstr"+i32_to_string(array_len::<elf::Data>(state.data));array_push::<elf::Data>(inout state.data,elf::Data {name:symbol,bytes:bytes});let data:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("address",data);i.symbol=symbol;emit(inout state,i);let length:i32=constant(inout state,array_len::<u8>(bytes),"i32");let raw:i32=call(inout state,"k_string_copy",[data,length],"ptr",[]);return own(inout state,raw);
+}
+fn value(inout state:Builder,n:c::Node)->i32 {let mut out:i32=-1;if state.replaying {out=operand(inout state,n);}else {out=evaluate(inout state,n,false);}if out<0 {fail("void scalar expression",n);}return out;}
+fn operator(name:string)->string {let names:Array<string>=["+","-","*","&","|","^","<<",">>",">>>","/","%","==","!=","<","<=",">",">="];let values:Array<string>=["add","sub","mul","and","or","xor","shl","shr_s","shr_u","div_s","rem_s","eq","ne","lt_s","le_s","gt_s","ge_s"];let mut at:i32=0;for item in names {if item==name {return values[at];}at=at+1;}return "";}
+fn expression(inout state:Builder,n:c::Node)->i32 {return evaluate(inout state,n,false);}
+// Replay consumes only this frame's completed operands; it never caches a subtree.
+// The parent continuation is advanced before the child is scheduled.
+struct ExpressionFrame {node:c::Node,place:bool,step:i32,index:i32,values:Array<i32>,out:i32,done:string,key:i32}
+fn expression_frame(n:c::Node,place:bool)->ExpressionFrame {return ExpressionFrame {node:n,place:place,step:0,index:0,values:[],out:-1,done:"",key:-1};}
+fn operand(inout state:Builder,n:c::Node)->i32 {if state.cached_index>=array_len::<i32>(state.cached) {fail("missing lowering operand",n);}let out:i32=state.cached[state.cached_index];state.cached_index=state.cached_index+1;return out;}
+// Preserve the original native host checks before scheduling argument evaluation.
+fn host_header(n:c::Node)->void {
+ let a:Array<c::Node>=n.args;let count:i32=array_len::<c::Node>(a);
+ if n.name=="canonical_path"||n.name=="read_file"||n.name=="read_text" {let mut result:string="Result<Array<u8>,string>";if n.name=="canonical_path" {result="string";}if n.name=="read_text" {result="Result<string,string>";}if n.ty!=result||count!=1||n.flag {fail("invalid native filesystem intrinsic",n);}if a[0].ty!="string"||a[0].op=="location"||a[0].flag {fail("invalid native filesystem intrinsic",n);}}
+ else if n.name=="create_dir"||n.name=="write_file"||n.name=="write_text"||n.name=="write_once" {let mut arity:i32=2;if n.name=="create_dir" {arity=1;}if n.ty!="Result<bool,string>"||count!=arity||n.flag {fail("invalid native write intrinsic",n);}for item in a {if item.flag||item.op=="location" {fail("invalid native write intrinsic",n);}}if a[0].ty!="string" {fail("invalid native write intrinsic",n);}if arity==2 {let mut ty:string="string";if n.name=="write_file" {ty="Array<u8>";}if a[1].ty!=ty {fail("invalid native write intrinsic",n);}}}
+ else if n.name=="artifact_run" {if n.ty!="Result<(i32,string,string),string>"||count!=4||n.flag {fail("invalid native artifact intrinsic",n);}}
+ else if n.name=="args" {if n.ty!="Array<string>"||count!=0||n.flag {fail("invalid native args intrinsic",n);}}
+ else if n.name=="path_dirname"||n.name=="resolve_path"||n.name=="path_relative"||n.name=="current_dir" {let mut arity:i32=2;if n.name=="current_dir" {arity=0;}if n.name=="path_dirname" {arity=1;}if n.flag||n.ty!="string"||count!=arity {fail("invalid native path intrinsic",n);}for item in a {if item.ty!="string"||item.flag||item.op=="location" {fail("invalid native path intrinsic",n);}}}
+}
+fn host_argument(n:c::Node,index:i32)->void {if n.name=="artifact_run" {let types:Array<string>=["Array<u8>","string","Array<string>","string"];let item:c::Node=n.args[index];if item.flag||item.op=="location"||item.ty!=types[index] {fail("invalid native artifact intrinsic",n);}}}
+fn evaluate(inout state:Builder,n:c::Node,place:bool)->i32 {
+ let mut pending:Array<ExpressionFrame>=[expression_frame(n,place)];let mut result:i32=-1;
+ while array_len::<ExpressionFrame>(pending)>0 {let mut f:ExpressionFrame=expression_frame(n,false);match array_pop::<ExpressionFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:c::Node=f.node;
+  if f.step==0&&!f.place&&f.index==0&&node.op=="intrinsic" {host_header(node);}
+  if f.step==1 {if result<0 {let mut child:c::Node=node.args[f.index-1];if !f.place&&node.op=="record" {child=child.args[0];}fail("void scalar expression",child);}array_push::<i32>(inout f.values,result);f.step=0;}
+  let mut count:i32=array_len::<c::Node>(node.args);if f.place&&node.op=="local" {count=0;}
+  let logical:bool=!f.place&&node.op=="binary"&&(node.name=="&&"||node.name=="||");
+  if f.index<count {let index:i32=f.index;if !f.place&&node.op=="intrinsic" {host_argument(node,index);}
+   if logical&&index==1 {f.out=copy(inout state,f.values[0]);let right:string=label(inout state);f.done=label(inout state);let mut yes:string=right;let mut no:string=f.done;if node.name=="||" {yes=f.done;no=right;}end(inout state,terminal("branch",-1,"",f.values[0],yes,no));begin(inout state,right);}
+   if !f.place&&node.op=="intrinsic"&&node.name=="map_set"&&index==2&&node.args[1].ty=="u8" {f.key=widen(inout state,f.values[1]);}
+   let mut child:c::Node=node.args[index];let mut child_place:bool=false;if f.place {child_place=index==0;}else if node.op=="location" {child_place=true;}else if node.op=="record" {child=child.args[0];}
+   f.index=index+1;f.step=1;array_push::<ExpressionFrame>(inout pending,f);array_push::<ExpressionFrame>(inout pending,expression_frame(child,child_place));
+  }else if logical {let mut save:ir::Instruction=ir::instruction("copy",f.out);save.value=f.values[1];emit(inout state,save);end(inout state,terminal("goto",-1,f.done,-1,"",""));begin(inout state,f.done);result=f.out;
+  }else {state.cached=f.values;state.cached_index=0;state.replaying=true;state.cached_key=f.key;
+   if f.place {result=emit_place(inout state,node);}else {result=emit_expression(inout state,node);}
+   if state.cached_index!=array_len::<i32>(state.cached) {fail("unconsumed lowering operands",node);}state.cached=[];state.cached_index=0;state.cached_key=-1;state.replaying=false;
+  }
+ }return result;
+}
+fn finish_value_call(inout state:Builder,out:i32,args:Array<i32>)->i32 {let mut result:i32=out;if out>=0 {if state.slots[out]=="ptr" {result=own(inout state,out);}}for slot in args {if state.slots[slot]=="ptr" {consume_projection(inout state,slot);}}return result;}
+fn emit_expression(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+ if n.op=="literal" {if n.ty=="string" {return string_literal(inout state,n.name);}let mut number:i32=0;if n.ty=="bool" {if n.name=="true" {number=1;}}else {match string_to_i32(n.name) {Result::Ok(v)=>{number=v;},Result::Error(message)=>{fail(message,n);}}}return constant(inout state,number,width(n.ty,n));}
+ if n.op=="local" {let mut out:i32=-1;match map_get::<string,i32>(state.locations,n.name) {Option::Some(base)=>{let zero:i32=constant(inout state,0,"i32");let cell:i32=call(inout state,"k_record_location",[base,zero],"ptr",[]);out=load(inout state,cell,0,width(n.ty,n));},Option::None=>{out=local(inout state,n);}}if state.slots[out]=="ptr" {return hold(inout state,out);}return copy(inout state,out);}
+ if n.op=="location" {return place(inout state,a[0]);}
+ if n.op=="variant" {let mut values:Array<i32>=[];for child in a {let v:i32=value(inout state,child);array_push::<i32>(inout values,v);}let raw:i32=construct_variant(inout state,n.ty,n.name,values,n);return own(inout state,raw);}
+ if n.op=="array" {
+  let mut values:Array<i32>=[];for child in a {let v:i32=value(inout state,child);array_push::<i32>(inout values,v);}let l:Layout=layout(state,n.ty,n);let mut owned:i32=1;if scalar(l.fields[0].ty) {owned=0;}let size:i32=constant(inout state,array_len::<c::Node>(a),"i32");let mode:i32=constant(inout state,owned,"i32");let mut raw:i32=-1;let mut stride:i32=8;if l.fields[0].ty=="u8" {raw=call(inout state,"k_bytes_alloc",[size],"ptr",[]);stride=1;}else {raw=call(inout state,"k_array_alloc",[size,mode],"ptr",[]);}let out:i32=own(inout state,raw);
+  let mut at:i32=0;for v in values {let mut stored:i32=v;if state.slots[v]=="ptr" {stored=call(inout state,"k_heap_retain",[v],"ptr",[]);}let mut store:ir::Instruction=ir::instruction("store",-1);store.base=out;store.offset=40+at*stride;store.value=stored;emit(inout state,store);at=at+1;}return out;
+ }
+ if n.op=="index" {let base:i32=value(inout state,a[0]);let index:i32=value(inout state,a[1]);let cell:i32=call(inout state,"k_array_at",[base,index],"ptr",[]);let out:i32=load(inout state,cell,0,width(n.ty,n));let mut result:i32=out;if state.slots[out]=="ptr" {result=hold(inout state,out);}consume_projection(inout state,base);return result;}
+ if n.op=="record"||n.op=="tuple" {
+  let l:Layout=layout(state,n.ty,n);let mut values:Array<i32>=[];for child in a {let mut item:c::Node=child;if n.op=="record" {item=child.args[0];}let v:i32=value(inout state,item);array_push::<i32>(inout values,v);}
+  let descriptor:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("address",descriptor);i.symbol=l.symbol;emit(inout state,i);let bytes:i32=constant(inout state,array_len::<c::Node>(l.fields)*8,"i32");let count:i32=constant(inout state,array_len::<c::Node>(l.fields),"i32");let mode:i32=constant(inout state,2,"i32");let raw:i32=call(inout state,"k_heap_alloc",[bytes,count,mode,descriptor],"ptr",[]);let out:i32=own(inout state,raw);
+  let mut at:i32=0;for child in a {let mut index:i32=at;if n.op=="record" {index=field_index(state,n.ty,child.name,n);}let v:i32=values[at];let mut stored:i32=v;if state.slots[v]=="ptr" {stored=call(inout state,"k_heap_retain",[v],"ptr",[]);}let mut store:ir::Instruction=ir::instruction("store",-1);store.base=out;store.offset=40+8*index;store.value=stored;emit(inout state,store);at=at+1;}return out;
+ }
+ if n.op=="field" {let base:i32=value(inout state,a[0]);let at:i32=field_index(state,a[0].ty,n.name,n);let out:i32=load(inout state,base,40+8*at,width(n.ty,n));let mut result:i32=out;if state.slots[out]=="ptr" {result=hold(inout state,out);}consume_projection(inout state,base);return result;}
+ if n.op=="unary" {let operand:i32=value(inout state,a[0]);if n.name=="!" {let zero:i32=constant(inout state,0,"i32");return binary(inout state,"eq",operand,zero);}if n.name=="-" {let zero:i32=constant(inout state,0,"i32");return binary(inout state,"sub",zero,operand);}let minus:i32=constant(inout state,-1,"i32");return binary(inout state,"xor",operand,minus);}
+ if n.op=="binary" {
+  let left:i32=value(inout state,a[0]);
+  if n.name=="&&"||n.name=="||" {let out:i32=copy(inout state,left);let right_label:string=label(inout state);let done:string=label(inout state);let mut yes:string=right_label;let mut no:string=done;if n.name=="||" {yes=done;no=right_label;}end(inout state,terminal("branch",-1,"",left,yes,no));begin(inout state,right_label);let right:i32=value(inout state,a[1]);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=right;emit(inout state,i);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;}
+  let right:i32=value(inout state,a[1]);if state.slots[left]=="ptr" {if a[0].ty=="string"&&n.name=="+" {let raw:i32=call(inout state,"k_string_concat",[left,right],"ptr",[]);return own(inout state,raw);}if a[0].ty=="string"&&(n.name=="<"||n.name=="<="||n.name==">"||n.name==">=") {let kind:string=operator(n.name);let order:i32=call(inout state,"k_string_compare",[left,right],"i32",[]);let zero:i32=constant(inout state,0,"i32");return binary(inout state,kind,order,zero);}if n.name!="=="&&n.name!="!=" {fail("unsupported aggregate operator",n);}let out:i32=equal(inout state,a[0].ty,left,right,n);if n.name=="==" {return out;}let zero:i32=constant(inout state,0,"i32");return binary(inout state,"eq",out,zero);}let l:i32=widen(inout state,left);let r:i32=widen(inout state,right);
+  if n.name=="/"||n.name=="%" {let zero:i32=constant(inout state,0,"i32");let condition:i32=binary(inout state,"eq",r,zero);guard(inout state,condition,"KRT_DIV_ZERO");if n.name=="/" {let min:i32=constant(inout state,-2147483648,"i32");let first:i32=binary(inout state,"eq",l,min);let minus:i32=constant(inout state,-1,"i32");let second:i32=binary(inout state,"eq",r,minus);let overflow:i32=binary(inout state,"and",first,second);guard(inout state,overflow,"KRT_DIV_OVERFLOW");}}
+  let kind:string=operator(n.name);if kind=="" {fail("unsupported scalar operator",n);}return binary(inout state,kind,l,r);
+ }
+ if n.op=="call" {let callee:c::Node=state.functions[b::get(state.indices,n.name)];let mut args:Array<i32>=[];let mut locations:Array<i32>=[];let mut at:i32=0;for p in parameters(callee) {let operand:i32=value(inout state,a[at]);if p.flag {array_push::<i32>(inout locations,operand);}else {array_push::<i32>(inout args,operand);}at=at+1;}let mut result:string="void";if n.ty!="void" {result=width(n.ty,n);}let symbol:string=name(state.names,n.name);let out:i32=call(inout state,symbol,args,result,locations);return finish_value_call(inout state,out,args);}
+ if n.op=="intrinsic" {
+  if n.name=="process_run"||n.name=="filesystem_read"||n.name=="filesystem_write"||n.name=="canonical_path"||n.name=="read_file"||n.name=="read_text"||n.name=="create_dir"||n.name=="write_file"||n.name=="write_text"||n.name=="write_once"||n.name=="artifact_run"||n.name=="args"||n.name=="path_dirname"||n.name=="resolve_path"||n.name=="path_relative"||n.name=="current_dir" {return host_intrinsic(inout state,n);}
+  if n.name=="map_new"||n.name=="map_len"||n.name=="map_get"||n.name=="map_set"||n.name=="map_remove" {return map_intrinsic(inout state,n);}
+  if n.name=="print"||n.name=="println"||n.name=="eprint"||s::starts(n.name,"string_")||n.name=="i32_to_string"||n.name=="bytes_to_string"||n.name=="utf8_decode" {return text_intrinsic(inout state,n);}
+  if s::starts(n.name,"array_") {return array_intrinsic(inout state,n);}
+  return scalar_intrinsic(inout state,n);
+ }
+ fail("development direct expression is unavailable: "+n.op,n);return -1;
+}
+// Keep the emitter itself inside the unchanged 4096-slot native function bound.
+fn host_intrinsic(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+ if n.name=="process_run"||n.name=="filesystem_read"||n.name=="filesystem_write" {if n.ty!="string"||array_len::<c::Node>(a)!=1||n.flag {fail("invalid native host intrinsic",n);}if a[0].ty!="string"||a[0].flag||a[0].op=="location" {fail("invalid native host intrinsic",n);}let request:i32=value(inout state,a[0]);let raw:i32=call(inout state,"k_"+n.name,[request],"ptr",[]);return own(inout state,raw);}
+  if n.name=="canonical_path"||n.name=="read_file"||n.name=="read_text" {
+   let mut result_ty:string="Result<Array<u8>,string>";if n.name=="canonical_path" {result_ty="string";}if n.name=="read_text" {result_ty="Result<string,string>";}if n.ty!=result_ty||array_len::<c::Node>(a)!=1||n.flag {fail("invalid native filesystem intrinsic",n);}if a[0].ty!="string"||a[0].op=="location"||a[0].flag {fail("invalid native filesystem intrinsic",n);}let source:i32=value(inout state,a[0]);if n.name=="canonical_path" {let raw:i32=call(inout state,"k_canonical_path",[source],"ptr",[]);return own(inout state,raw);}
+   let status:i32=constant(inout state,0,"i32");let cell:i32=address(inout state,status);let raw_value:i32=call(inout state,"k_fs_read",[source],"ptr",[cell]);let raw:i32=own(inout state,raw_value);let out:i32=owner(inout state,false);let ok:string=label(inout state);let error:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("branch",-1,"",status,error,ok));begin(inout state,ok);
+   let bytes_value:i32=call(inout state,"k_string_bytes",[raw],"ptr",[]);let bytes:i32=own(inout state,bytes_value);let mut item:i32=bytes;if n.name=="read_text" {let valid:i32=call(inout state,"k_utf8_valid",[bytes],"i32",[]);let zero:i32=constant(inout state,0,"i32");let bad:i32=binary(inout state,"eq",valid,zero);guard(inout state,bad,"KRT_UTF8");item=raw;}let result:i32=construct_variant(inout state,n.ty,"Ok",[item],n);take(inout state,out,result);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,error);
+   let message_value:i32=call(inout state,"k_fs_error",[status],"ptr",[]);let message:i32=own(inout state,message_value);let failure:i32=construct_variant(inout state,n.ty,"Error",[message],n);take(inout state,out,failure);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+  }
+  if n.name=="create_dir"||n.name=="write_file"||n.name=="write_text"||n.name=="write_once" {
+   let mut arity:i32=2;if n.name=="create_dir" {arity=1;}if n.ty!="Result<bool,string>"||array_len::<c::Node>(a)!=arity||n.flag {fail("invalid native write intrinsic",n);}for item in a {if item.flag||item.op=="location" {fail("invalid native write intrinsic",n);}}if a[0].ty!="string" {fail("invalid native write intrinsic",n);}if arity==2 {let mut ty:string="string";if n.name=="write_file" {ty="Array<u8>";}if a[1].ty!=ty {fail("invalid native write intrinsic",n);}}
+   let source:i32=value(inout state,a[0]);let mut status:i32=-1;if arity==1 {status=call(inout state,"k_create_dir",[source],"i32",[]);}else {let mut bytes:i32=value(inout state,a[1]);if n.name=="write_file" {let raw:i32=call(inout state,"k_bytes_string",[bytes],"ptr",[]);bytes=own(inout state,raw);}let mut once:i32=0;if n.name=="write_once" {once=1;}let exclusive:i32=constant(inout state,once,"i32");status=call(inout state,"k_fs_write",[source,bytes,exclusive],"i32",[]);}
+   let out:i32=owner(inout state,false);let ok:string=label(inout state);let error:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("branch",-1,"",status,error,ok));begin(inout state,ok);let yes:i32=constant(inout state,1,"i32");let success:i32=construct_variant(inout state,n.ty,"Ok",[yes],n);take(inout state,out,success);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,error);let message_raw:i32=call(inout state,"k_fs_error",[status],"ptr",[]);let message:i32=own(inout state,message_raw);let failure:i32=construct_variant(inout state,n.ty,"Error",[message],n);take(inout state,out,failure);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+  }
+  if n.name=="artifact_run" {
+   if n.ty!="Result<(i32,string,string),string>"||array_len::<c::Node>(a)!=4||n.flag {fail("invalid native artifact intrinsic",n);}let types:Array<string>=["Array<u8>","string","Array<string>","string"];let mut at:i32=0;let mut operands:Array<i32>=[];for item in a {if item.flag||item.op=="location"||item.ty!=types[at] {fail("invalid native artifact intrinsic",n);}let v:i32=value(inout state,item);array_push::<i32>(inout operands,v);at=at+1;}
+   let raw_bytes:i32=call(inout state,"k_artifact_bytes",[operands[0]],"ptr",[]);let bytes:i32=own(inout state,raw_bytes);let stdout:i32=owner(inout state,false);let stderr:i32=owner(inout state,false);let out_cell:i32=address(inout state,stdout);let err_cell:i32=address(inout state,stderr);let status:i32=call(inout state,"k_artifact_run",[bytes,operands[1],operands[2],operands[3]],"i32",[out_cell,err_cell]);let out:i32=owner(inout state,false);let ok:string=label(inout state);let error:string=label(inout state);let done:string=label(inout state);let zero:i32=constant(inout state,0,"i32");let negative:i32=binary(inout state,"lt_s",status,zero);end(inout state,terminal("branch",-1,"",negative,error,ok));begin(inout state,ok);
+   let l:Layout=layout(state,"(i32,string,string)",n);let descriptor:i32=fresh(inout state,"ptr");let mut d:ir::Instruction=ir::instruction("address",descriptor);d.symbol=l.symbol;emit(inout state,d);let size:i32=constant(inout state,24,"i32");let count:i32=constant(inout state,3,"i32");let mode:i32=constant(inout state,2,"i32");let raw_tuple:i32=call(inout state,"k_heap_alloc",[size,count,mode,descriptor],"ptr",[]);let tuple:i32=own(inout state,raw_tuple);let mut store:ir::Instruction=ir::instruction("store",-1);store.base=tuple;store.offset=40;store.value=status;emit(inout state,store);store.offset=48;store.value=call(inout state,"k_heap_retain",[stdout],"ptr",[]);emit(inout state,store);store.offset=56;store.value=call(inout state,"k_heap_retain",[stderr],"ptr",[]);emit(inout state,store);let success:i32=construct_variant(inout state,n.ty,"Ok",[tuple],n);take(inout state,out,success);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,error);let raw_error:i32=call(inout state,"k_artifact_error",[status],"ptr",[]);let message:i32=own(inout state,raw_error);let failure:i32=construct_variant(inout state,n.ty,"Error",[message],n);take(inout state,out,failure);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+  }
+  if n.name=="args" {if n.ty!="Array<string>"||array_len::<c::Node>(a)!=0||n.flag {fail("invalid native args intrinsic",n);}let raw:i32=call(inout state,"k_args",[],"ptr",[]);return own(inout state,raw);}
+  if n.name=="path_dirname"||n.name=="resolve_path"||n.name=="path_relative"||n.name=="current_dir" {
+   let mut arity:i32=2;if n.name=="current_dir" {arity=0;}if n.name=="path_dirname" {arity=1;}if n.flag||n.ty!="string"||array_len::<c::Node>(a)!=arity {fail("invalid native path intrinsic",n);}for item in a {if item.ty!="string"||item.flag||item.op=="location" {fail("invalid native path intrinsic",n);}}
+   let mut values:Array<i32>=[];for item in a {let v:i32=value(inout state,item);array_push::<i32>(inout values,v);}let raw:i32=call(inout state,"k_"+n.name,values,"ptr",[]);return own(inout state,raw);
+  }
+
+ fail("development direct intrinsic is unavailable: "+n.name,n);return -1;
+}
+fn map_intrinsic(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+  if n.name=="map_new" {let size:i32=constant(inout state,0,"i32");let owned:i32=constant(inout state,1,"i32");let raw:i32=call(inout state,"k_array_alloc",[size,owned],"ptr",[]);return own(inout state,raw);}
+  if n.name=="map_len" {let source:i32=value(inout state,a[0]);return length(inout state,source);}
+  if n.name=="map_get"||n.name=="map_set"||n.name=="map_remove" {
+   let input:i32=value(inout state,a[0]);let raw_key:i32=value(inout state,a[1]);let mut key:i32=raw_key;if state.slots[raw_key]=="u8" {if state.cached_key>=0 {key=state.cached_key;}else {key=widen(inout state,raw_key);}}let mut v:i32=-1;if n.name=="map_set" {v=value(inout state,a[2]);}
+   let mut old:i32=input;if n.name!="map_get" {let read:i32=constant(inout state,0,"i32");let cell:i32=call(inout state,"k_record_location",[input,read],"ptr",[]);old=load(inout state,cell,0,"ptr");}
+   let shape:Layout=layout(state,a[0].ty,n);let pair:Layout=layout(state,shape.fields[0].ty,n);let mut key_mode:i32=0;if pair.fields[0].ty=="string" {key_mode=1;}let mode:i32=constant(inout state,key_mode,"i32");let key_cell:i32=address(inout state,key);
+   let index:i32=call(inout state,"k_map_lower_bound",[old,key_cell,mode],"i32",[]);let exists:i32=constant(inout state,0,"i32");let check:string=label(inout state);let located:string=label(inout state);let size:i32=length(inout state,old);let within:i32=binary(inout state,"lt_s",index,size);end(inout state,terminal("branch",-1,"",within,check,located));begin(inout state,check);
+   let entry_cell:i32=call(inout state,"k_array_at",[old,index],"ptr",[]);let entry:i32=load(inout state,entry_cell,0,"ptr");let header:i32=constant(inout state,40,"i32");let raw:i32=pointer(inout state,entry,header);let order:i32=call(inout state,"k_map_compare",[raw,key_cell,mode],"i32",[]);let zero:i32=constant(inout state,0,"i32");let same:i32=binary(inout state,"eq",order,zero);let mut save:ir::Instruction=ir::instruction("copy",exists);save.value=same;emit(inout state,save);end(inout state,terminal("goto",-1,located,-1,"",""));begin(inout state,located);
+   if n.name=="map_get" {
+    let out:i32=owner(inout state,false);let some:string=label(inout state);let none:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("branch",-1,"",exists,some,none));begin(inout state,some);
+    let cell:i32=call(inout state,"k_array_at",[old,index],"ptr",[]);let item_entry:i32=load(inout state,cell,0,"ptr");let item:i32=load(inout state,item_entry,48,width(pair.fields[1].ty,n));let present:i32=construct_variant(inout state,n.ty,"Some",[item],n);take(inout state,out,present);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,none);let absent:i32=construct_variant(inout state,n.ty,"None",[],n);take(inout state,out,absent);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+   }
+   let update:string=label(inout state);let done:string=label(inout state);if n.name=="map_remove" {end(inout state,terminal("branch",-1,"",exists,update,done));}else {end(inout state,terminal("goto",-1,update,-1,"",""));}begin(inout state,update);
+   let mut replacement_entry:i32=-1;if v<0 {replacement_entry=constant(inout state,0,"ptr");}else {
+    let bitmap:i32=fresh(inout state,"ptr");let mut descriptor:ir::Instruction=ir::instruction("address",bitmap);descriptor.symbol=pair.symbol;emit(inout state,descriptor);let bytes:i32=constant(inout state,16,"i32");let count:i32=constant(inout state,2,"i32");let mixed:i32=constant(inout state,2,"i32");let raw_entry:i32=call(inout state,"k_heap_alloc",[bytes,count,mixed,bitmap],"ptr",[]);replacement_entry=own(inout state,raw_entry);
+    let values:Array<i32>=[key,v];let mut at:i32=0;for item in values {let mut stored:i32=item;if state.slots[item]=="ptr" {stored=call(inout state,"k_heap_retain",[item],"ptr",[]);}let mut store:ir::Instruction=ir::instruction("store",-1);store.base=replacement_entry;store.offset=40+8*at;store.value=stored;emit(inout state,store);at=at+1;}
+   }
+   let copied:i32=call(inout state,"k_map_splice",[old,index,exists,replacement_entry],"ptr",[]);let replacement:i32=own(inout state,copied);let write:i32=constant(inout state,1,"i32");let destination:i32=call(inout state,"k_record_location",[input,write],"ptr",[]);let retained:i32=call(inout state,"k_heap_retain",[replacement],"ptr",[]);let previous:i32=load(inout state,destination,0,"ptr");call(inout state,"k_heap_release",[previous],"void",[]);let mut store:ir::Instruction=ir::instruction("store",-1);store.base=destination;store.value=retained;emit(inout state,store);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);if n.name=="map_remove" {return exists;}return -1;
+  }
+
+ fail("development direct intrinsic is unavailable: "+n.name,n);return -1;
+}
+fn text_intrinsic(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+  if n.name=="print"||n.name=="println"||n.name=="eprint" {let source:i32=value(inout state,a[0]);call(inout state,"k_"+n.name,[source],"void",[]);return -1;}
+  if n.name=="string_to_i32" {
+   let source:i32=value(inout state,a[0]);let status:i32=constant(inout state,0,"i32");let cell:i32=address(inout state,status);let parsed:i32=call(inout state,"k_string_parse",[source],"i32",[cell]);let out:i32=owner(inout state,false);let ok:string=label(inout state);let error:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("branch",-1,"",status,ok,error));
+   begin(inout state,ok);let result:i32=construct_variant(inout state,n.ty,"Ok",[parsed],n);take(inout state,out,result);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,error);
+   let message:i32=string_literal(inout state,"INVALID_I32");let failed:i32=construct_variant(inout state,n.ty,"Error",[message],n);take(inout state,out,failed);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+  }
+  if n.name=="bytes_to_string"||n.name=="utf8_decode" {
+   let source:i32=value(inout state,a[0]);let valid:i32=call(inout state,"k_utf8_valid",[source],"i32",[]);
+   if n.name=="bytes_to_string" {let zero:i32=constant(inout state,0,"i32");let invalid:i32=binary(inout state,"eq",valid,zero);guard(inout state,invalid,"KRT_UTF8");let raw:i32=call(inout state,"k_bytes_string",[source],"ptr",[]);return own(inout state,raw);}
+   let out:i32=owner(inout state,false);let ok:string=label(inout state);let error:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("branch",-1,"",valid,ok,error));
+   begin(inout state,ok);let raw:i32=call(inout state,"k_bytes_string",[source],"ptr",[]);let text:i32=own(inout state,raw);let result:i32=construct_variant(inout state,n.ty,"Ok",[text],n);take(inout state,out,result);end(inout state,terminal("goto",-1,done,-1,"",""));
+   begin(inout state,error);let message:i32=string_literal(inout state,"INVALID_UTF8");let failed:i32=construct_variant(inout state,n.ty,"Error",[message],n);take(inout state,out,failed);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+  }
+  if n.name=="string_len" {let base:i32=value(inout state,a[0]);return load(inout state,base,8,"i32");}
+  if n.name=="string_byte"||n.name=="string_slice"||n.name=="string_find"||n.name=="string_to_bytes"||n.name=="string_from_codepoint"||n.name=="i32_to_string"||n.name=="string_split"||n.name=="string_replace" {
+   let mut symbol:string="k_string_"+string_slice(n.name,7,string_len(n.name));let mut result:string="ptr";if n.name=="string_byte" {result="u8";}if n.name=="string_find" {result="i32";}if n.name=="string_to_bytes" {symbol="k_string_bytes";}if n.name=="string_from_codepoint" {symbol="k_string_codepoint";}if n.name=="i32_to_string" {symbol="k_i32_string";}let mut args:Array<i32>=[];for item in a {let v:i32=value(inout state,item);array_push::<i32>(inout args,v);}let out:i32=call(inout state,symbol,args,result,[]);if result=="ptr" {return own(inout state,out);}return out;
+  }
+
+ fail("development direct intrinsic is unavailable: "+n.name,n);return -1;
+}
+fn array_intrinsic(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+  if n.name=="array_len" {let base:i32=value(inout state,a[0]);return length(inout state,base);}
+  if n.name=="array_slice" {let base:i32=value(inout state,a[0]);let start:i32=value(inout state,a[1]);let end:i32=value(inout state,a[2]);let zero:i32=constant(inout state,0,"i32");let raw:i32=call(inout state,"k_array_copy",[base,start,end,zero],"ptr",[]);return own(inout state,raw);}
+  if n.name=="array_pop" {
+   let descriptor:i32=value(inout state,a[0]);let zero:i32=constant(inout state,0,"i32");let cell:i32=call(inout state,"k_record_location",[descriptor,zero],"ptr",[]);let old:i32=load(inout state,cell,0,"ptr");let size:i32=length(inout state,old);let out:i32=owner(inout state,false);let empty:string=label(inout state);let full:string=label(inout state);let done:string=label(inout state);let none:i32=constant(inout state,0,"i32");let absent:i32=binary(inout state,"eq",size,none);end(inout state,terminal("branch",-1,"",absent,empty,full));
+   begin(inout state,empty);let no_value:i32=construct_variant(inout state,n.ty,"None",[],n);take(inout state,out,no_value);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,full);
+   let one:i32=constant(inout state,1,"i32");let last:i32=binary(inout state,"sub",size,one);let shape:Layout=layout(state,a[0].ty,n);let ty:string=shape.fields[0].ty;let element_cell:i32=call(inout state,"k_array_at",[old,last],"ptr",[]);let element:i32=load(inout state,element_cell,0,width(ty,n));let some:i32=construct_variant(inout state,n.ty,"Some",[element],n);take(inout state,out,some);
+   let start:i32=constant(inout state,0,"i32");let extra:i32=constant(inout state,0,"i32");let raw:i32=call(inout state,"k_array_copy",[old,start,last,extra],"ptr",[]);let replacement:i32=own(inout state,raw);let write:i32=constant(inout state,1,"i32");let destination:i32=call(inout state,"k_record_location",[descriptor,write],"ptr",[]);let retained:i32=call(inout state,"k_heap_retain",[replacement],"ptr",[]);let previous:i32=load(inout state,destination,0,"ptr");call(inout state,"k_heap_release",[previous],"void",[]);let mut store:ir::Instruction=ir::instruction("store",-1);store.base=destination;store.value=retained;emit(inout state,store);
+   end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;
+  }
+  if n.name=="array_push" {
+   let descriptor:i32=value(inout state,a[0]);let v:i32=value(inout state,a[1]);let one:i32=constant(inout state,1,"i32");let cell:i32=call(inout state,"k_record_location",[descriptor,one],"ptr",[]);let item:i32=address(inout state,v);call(inout state,"k_array_push",[cell,item],"void",[]);return -1;
+  }
+
+ fail("development direct intrinsic is unavailable: "+n.name,n);return -1;
+}
+fn scalar_intrinsic(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+  if n.name!="exit"&&n.name!="i32_from_u8"&&n.name!="u8_from_i32" {fail("development direct intrinsic is unavailable: "+n.name,n);}
+  let operand:i32=value(inout state,a[0]);if n.name=="i32_from_u8" {let out:i32=fresh(inout state,"i32");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=operand;emit(inout state,i);return out;}
+  let zero:i32=constant(inout state,0,"i32");let first:i32=binary(inout state,"lt_s",operand,zero);let high:i32=constant(inout state,255,"i32");let second:i32=binary(inout state,"gt_s",operand,high);let condition:i32=binary(inout state,"or",first,second);let mut code:string="KRT_U8_RANGE";if n.name=="exit" {code="KRT_EXIT";}guard(inout state,condition,code);
+  if n.name=="exit" {let mut i:ir::Instruction=ir::instruction("call",-1);i.symbol="k_scalar_exit";i.args=[operand];emit(inout state,i);return -1;}
+  let out:i32=fresh(inout state,"u8");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=operand;emit(inout state,i);return out;
+}
+
+fn leave(inout state:Builder,result:i32)->void {let mut out:i32=result;if result>=0 {if state.slots[result]=="ptr" {out=call(inout state,"k_heap_retain",[result],"ptr",[]);}}cleanup(inout state,0,false);let context:i32=state.context;let depth:i32=state.old_depth;let mut i:ir::Instruction=ir::instruction("store",-1);i.base=context;i.value=depth;emit(inout state,i);end(inout state,terminal("return",out,"",-1,"",""));}
+struct StatementFrame {node:c::Node,step:i32,index:i32,mark:i32,scope_mark:i32,subject:i32,counter:i32,test:string,body:string,next:string,done:string,advance:string}
+fn statement_frame(n:c::Node)->StatementFrame {return StatementFrame {node:n,step:0,index:0,mark:0,scope_mark:0,subject:-1,counter:-1,test:"",body:"",next:"",done:"",advance:""};}
+fn statement(inout state:Builder,n:c::Node)->void {
+ let mut pending:Array<StatementFrame>=[statement_frame(n)];
+ while array_len::<StatementFrame>(pending)>0 {let mut f:StatementFrame=statement_frame(n);match array_pop::<StatementFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}let node:c::Node=f.node;let a:Array<c::Node>=node.args;
+  if f.step==0&&state.terminated {continue;}if f.step==0 {f.mark=array_len::<Owner>(state.owners);}
+  let mut child:i32=-1;let mut complete:bool=false;
+  if node.op=="block" {if f.step==0 {f.scope_mark=array_len::<Owner>(state.owners);f.step=1;}if f.index<array_len::<c::Node>(a)&&!state.terminated {child=f.index;f.index=f.index+1;}else {if !state.terminated {cleanup(inout state,f.scope_mark,false);}complete=true;}}
+  else if node.op=="if" {if f.step==0 {let condition:i32=value(inout state,a[0]);f.body=label(inout state);f.next=label(inout state);f.done=label(inout state);end(inout state,terminal("branch",-1,"",condition,f.body,f.next));begin(inout state,f.body);f.step=1;child=1;}else if f.step==1 {if !state.terminated {end(inout state,terminal("goto",-1,f.done,-1,"",""));}begin(inout state,f.next);f.step=2;if array_len::<c::Node>(a)>2 {child=2;}}if f.step==2&&child<0 {if !state.terminated {end(inout state,terminal("goto",-1,f.done,-1,"",""));}begin(inout state,f.done);complete=true;}}
+  else if node.op=="while" {if f.step==0 {f.scope_mark=array_len::<Owner>(state.owners);f.test=label(inout state);f.body=label(inout state);f.done=label(inout state);end(inout state,terminal("goto",-1,f.test,-1,"",""));begin(inout state,f.test);let condition:i32=value(inout state,a[0]);cleanup(inout state,f.scope_mark,true);end(inout state,terminal("branch",-1,"",condition,f.body,f.done));begin(inout state,f.body);array_push::<Loop>(inout state.loops,Loop {stop:f.done,next:f.test,mark:f.scope_mark});f.step=1;child=1;}else {array_pop::<Loop>(inout state.loops);if !state.terminated {end(inout state,terminal("goto",-1,f.test,-1,"",""));}begin(inout state,f.done);complete=true;}}
+  else if node.op=="for" {if f.step==0 {f.subject=value(inout state,a[1]);let size:i32=length(inout state,f.subject);f.counter=constant(inout state,0,"i32");f.scope_mark=array_len::<Owner>(state.owners);f.test=label(inout state);f.body=label(inout state);f.advance=label(inout state);f.done=label(inout state);end(inout state,terminal("goto",-1,f.test,-1,"",""));begin(inout state,f.test);let condition:i32=binary(inout state,"lt_s",f.counter,size);end(inout state,terminal("branch",-1,"",condition,f.body,f.done));begin(inout state,f.body);let p:c::Node=a[0];let cell:i32=call(inout state,"k_array_at",[f.subject,f.counter],"ptr",[]);let element:i32=load(inout state,cell,0,width(p.ty,p));bind_pattern(inout state,p,element);array_push::<Loop>(inout state.loops,Loop {stop:f.done,next:f.advance,mark:f.scope_mark});f.step=1;child=2;}else {array_pop::<Loop>(inout state.loops);if !state.terminated {cleanup(inout state,f.scope_mark,false);end(inout state,terminal("goto",-1,f.advance,-1,"",""));}begin(inout state,f.advance);let one:i32=constant(inout state,1,"i32");let next:i32=binary(inout state,"add",f.counter,one);let mut save:ir::Instruction=ir::instruction("copy",f.counter);save.value=next;emit(inout state,save);end(inout state,terminal("goto",-1,f.test,-1,"",""));begin(inout state,f.done);complete=true;}}
+  else if node.op=="match" {if f.step==0 {f.subject=value(inout state,a[0]);f.done=label(inout state);f.index=1;f.step=1;}else {if !state.terminated {cleanup(inout state,f.scope_mark,false);end(inout state,terminal("goto",-1,f.done,-1,"",""));}begin(inout state,f.next);}if f.index<array_len::<c::Node>(a) {let arm:c::Node=a[f.index];f.body=label(inout state);f.next=label(inout state);let matched:i32=condition(inout state,arm.args[0],f.subject);end(inout state,terminal("branch",-1,"",matched,f.body,f.next));begin(inout state,f.body);f.scope_mark=array_len::<Owner>(state.owners);bind_pattern(inout state,arm.args[0],f.subject);f.index=f.index+1;array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(arm.args[1]));continue;}else {panic(inout state,"KRT_RESOURCE");begin(inout state,f.done);complete=true;}}
+  else {simple_statement(inout state,node);complete=true;}
+  if child>=0 {array_push::<StatementFrame>(inout pending,f);array_push::<StatementFrame>(inout pending,statement_frame(a[child]));}else if complete&&!state.terminated {cleanup(inout state,f.mark,true);}
+ }
+}
+fn simple_statement(inout state:Builder,n:c::Node)->void {
+ if state.terminated {return;}let a:Array<c::Node>=n.args;
+
+ if n.op=="bind" {let operand:i32=value(inout state,a[0]);let out:i32=local(inout state,n);assign(inout state,out,operand);return;}
+ if n.op=="store" {let descriptor:i32=place(inout state,a[0]);let operand:i32=value(inout state,a[1]);let one:i32=constant(inout state,1,"i32");let destination:i32=call(inout state,"k_record_location",[descriptor,one],"ptr",[]);let mut raw:i32=operand;if state.slots[operand]=="ptr" {raw=call(inout state,"k_heap_retain",[operand],"ptr",[]);let old:i32=load(inout state,destination,0,"ptr");call(inout state,"k_heap_release",[old],"void",[]);}let mut i:ir::Instruction=ir::instruction("store",-1);i.base=destination;i.value=raw;emit(inout state,i);return;}
+ if n.op=="evaluate" {expression(inout state,a[0]);return;}
+ if n.op=="return" {let mut result:i32=-1;if array_len::<c::Node>(a)>0 {result=value(inout state,a[0]);}leave(inout state,result);return;}
+
+
+
+ if n.op=="break"||n.op=="continue" {let loop:Loop=state.loops[array_len::<Loop>(state.loops)-1];cleanup(inout state,loop.mark,false);let mut target:string=loop.next;if n.op=="break" {target=loop.stop;}end(inout state,terminal("goto",-1,target,-1,"",""));return;}
+
+ fail("development direct statement is unavailable: "+n.op,n);
+}
+fn lower_function(f:c::Node,functions:Array<c::Node>,indices:Map<string,i32>,names:Map<string,string>,layouts:Array<Layout>,graph:graph_runtime::Table,inout data:Array<elf::Data>)->ir::Function {
+ let mut state:Builder=Builder {functions:functions,indices:indices,names:names,fn_node:f,slots:[],blocks:[],locals:map_new::<string,i32>(),locations:map_new::<string,i32>(),serial:0,current:0,terminated:false,context:-1,old_depth:-1,loops:[],owners:[],layouts:layouts,graph:graph,data:data,cached:[],cached_index:0,replaying:false,cached_key:-1};
+ begin(inout state,"entry");let context:i32=fresh(inout state,"ptr");state.context=context;emit(inout state,ir::instruction("context",context));let depth:i32=fresh(inout state,"i32");state.old_depth=depth;let mut load:ir::Instruction=ir::instruction("load",depth);load.base=context;emit(inout state,load);
+ let maximum:i32=constant(inout state,256,"i32");let exhausted:i32=binary(inout state,"ge_s",depth,maximum);guard(inout state,exhausted,"KRT_RESOURCE");let one:i32=constant(inout state,1,"i32");let next:i32=binary(inout state,"add",depth,one);let mut store:ir::Instruction=ir::instruction("store",-1);store.base=context;store.value=next;emit(inout state,store);
+ let mut argument:i32=0;let mut location:i32=0;for p in parameters(f) {if p.flag {let out:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("location",out);i.index=location;location=location+1;emit(inout state,i);map_set::<string,i32>(inout state.locations,p.name,out);}else {let out:i32=fresh(inout state,width(p.ty,p));let mut i:ir::Instruction=ir::instruction("argument",out);i.index=argument;argument=argument+1;emit(inout state,i);if state.slots[out]=="ptr" {let own:i32=owner(inout state,true);let retained:i32=call(inout state,"k_heap_retain",[out],"ptr",[]);take(inout state,own,retained);map_set::<string,i32>(inout state.locals,p.name,own);}else {map_set::<string,i32>(inout state.locals,p.name,out);}}}
+ statement(inout state,f.args[array_len::<c::Node>(f.args)-1]);if !state.terminated {if f.ty=="void" {leave(inout state,-1);}else {end(inout state,terminal("trap",-1,"",-1,"",""));}}
+ let mut initial:Array<ir::Instruction>=[];for o in state.owners {let mut i:ir::Instruction=ir::instruction("const",o.slot);i.value=0;array_push::<ir::Instruction>(inout initial,i);}for i in state.blocks[0].instructions {array_push::<ir::Instruction>(inout initial,i);}state.blocks[0].instructions=initial;
+ let mut block_indices:Map<string,i32>=map_new::<string,i32>();let mut block_index:i32=0;for block in state.blocks {map_set::<string,i32>(inout block_indices,block.label,block_index);block_index=block_index+1;}
+ let mut reached:Map<string,i32>=map_new::<string,i32>();let mut pending:Array<string>=["entry"];while array_len::<string>(pending)>0 {let label:string=pending[array_len::<string>(pending)-1];array_pop::<string>(inout pending);match map_get::<string,i32>(reached,label) {Option::Some(value)=>{continue;},Option::None=>{}}map_set::<string,i32>(inout reached,label,1);match map_get::<string,i32>(block_indices,label) {Option::Some(index)=>{let block:ir::Block=state.blocks[index];if block.end.op=="goto" {array_push::<string>(inout pending,block.end.label);}if block.end.op=="branch" {array_push::<string>(inout pending,block.end.yes);array_push::<string>(inout pending,block.end.no);}},Option::None=>{}}}
+ let mut blocks:Array<ir::Block>=[];for block in state.blocks {match map_get::<string,i32>(reached,block.label) {Option::Some(value)=>{array_push::<ir::Block>(inout blocks,block);},Option::None=>{}}}
+ let mut params:Array<string>=[];for p in parameters(f) {if !p.flag {array_push::<string>(inout params,width(p.ty,p));}}let mut result:string="void";if f.ty!="void" {result=width(f.ty,f);}
+ data=state.data;return ir::Function {name:name(names,f.name),params:params,locations:location,result:result,slots:state.slots,entry:"entry",blocks:blocks};
+}
+fn runtime_io(inout r:runtime::Runtime)->void {
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_getcwd",params:["ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_getcwd",[x::make("prologue",32,0,""),x::make("linux_getcwd",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_write",params:["i32","ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_write",[x::make("prologue",32,0,""),x::make("linux_write",0,0,""),x::make("return",4,0,"")]));let stream_data:elf::Data=elf::Data {name:"k_stream_lf",bytes:[10]};array_push::<elf::Data>(inout r.data,stream_data);
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_engine_limits",params:[],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_engine_limits",[x::make("prologue",32,0,""),x::make("linux_engine_limits",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_mkdirat",params:["i32","ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_mkdirat",[x::make("prologue",32,0,""),x::make("linux_mkdirat",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_openat2",params:["i32","ptr","ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_openat2",[x::make("prologue",32,0,""),x::make("linux_openat2",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_readlinkat",params:["i32","ptr","ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_readlinkat",[x::make("prologue",32,0,""),x::make("linux_readlinkat",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_read",params:["i32","ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_read",[x::make("prologue",32,0,""),x::make("linux_read",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_artifact_size",params:["i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_artifact_size",[x::make("prologue",32,0,""),x::make("linux_artifact_size",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_linker_limits",params:[],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_linker_limits",[x::make("prologue",32,0,""),x::make("linux_linker_limits",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_fchmod",params:["i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_fchmod",[x::make("prologue",32,0,""),x::make("linux_fchmod",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_close",params:["i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_close",[x::make("prologue",32,0,""),x::make("linux_close",0,0,""),x::make("return",4,0,"")]));
+}
+fn runtime_process(inout r:runtime::Runtime)->void {
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_memfd_create",params:["ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_memfd_create",[x::make("prologue",32,0,""),x::make("linux_artifact_memfd_create",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_fork",params:[],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_fork",[x::make("prologue",32,0,""),x::make("linux_artifact_fork",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_pipe2",params:["ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_pipe2",[x::make("prologue",32,0,""),x::make("linux_artifact_pipe2",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_dup2",params:["i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_dup2",[x::make("prologue",32,0,""),x::make("linux_artifact_dup2",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_execveat",params:["i32","ptr","ptr","ptr","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_execveat",[x::make("prologue",32,0,""),x::make("linux_artifact_execveat",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_wait4",params:["i32","ptr","i32","ptr"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_wait4",[x::make("prologue",32,0,""),x::make("linux_artifact_wait4",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_kill",params:["i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_kill",[x::make("prologue",32,0,""),x::make("linux_artifact_kill",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_setpgid",params:["i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_setpgid",[x::make("prologue",32,0,""),x::make("linux_artifact_setpgid",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_clock_gettime",params:["i32","ptr"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_clock_gettime",[x::make("prologue",32,0,""),x::make("linux_artifact_clock_gettime",0,0,""),x::make("return",4,0,"")]));
+}
+fn runtime_supervision(inout r:runtime::Runtime)->void {
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_fcntl",params:["i32","i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_fcntl",[x::make("prologue",32,0,""),x::make("linux_artifact_fcntl",0,0,""),x::make("return",4,0,"")]));
+ array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_exit",params:["i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_exit",[x::make("prologue",32,0,""),x::make("linux_artifact_exit",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_poll",params:["ptr","i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_poll",[x::make("prologue",32,0,""),x::make("linux_artifact_poll",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_close_range",params:["i32","i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_close_range",[x::make("prologue",32,0,""),x::make("linux_artifact_close_range",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_lseek",params:["i32","i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_lseek",[x::make("prologue",32,0,""),x::make("linux_artifact_lseek",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_getpid",params:[],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_getpid",[x::make("prologue",32,0,""),x::make("linux_artifact_getpid",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_getppid",params:[],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_getppid",[x::make("prologue",32,0,""),x::make("linux_artifact_getppid",0,0,""),x::make("return",4,0,"")]));
+array_push::<ir::Signature>(inout r.imports,ir::Signature {name:"k_os_prctl",params:["i32","i32","i32","i32","i32"],locations:0,result:"i32"});array_push::<x::Code>(inout r.code,x::encode("k_os_prctl",[x::make("prologue",32,0,""),x::make("linux_artifact_prctl",0,0,""),x::make("return",4,0,"")]));
+}
+fn runtime_filesystem_data(inout r:runtime::Runtime)->void {
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_env_key",bytes:string_to_bytes("KELFT_CAPABILITIES=")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_key_read",bytes:string_to_bytes("read")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_key_write",bytes:string_to_bytes("write")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_key_execute",bytes:string_to_bytes("execute")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_true",bytes:string_to_bytes("true")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_false",bytes:string_to_bytes("false")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_empty",bytes:string_to_bytes("{}")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_empty_text",bytes:string_to_bytes("")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_proc",bytes:string_to_bytes("/proc/self/fd/")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_dot",bytes:string_to_bytes(".")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_slash",bytes:string_to_bytes("/")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_enoent",bytes:string_to_bytes("ENOENT")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_eacces",bytes:string_to_bytes("EACCES")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_eexist",bytes:string_to_bytes("EEXIST")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_enotdir",bytes:string_to_bytes("ENOTDIR")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_eisdir",bytes:string_to_bytes("EISDIR")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_fs_io_error",bytes:string_to_bytes("IO_ERROR")});
+}
+fn runtime_artifact_data(inout r:runtime::Runtime)->void {
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_hex",bytes:string_to_bytes("0123456789abcdef")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_comma",bytes:string_to_bytes(",")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_policy_prefix",bytes:string_to_bytes("{\"execute\":false,\"read\":[")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_policy_middle",bytes:string_to_bytes("],\"write\":[")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_policy_suffix",bytes:string_to_bytes("]}")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_target",bytes:string_to_bytes("native-linux-x86_64-v1")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_name",bytes:string_to_bytes("kelft-artifact"+string_from_codepoint(0)+"")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_empty",bytes:[0]});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_unsupported",bytes:string_to_bytes("UNSUPPORTED_ARTIFACT_TARGET")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_failed",bytes:string_to_bytes("ARTIFACT_EXECUTION_FAILED")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_link_static",bytes:string_to_bytes("-static"+string_from_codepoint(0))});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_link_build_id",bytes:string_to_bytes("--build-id=none"+string_from_codepoint(0))});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_link_z",bytes:string_to_bytes("-z"+string_from_codepoint(0))});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_link_noexec",bytes:string_to_bytes("noexecstack"+string_from_codepoint(0))});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_link_output",bytes:string_to_bytes("-o"+string_from_codepoint(0))});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_linker",bytes:string_to_bytes("linker-linux-x86_64-v1")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_engine_probe",bytes:string_to_bytes("engine-probe-linux-x86_64-v1")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_engine_js",bytes:string_to_bytes("engine-javascript-linux-x86_64-v1")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_engine_wasm",bytes:string_to_bytes("engine-wasm-linux-x86_64-v1")});
+
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_javascript",bytes:string_to_bytes("javascript")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_wasm",bytes:string_to_bytes("wasm")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_js_fd_key",bytes:string_to_bytes("KELFT_JAVASCRIPT_RUNTIME_FD=")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_wasm_fd_key",bytes:string_to_bytes("KELFT_WASM_RUNTIME_FD=")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_js_flag",bytes:string_to_bytes("--input-type=module"+string_from_codepoint(0)+"")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_stdin",bytes:string_to_bytes("-"+string_from_codepoint(0)+"")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_wasm_command",bytes:string_to_bytes("artifact-exec"+string_from_codepoint(0)+"")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_separator",bytes:string_to_bytes("--"+string_from_codepoint(0)+"")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_required",bytes:string_to_bytes("ARTIFACT_RUNTIME_REQUIRED")});
+array_push::<elf::Data>(inout r.data,elf::Data {name:"k_artifact_invalid",bytes:string_to_bytes("INVALID_ARTIFACT_RUNTIME")});
+}
+pub fn runtime_build(additions:Array<ir::Function>,extra_data:Array<elf::Data>)->runtime::Runtime {
+ let opcode_registry:Map<string,i32>=opcodes::registry();
+ let mut r:runtime::Runtime=runtime::build();let mut functions:Array<ir::Function>=aggregate_runtime::array_functions();for f in aggregate_runtime::enum_functions() {array_push::<ir::Function>(inout functions,f);}for f in string_runtime::string_functions() {array_push::<ir::Function>(inout functions,f);}for f in stream_runtime::stream_functions() {array_push::<ir::Function>(inout functions,f);}for f in map_runtime::functions() {array_push::<ir::Function>(inout functions,f);}for f in graph_runtime::functions() {array_push::<ir::Function>(inout functions,f);}for f in path_runtime::functions() {array_push::<ir::Function>(inout functions,f);}for f in process_runtime::functions() {array_push::<ir::Function>(inout functions,f);}for f in fs_policy::functions() {array_push::<ir::Function>(inout functions,f);}for f in fs_runtime::functions() {array_push::<ir::Function>(inout functions,f);}for f in write_runtime::functions() {array_push::<ir::Function>(inout functions,f);}for f in artifact_runtime::functions() {array_push::<ir::Function>(inout functions,f);}array_push::<ir::Function>(inout functions,aggregate_runtime::location_function());
+ if array_len::<ir::Function>(additions)>0 {let mut selected:Array<ir::Function>=[];for f in functions {let mut overridden:bool=false;for value in additions {if value.name==f.name {overridden=true;}}if !overridden {array_push::<ir::Function>(inout selected,f);}}functions=selected;for f in additions {array_push::<ir::Function>(inout functions,f);}}
+ runtime_io(inout r);
+ runtime_process(inout r);
+ runtime_supervision(inout r);
+ runtime_filesystem_data(inout r);
+ runtime_artifact_data(inout r);
+ for value in extra_data {array_push::<elf::Data>(inout r.data,value);}
+ let codes:Array<string>=["KRT_BOUNDS","KRT_UTF8_BOUNDARY","KRT_UTF8","KRT_UNICODE","KRT_EMPTY_SEPARATOR","KRT_IO","KRT_CAPABILITY"];for code in codes {let name:string="k_panic_"+code;let symbol:string=name+"_text";let bytes:Bytes=string_to_bytes("error["+code+"]\n");array_push::<ir::Signature>(inout r.imports,ir::Signature {name:name,params:[],locations:0,result:"void"});array_push::<elf::Data>(inout r.data,elf::Data {name:symbol,bytes:bytes});array_push::<x::Code>(inout r.code,x::encode(name,[x::make("prologue",32,0,""),x::make("linux_write_error",array_len::<u8>(bytes),0,symbol),x::make("imm",1,0,""),x::make("linux_exit_value",0,0,"")]));}
+ let p:ir::Program=ir::Program {schema:"kelft-native-ir/1",target:"x86_64",platform:"linux",abi:"kelft-native/1",functions:functions,imports:r.imports,data:r.data};ir::verify(p);
+ let mut imported:Array<string>=[];for signature in r.imports {array_push::<string>(inout imported,signature.name);}for f in functions {array_push::<x::Code>(inout r.code,x::encode_registered(f.name,ir::lower(f,imported),opcode_registry));array_push::<ir::Signature>(inout r.imports,ir::Signature {name:f.name,params:f.params,locations:f.locations,result:f.result});}return r;
+}
+pub struct Lowering {indices:Map<string,i32>,layouts:Array<Layout>,graph:graph_runtime::Table,names:Map<string,string>}
+pub fn prepare(p:c::Program)->Lowering {
+ c::validate(p);let mut layouts:Array<Layout>=[];for n in p.types {gather(inout layouts,n,p.types);}for n in p.functions {gather(inout layouts,n,p.types);}for n in p.functions {shape(n,layouts);}
+ let mut graph_types:Array<graph_runtime::Type>=[];for l in layouts {let mut fields:Array<string>=[];let mut variants:Array<Array<string>>=[];for f in l.fields {array_push::<string>(inout fields,f.ty);}for v in l.variants {let mut values:Array<string>=[];for f in v.args {array_push::<string>(inout values,f.ty);}array_push::<Array<string>>(inout variants,values);}array_push::<graph_runtime::Type>(inout graph_types,graph_runtime::Type {ty:l.ty,kind:l.kind,fields:fields,variants:variants});}let graph:graph_runtime::Table=graph_runtime::table(graph_types);
+ let mut names:Map<string,string>=map_new::<string,string>();let mut indices:Map<string,i32>=map_new::<string,i32>();let mut at:i32=0;for f in p.functions {map_set::<string,string>(inout names,f.name,"kf"+i32_to_string(at));map_set::<string,i32>(inout indices,f.name,at);at=at+1;}
+ return Lowering {indices:indices,layouts:layouts,graph:graph,names:names};
+}
+fn aggregate_data(layouts:Array<Layout>,literal_data:Array<elf::Data>,graph:graph_runtime::Table,base:Array<elf::Data>)->Array<elf::Data> {
+ let mut data:Array<elf::Data>=base;for l in layouts {if l.kind=="enum" {let mut at:i32=0;for v in l.variants {let mut bytes:Bytes=[0];for field in v.args {let mut bit:u8=1;if scalar(field.ty) {bit=0;}array_push::<u8>(inout bytes,bit);}array_push::<elf::Data>(inout data,elf::Data {name:l.symbol+"v"+i32_to_string(at),bytes:bytes});at=at+1;}}else {let mut bytes:Bytes=[];for field in l.fields {let mut bit:u8=1;if scalar(field.ty) {bit=0;}array_push::<u8>(inout bytes,bit);}array_push::<elf::Data>(inout data,elf::Data {name:l.symbol,bytes:bytes});}}
+ for item in literal_data {array_push::<elf::Data>(inout data,item);}array_push::<elf::Data>(inout data,elf::Data {name:"k_graph_types",bytes:graph.bytes});
+ return data;
+}
+pub fn lower(p:c::Program)->ir::Program {
+ let plan:Lowering=prepare(p);let r:runtime::Runtime=runtime_build([],[]);let mut functions:Array<ir::Function>=[];let mut literal_data:Array<elf::Data>=[];
+ for f in p.functions {let lowered:ir::Function=lower_function(f,p.functions,plan.indices,plan.names,plan.layouts,plan.graph,inout literal_data);array_push::<ir::Function>(inout functions,lowered);}
+ let data:Array<elf::Data>=aggregate_data(plan.layouts,literal_data,plan.graph,r.data);
+ let mut imports:Array<ir::Signature>=r.imports;let names:Array<string>=["k_process_run","k_filesystem_read","k_filesystem_write"];for name in names {let mut used:bool=false;for f in functions {for block in f.blocks {for instruction in block.instructions {if instruction.op=="call"&&instruction.symbol==name {used=true;}}}}if used {array_push::<ir::Signature>(inout imports,ir::Signature {name:name,params:["ptr"],locations:0,result:"ptr"});}}
+ let result:ir::Program=ir::Program {schema:"kelft-native-ir/1",target:"x86_64",platform:"linux",abi:"kelft-native/1",functions:functions,imports:imports,data:data};ir::verify(result);return result;
+}
+fn core_signature(f:c::Node,names:Map<string,string>)->ir::Signature {
+ let mut params:Array<string>=[];let mut locations:i32=0;for p in parameters(f) {if p.flag {locations=locations+1;}else {array_push::<string>(inout params,width(p.ty,p));}}
+ let mut result:string="void";if f.ty!="void" {result=width(f.ty,f);}return ir::Signature {name:name(names,f.name),params:params,locations:locations,result:result};
+}
+pub fn declarations(p:c::Program)->Array<c::Node> {let mut out:Array<c::Node>=[];for f in p.functions {array_push::<c::Node>(inout out,c::make(f.op,f.name,f.ty,parameters(f),f.span,f.flag));}return out;}
+pub fn lower_planned(f:c::Node,functions:Array<c::Node>,plan:Lowering,inout data:Array<elf::Data>)->ir::Function {return lower_function(f,functions,plan.indices,plan.names,plan.layouts,plan.graph,inout data);}
+pub fn planned_signature(f:c::Node,plan:Lowering)->ir::Signature {return core_signature(f,plan.names);}
+pub fn lowering_data(plan:Lowering)->Array<elf::Data> {return aggregate_data(plan.layouts,[],plan.graph,[]);}
+
+pub fn runtime_data(plan:Lowering,literals:Array<elf::Data>,base:Array<elf::Data>)->Array<elf::Data> {return aggregate_data(plan.layouts,literals,plan.graph,base);}

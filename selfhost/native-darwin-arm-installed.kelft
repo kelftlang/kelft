@@ -1,0 +1,14 @@
+// Private installed compiler protocol; all public targets remain gated.
+import "./native-darwin-arm-driver.kelft" as compiler;
+import "./direct/protocol-darwin-arm.kelft" as protocol;
+import "./json.kelft" as j;
+import "./toolchain/inspect.kelft" as inspect;
+import "./toolchain/object.kelft" as object_cli;
+import "./native-darwin-arm-object.kelft" as native_object;
+fn main()->void {
+ if object_cli::handles(args()) {let r:object_cli::Request=object_cli::parse(args());object_cli::write(r,native_object::guest_object(r.entry,r.root,r.declarations,r.bindings,r.maximum,r.sdk));return;}
+ if inspect::command(args()) {return;}
+ let a:Array<string>=args();if array_len::<string>(a)==3&&a[0]=="protocol" {
+  match read_text(a[2]) {Result::Ok(text)=>{protocol::command(a,j::parse(text));},Result::Error(e)=>{eprint(e);exit(1);}}return;
+ }compiler::command(a);
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "kelft.seed-parts/1",
+  "files": [
+    {
+      "path": "rootfs/toolchain/usr/lib/libLLVM.dylib",
+      "bytes": 143609472,
+      "sha256": "sha256:0a09edaac7d0047e8db420bb9594359c73e602a2138def76f51197f1afd39252",
+      "mode": 420,
+      "parts": [
+        {
+          "path": "parts/2c44bde3a6a01d9e-000",
+          "bytes": 50331648,
+          "sha256": "sha256:7b19addfef0a4ae0e00ecaf23898de05863689f142c53b1c0fc1b3ab64f0b0c8"
+        },
+        {
+          "path": "parts/2c44bde3a6a01d9e-001",
+          "bytes": 50331648,
+          "sha256": "sha256:c2e0ad82dbd4e342d70d5252bd4cfbc688b7e44680d19a049d83c38e03f6669c"
+        },
+        {
+          "path": "parts/2c44bde3a6a01d9e-002",
+          "bytes": 42946176,
+          "sha256": "sha256:924eed506974dedd36cae4f2c1b40018e357ff2cf5847cf848961fa9fd96eab5"
+        }
+      ]
+    }
+  ]
+}

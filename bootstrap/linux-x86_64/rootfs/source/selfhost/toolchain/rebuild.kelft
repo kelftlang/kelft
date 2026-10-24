@@ -1,0 +1,54 @@
+// Native rebuild plans use bounded source observations supplied by the host.
+import "../json.kelft" as j;
+import "../syntax.kelft" as s;
+fn fail(code:string,message:string,status:i32)->void {
+ let mut error:j::Value=j::parse("{}");error=j::set(error,"code",j::Value::Text(code));error=j::set(error,"message",j::Value::Text(message));
+ let mut out:j::Value=j::parse("{\"schema\":\"kelft.rebuild-action/1\",\"operation\":\"complete\"}");out=j::set(out,"error",error);out=j::set(out,"exit",j::Value::Number(i32_to_string(status)));println(j::canonical(out));exit(0);
+}
+fn need(ok:bool,message:string)->void {if !ok {fail("REBUILD_INPUT",message,1);}}
+fn field(value:j::Value,key:string)->string {return j::string(j::field(value,key));}
+fn entry(host:string)->string {
+ if host=="linux-x86_64" {return "selfhost/native-compiler.kelft";}
+ if host=="linux-arm64" {return "selfhost/native-linux-arm-driver.kelft";}
+ if host=="windows-x86_64" {return "selfhost/native-windows-installed.kelft";}
+ if host=="windows-arm64" {return "selfhost/native-windows-arm-installed.kelft";}
+ if host=="macos-x86_64" {return "selfhost/native-darwin-installed.kelft";}
+ if host=="macos-arm64" {return "selfhost/native-darwin-arm-installed.kelft";}
+ fail("UNSUPPORTED_TARGET_PROFILE","unsupported rebuild host",1);return "";
+}
+fn digest(value:string)->bool {if string_len(value)!=71||!s::starts(value,"sha256:") {return false;}let mut i:i32=7;while i<71 {let b:i32=i32_from_u8(string_byte(value,i));if !((b>=48&&b<=57)||(b>=97&&b<=102)) {return false;}i=i+1;}return true;}
+fn source_path(value:string)->bool {
+ if (!s::starts(value,"selfhost/")&&!s::starts(value,"stdlib/"))||(string_len(value)<6||string_slice(value,string_len(value)-6,string_len(value))!=".kelft")||s::has(value,"\\")||s::has(value,":")||s::has(value,"\u{0}") {return false;}
+ for part in string_split(value,"/") {if part==""||part=="."||part==".." {return false;}}return true;
+}
+fn size_value(value:j::Value)->i32 {
+ match value {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(number)=>{return number;},Result::Error(message)=>{need(false,"invalid rebuild source size");}}},_=>{need(false,"invalid rebuild source size");}}return 0;
+}
+pub fn decide(request:j::Value)->j::Value {
+ need(field(request,"schema")=="kelft.rebuild-request/1","unsupported rebuild request");
+ let raw:j::Value=j::field(request,"arguments");need(j::is_array(raw),"rebuild arguments required");let arguments:Array<j::Value>=j::array(raw);
+ need(array_len::<j::Value>(arguments)>0&&arguments[0]==j::Value::Text("rebuild"),"rebuild arguments required");
+ let mut source:string=".";let mut output:string="build/local";let mut json:bool=false;let mut seen:Map<string,bool>=map_new::<string,bool>();let mut at:i32=1;
+ while at<array_len::<j::Value>(arguments) {
+  need(j::is_string(arguments[at]),"argument must be text");let flag:string=j::string(arguments[at]);
+  match map_get::<string,bool>(seen,flag) {Option::Some(value)=>{fail("INVALID_INVOCATION","duplicate rebuild option: "+flag,64);},Option::None=>{}}map_set::<string,bool>(inout seen,flag,true);
+  if flag=="--json" {json=true;}else {
+   if flag!="--source"&&flag!="--out" {fail("INVALID_INVOCATION","unknown rebuild option: "+flag,64);}
+   at=at+1;if at>=array_len::<j::Value>(arguments)||!j::is_string(arguments[at])||j::string(arguments[at])==""||s::starts(j::string(arguments[at]),"--") {fail("INVALID_INVOCATION","missing rebuild option value: "+flag,64);}
+   if flag=="--source" {source=j::string(arguments[at]);}else {output=j::string(arguments[at]);}
+  }at=at+1;
+ }
+ let host:string=field(request,"host");let compiler:string=entry(host);let observations:j::Value=j::field(request,"sources");
+ if observations!=j::Value::Null() {
+  need(j::is_array(observations),"source inventory must be an array");let files:Array<j::Value>=j::array(observations);need(array_len::<j::Value>(files)>0&&array_len::<j::Value>(files)<=4096,"source inventory bound");
+  let mut names:Map<string,bool>=map_new::<string,bool>();let mut present:bool=false;let mut total:i32=0;
+  for item in files {
+   let name:string=field(item,"path");need(source_path(name),"invalid rebuild source path");match map_get::<string,bool>(names,name) {Option::Some(value)=>{need(false,"duplicate rebuild source path");},Option::None=>{}}map_set::<string,bool>(inout names,name,true);
+   need(digest(field(item,"sha256")),"invalid rebuild source digest");let size:j::Value=j::field(item,"bytes");need(j::is_number(size),"invalid rebuild source size");let length:i32=size_value(size);need(length>=0&&length<=8388608,"source file exceeds bound");total=total+length;need(total<=67108864,"source inventory exceeds 64 MiB");if name==compiler {present=true;}
+  }need(present,"compiler entry is missing");
+ }
+ let mut out:j::Value=j::parse("{\"schema\":\"kelft.rebuild-action/1\",\"operation\":\"rebuild\",\"protocol\":\"0.1\",\"policies\":[{\"name\":\"rebuild\",\"entry\":\"selfhost/toolchain/rebuild.kelft\"},{\"name\":\"testing\",\"entry\":\"selfhost/toolchain/testing.kelft\"}]}");out=j::set(out,"source",j::Value::Text(source));out=j::set(out,"out",j::Value::Text(output));out=j::set(out,"entry",j::Value::Text(compiler));out=j::set(out,"host",j::Value::Text(host));return j::set(out,"json",j::Value::Bool(json));
+}
+fn main()->void {
+ let arguments:Array<string>=args();need(array_len::<string>(arguments)==1,"rebuild request path required");match read_file(arguments[0]) {Result::Ok(bytes)=>{need(array_len::<u8>(bytes)<=16777216,"rebuild request exceeds 16 MiB");match utf8_decode(bytes) {Result::Ok(raw)=>{println(j::canonical(decide(j::parse(raw))));},Result::Error(message)=>{need(false,"rebuild request is not UTF-8");}}},Result::Error(message)=>{need(false,"cannot read rebuild request");}}
+}

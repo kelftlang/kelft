@@ -1,0 +1,27 @@
+{
+  "schema": "kelft-macos-linker-installed/1",
+  "profile": "macos-arm64",
+  "sdk": "rootfs/toolchain/sdk",
+  "tools": "rootfs/toolchain/usr",
+  "sdkVersion": "14.0",
+  "linkerDriver": "lld-macho/1",
+  "linker": {
+    "path": "rootfs/toolchain/usr/bin/ld",
+    "sha256": "sha256:98be468184f763f2874b6321494fa6a7abdb6b8fd95082fbbde064dd86306ea1"
+  },
+  "runtime": [
+    {
+      "path": "rootfs/toolchain/usr/lib/libLLVM.dylib",
+      "sha256": "sha256:0a09edaac7d0047e8db420bb9594359c73e602a2138def76f51197f1afd39252"
+    }
+  ],
+  "sdkFiles": [
+    {
+      "path": "usr/lib/libSystem.tbd",
+      "kind": "file",
+      "size": 375,
+      "sha256": "sha256:55e085c053d8846d9179bbccb908be882558b493aceb307d211361754c4c3086"
+    }
+  ],
+  "identity": "sha256:fad3ce77c1fe91ca13f0c3b501855894d88713f9a496f4367a22c26e6e4ffde4"
+}

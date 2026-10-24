@@ -1,0 +1,1 @@
+fn main()->void { let true:i32=1; }

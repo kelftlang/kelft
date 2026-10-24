@@ -1,0 +1,47 @@
+import "../../stdlib/testing.kelft" as testing;
+import "../../selfhost/parser.kelft" as parser;
+import "../../selfhost/syntax.kelft" as syntax;
+import "../../selfhost/lexer.kelft" as lexer;
+
+fn repeat(text:string,count:i32)->string {
+ let mut parts:Array<string>=[];let mut i:i32=0;
+ while i<count {array_push::<string>(inout parts,text);i=i+1;}
+ return syntax::join(parts,"");
+}
+pub fn test_compiler_utf8_byte_spans(inout context:testing::Context)->void {
+ let tokens:Array<syntax::Token>=lexer::lex("\"\u{e9}\u{1f600}\" x","unicode.kelft");
+ testing::equal_i32(inout context,array_len::<syntax::Token>(tokens),3,"string, identifier and EOF");
+ testing::equal_i32(inout context,tokens[0].span.start,0,"string byte start");testing::equal_i32(inout context,tokens[0].span.end,8,"UTF-8 string byte end");
+ testing::equal_i32(inout context,tokens[1].span.start,9,"identifier byte start");testing::equal_i32(inout context,tokens[1].span.end,10,"identifier byte end");testing::equal_i32(inout context,tokens[2].span.start,10,"EOF byte offset");
+ testing::equal_string(inout context,tokens[0].span.file,"unicode.kelft","source identity");
+}
+pub fn test_compiler_operator_precedence(inout context:testing::Context)->void {
+ let tree:syntax::Node=parser::parse("fn main()->void {let x:i32=10-3-2*4;}","operators.kelft");let root:syntax::Node=tree.children[0].children[0].children[0].children[0];
+ testing::equal_string(inout context,root.text,"-","outer subtraction");testing::equal_string(inout context,root.children[0].text,"-","subtraction associates left");testing::equal_string(inout context,root.children[1].text,"*","multiplication binds tighter");
+ testing::equal_string(inout context,root.children[0].children[0].text,"10","leftmost operand");testing::equal_string(inout context,root.children[1].children[1].text,"4","rightmost operand");
+}
+pub fn test_compiler_generic_closers_and_shifts(inout context:testing::Context)->void {
+ let tree:syntax::Node=parser::parse("fn main()->void {let x:Array<Array<i32>>=[];let y:i32=16>>2;let z:i32=-1>>>1;}","closers.kelft");let body:syntax::Node=tree.children[0].children[0];
+ testing::equal_string(inout context,body.children[0].ty,"Array<Array<i32>>","nested generic closers");testing::equal_string(inout context,body.children[1].children[0].text,">>","signed shift retained");testing::equal_string(inout context,body.children[2].children[0].text,">>>","unsigned shift retained");
+ testing::equal_i32(inout context,16>>2,4,"signed shift value");testing::equal_i32(inout context,-1>>>1,2147483647,"unsigned shift value");
+}
+pub fn test_parser_logical_boundary(inout context:testing::Context)->void {
+ let depths:Array<i32>=[253,254];
+ for depth in depths {
+  let source:string="fn main()->void {let x:i32="+repeat("(",depth)+"1"+repeat(")",depth)+";}";
+  let tree:syntax::Node=parser::parse(source,"boundary.kelft");
+  testing::equal_i32(inout context,array_len::<syntax::Node>(tree.children),1,"boundary function parsed");
+  let expression:syntax::Node=tree.children[0].children[0].children[0].children[0];
+  testing::equal_string(inout context,expression.kind,"int","groups preserve expression");
+ }
+}
+pub fn test_parser_flat_tree(inout context:testing::Context)->void {
+ let source:string="fn main()->void {let x:i32="+repeat("1+",999)+"1;}";
+ let tree:syntax::Node=parser::parse(source,"flat.kelft");
+ let mut expression:syntax::Node=tree.children[0].children[0].children[0].children[0];
+ let mut count:i32=0;
+ while expression.kind=="binary" {count=count+1;expression=expression.children[0];}
+ testing::equal_i32(inout context,count,999,"left associative flat chain");
+ testing::equal_string(inout context,expression.kind,"int","chain leaf");
+ testing::expect(inout context,string_len(syntax::node_json(tree))>1000,"deep AST serializes");
+}

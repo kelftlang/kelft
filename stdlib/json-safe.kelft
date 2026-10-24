@@ -1,0 +1,31 @@
+// Recoverable, duplicate-rejecting JSON for untrusted application inputs.
+import "../selfhost/json.kelft" as j;
+struct Reader {text:string,index:i32,depth:i32,failed:bool}
+fn byte(r:Reader)->i32 {if r.index>=string_len(r.text) {return -1;}return i32_from_u8(string_byte(r.text,r.index));}
+fn white(inout r:Reader)->void {while byte(r)==32||byte(r)==9||byte(r)==10||byte(r)==13 {r.index=r.index+1;}}
+fn at(r:Reader,value:string)->bool {if r.index+string_len(value)>string_len(r.text) {return false;}let mut i:i32=0;while i<string_len(value) {if string_byte(r.text,r.index+i)!=string_byte(value,i) {return false;}i=i+1;}return true;}
+fn take(inout r:Reader,value:string)->bool {if !at(r,value) {r.failed=true;return false;}r.index=r.index+string_len(value);return true;}
+fn hex(inout r:Reader)->i32 {let mut out:i32=0;let mut i:i32=0;while i<4 {let b:i32=byte(r);let mut digit:i32=-1;if b>=48&&b<=57 {digit=b-48;}if b>=65&&b<=70 {digit=b-55;}if b>=97&&b<=102 {digit=b-87;}if digit<0 {r.failed=true;return 0;}out=out*16+digit;r.index=r.index+1;i=i+1;}return out;}
+fn text(inout r:Reader)->string {
+    if !take(inout r,"\"") {return "";}let mut out:string="";let mut start:i32=r.index;
+    while r.index<string_len(r.text) {let b:i32=byte(r);if b==34 {out=out+string_slice(r.text,start,r.index);r.index=r.index+1;return out;}if b<32 {r.failed=true;return "";}
+        if b==92 {out=out+string_slice(r.text,start,r.index);r.index=r.index+1;let escape:i32=byte(r);if escape<0 {r.failed=true;return "";}r.index=r.index+1;
+            if escape==34 {out=out+"\"";}else if escape==92 {out=out+"\\";}else if escape==47 {out=out+"/";}
+            else if escape==98 {out=out+string_from_codepoint(8);}else if escape==102 {out=out+string_from_codepoint(12);}else if escape==110 {out=out+"\n";}else if escape==114 {out=out+"\r";}else if escape==116 {out=out+"\t";}
+            else if escape==117 {let mut cp:i32=hex(inout r);if r.failed {return "";}if cp>=55296&&cp<=56319 {if !take(inout r,"\\u") {return "";}let low:i32=hex(inout r);if r.failed||low<56320||low>57343 {r.failed=true;return "";}cp=65536+(cp-55296)*1024+low-56320;}else if cp>=56320&&cp<=57343 {r.failed=true;return "";}out=out+string_from_codepoint(cp);}
+            else {r.failed=true;return "";}start=r.index;continue;
+        }
+        let mut width:i32=1;if b>=240 {width=4;}else if b>=224 {width=3;}else if b>=192 {width=2;}r.index=r.index+width;
+    }r.failed=true;return "";
+}
+fn value(inout r:Reader)->j::Value {r.depth=r.depth+1;if r.depth>64 {r.failed=true;return j::Value::Null();}let result:j::Value=read_value(inout r);r.depth=r.depth-1;return result;}
+fn read_value(inout r:Reader)->j::Value {
+    white(inout r);if at(r,"\"") {return j::Value::Text(text(inout r));}if at(r,"null") {take(inout r,"null");return j::Value::Null();}if at(r,"true") {take(inout r,"true");return j::Value::Bool(true);}if at(r,"false") {take(inout r,"false");return j::Value::Bool(false);}
+    if at(r,"[") {take(inout r,"[");white(inout r);let mut values:Array<j::Value>=[];if !at(r,"]") {while true {let child:j::Value=value(inout r);if r.failed {return j::Value::Null();}array_push::<j::Value>(inout values,child);white(inout r);if !at(r,",") {break;}take(inout r,",");}}take(inout r,"]");return j::Value::Array(values);}
+    if at(r,"{") {take(inout r,"{");white(inout r);let mut values:Map<string,j::Value>=map_new::<string,j::Value>();if !at(r,"}") {while true {white(inout r);let key:string=text(inout r);white(inout r);take(inout r,":");if r.failed {return j::Value::Null();}let child:j::Value=value(inout r);if r.failed {return j::Value::Null();}match map_get::<string,j::Value>(values,key) {Option::Some(old)=>{r.failed=true;return j::Value::Null();},Option::None=>{}}map_set::<string,j::Value>(inout values,key,child);white(inout r);if !at(r,",") {break;}take(inout r,",");}}take(inout r,"}");return j::Value::Object(values);}
+    let start:i32=r.index;if at(r,"-") {r.index=r.index+1;}let digit:i32=byte(r);if digit<48||digit>57 {r.failed=true;return j::Value::Null();}r.index=r.index+1;if digit!=48 {while byte(r)>=48&&byte(r)<=57 {r.index=r.index+1;}}
+    let mut number:string=string_slice(r.text,start,r.index);let mut absolute:string=number;if at(Reader {text:number,index:0,depth:0,failed:false},"-") {absolute=string_slice(number,1,string_len(number));}if string_len(absolute)>16||string_len(absolute)==16&&absolute>"9007199254740991" {r.failed=true;return j::Value::Null();}if number=="-0" {number="0";}return j::Value::Number(number);
+}
+pub fn parse(source:string)->Result<j::Value,string> {
+    if string_len(source)>1048576 {return Result::<j::Value,string>::Error("INVALID_JSON");}let mut r:Reader=Reader {text:source,index:0,depth:0,failed:false};let result:j::Value=value(inout r);white(inout r);if r.failed||r.index!=string_len(source) {return Result::<j::Value,string>::Error("INVALID_JSON");}return Result::<j::Value,string>::Ok(result);
+}

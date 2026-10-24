@@ -1,0 +1,86 @@
+import "../stdlib/bootstrap/strings.kelft" as strings;
+pub struct Span { file: string, start: i32, end: i32 }
+pub struct Node { kind: string, text: string, ty: string, flag: bool, children: Array<Node>, span: Span }
+pub struct Token { kind: string, text: string, span: Span }
+pub fn span(file: string, start: i32, end: i32) -> Span { return Span { file: file, start: start, end: end }; }
+pub fn make(kind: string, text: string, ty: string, children: Array<Node>, location: Span, flag: bool) -> Node {
+    return Node { kind: kind, text: text, ty: ty, children: children, span: location, flag: flag };
+}
+pub fn error(code: string, message: string, location: Span) -> void {
+    for argument in args() {
+        if argument == "--json" {
+            eprint("{\"code\":" + json_quote(code) + ",\"message\":" + json_quote(message) + ",\"span\":{\"file\":" + json_quote(location.file) + ",\"start\":" + i32_to_string(location.start) + ",\"end\":" + i32_to_string(location.end) + "}}\n"); exit(1);
+        }
+    }
+    eprint("error[" + code + "]: " + message + "\n  " + location.file + ":" + i32_to_string(location.start) + "-" + i32_to_string(location.end) + "\n");
+    exit(1);
+}
+pub fn span_json(location: Span) -> string { return "{\"file\":" + json_quote(location.file) + ",\"start\":" + i32_to_string(location.start) + ",\"end\":" + i32_to_string(location.end) + "}"; }
+struct JsonFrame {node:Node,index:i32}
+pub fn node_json(n:Node)->string {
+ let mut pending:Array<JsonFrame>=[JsonFrame {node:n,index:0}];let mut chunks:Array<string>=[];
+ while array_len::<JsonFrame>(pending)>0 {
+  let mut f:JsonFrame=pending[array_len::<JsonFrame>(pending)-1];array_pop::<JsonFrame>(inout pending);let current:Node=f.node;
+  if f.index==0 {let mut flag:string="false";if current.flag {flag="true";}array_push::<string>(inout chunks,"{\"kind\":"+json_quote(current.kind)+",\"text\":"+json_quote(current.text)+",\"type\":"+json_quote(current.ty)+",\"flag\":"+flag+",\"children\":[");}
+  else if f.index<array_len::<Node>(current.children) {array_push::<string>(inout chunks,",");}
+  if f.index<array_len::<Node>(current.children) {let child:Node=current.children[f.index];f.index=f.index+1;array_push::<JsonFrame>(inout pending,f);array_push::<JsonFrame>(inout pending,JsonFrame {node:child,index:0});}
+  else {array_push::<string>(inout chunks,"],\"span\":"+span_json(current.span)+"}");}
+ }
+ return join(chunks,"");
+}
+pub fn tokens_json(tokens: Array<Token>) -> string { let mut parts: Array<string> = []; for t in tokens { array_push::<string>(inout parts, "{\"kind\":" + json_quote(t.kind) + ",\"text\":" + json_quote(t.text) + ",\"span\":" + span_json(t.span) + "}"); } return "[" + join(parts, ",") + "]"; }
+pub fn byte(text: string, i: i32) -> i32 { return i32_from_u8(string_byte(text, i)); }
+pub fn starts(text: string, prefix: string) -> bool { return string_find(text, prefix, 0) == 0; }
+pub fn has(text: string, part: string) -> bool { return string_find(text, part, 0) >= 0; }
+pub fn slice(text: string, start: i32, end: i32) -> string { return string_slice(text, start, end); }
+pub fn number(text: string) -> i32 {
+    match string_to_i32(text) { Result::Ok(value) => { return value; }, Result::Error(message) => { return 0; } }
+}
+pub fn join(parts: Array<string>, separator: string) -> string {
+    return strings::join(parts,separator);
+}
+pub fn split_types(text: string, separator: string) -> Array<string> {
+    let mut out: Array<string> = []; let mut depth: i32 = 0; let mut start: i32 = 0; let mut i: i32 = 0;
+    if text == "" { return out; }
+    while i < string_len(text) {
+        let c: string = slice(text, i, i + 1);
+        if c == "<" || c == "(" { depth = depth + 1; }
+        if c == ">" || c == ")" { depth = depth - 1; }
+        if c == separator && depth == 0 { array_push::<string>(inout out, slice(text, start, i)); start = i + 1; }
+        i = i + 1;
+    }
+    array_push::<string>(inout out, slice(text, start, string_len(text))); return out;
+}
+pub fn type_parts(text: string) -> (string, Array<string>) {
+    if starts(text, "(") { return ("tuple", split_types(slice(text, 1, string_len(text) - 1), ",")); }
+    let i: i32 = string_find(text, "<", 0);
+    if i < 0 { return (text, []); }
+    return (slice(text, 0, i), split_types(slice(text, i + 1, string_len(text) - 1), ","));
+}
+pub fn json_quote(text: string) -> string {
+    let mut out: string = "\""; let mut i: i32 = 0; let mut start: i32 = 0;
+    let hex: string = "0123456789abcdef";
+    while i < string_len(text) {
+        let b: i32 = byte(text, i); let mut escaped: string = "";
+        if b == 34 { escaped = "\\\""; }
+        if b == 92 { escaped = "\\\\"; }
+        if b == 10 { escaped = "\\n"; }
+        if b == 13 { escaped = "\\r"; }
+        if b == 9 { escaped = "\\t"; }
+        if b == 8 { escaped = "\\b"; }
+        if b == 12 { escaped = "\\f"; }
+        if b < 32 && escaped == "" { escaped = "\\u00" + slice(hex, b / 16, b / 16 + 1) + slice(hex, b % 16, b % 16 + 1); }
+        if escaped != "" { out = out + slice(text, start, i) + escaped; start = i + 1; }
+        i = i + 1;
+    }
+    return out + slice(text, start, string_len(text)) + "\"";
+}
+pub fn core_quote(text:string)->string {
+    let mut out:string="\"";let mut i:i32=0;let hex:string="0123456789abcdef";
+    while i<string_len(text) {
+        let b:i32=byte(text,i);
+        if b==34 {out=out+"\\\"";i=i+1;continue;}if b==92 {out=out+"\\\\";i=i+1;continue;}
+        if b<32 {out=out+"\\u{"+slice(hex,b/16,b/16+1)+slice(hex,b%16,b%16+1)+"}";i=i+1;continue;}
+        let mut width:i32=1;if b>=240 {width=4;}else if b>=224 {width=3;}else if b>=192 {width=2;}out=out+slice(text,i,i+width);i=i+width;
+    }return out+"\"";
+}

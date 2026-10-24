@@ -1,0 +1,1 @@
+fn main()->void {println(string_slice("é",0,1));}

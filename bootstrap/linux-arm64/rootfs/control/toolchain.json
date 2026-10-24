@@ -1,0 +1,49 @@
+{
+  "schema": "kelft-native-linker-development/1",
+  "profile": "linux-arm64",
+  "state": "observed",
+  "linker": {
+    "path": "/usr/bin/aarch64-linux-gnu-ld.bfd",
+    "sha256": "sha256:1e4d3369b76845fa8e099b83513bf28f6f722e046f9b2cde1378c9e27f96d19c",
+    "version": "GNU ld (GNU Binutils for Ubuntu) 2.42"
+  },
+  "runtimeInputs": [
+    {
+      "path": "/etc/ld.so.cache",
+      "sha256": "sha256:520ae01978f6a0c33b19862c68f97b726a5907335585c87e41929b2d6d995543"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+      "sha256": "sha256:390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libbfd-2.42-system.so",
+      "sha256": "sha256:d9d9cc536c3a752ce0fd09e554ce2e31f98a5d42201984a608ed1e577e4ad0de"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libc.so.6",
+      "sha256": "sha256:0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libctf.so.0.0.0",
+      "sha256": "sha256:be124ffe36abc3d3068092e5a05300aee0c7b9fa6f59acbb289aedae788ddbae"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libjansson.so.4.14.0",
+      "sha256": "sha256:ec0e6c38dd7f4979d61563777872de4c9983b0cfb15bbba9b0d9d90e4d736907"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libsframe.so.1.0.0",
+      "sha256": "sha256:c56f579c7f266b5bfcbdc9d448d2a8f1a8223483b390d98e311526598bf29a5d"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libz.so.1.3",
+      "sha256": "sha256:e3bc90ee8cce46778c2f46c2a3e580d3b930f7b455910f25ea400a0b797fb9dc"
+    },
+    {
+      "path": "/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.5",
+      "sha256": "sha256:fe726238b170b83aa83bf1f8a79109b8b61b9eb45234304511d093bbe5f5fb20"
+    }
+  ],
+  "identity": "sha256:962359515afe4cd7bc9097c16d10e23fd6dcdeb396585688e00c3f6dad7d04ef"
+}

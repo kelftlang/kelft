@@ -1,0 +1,14 @@
+pub fn join(parts: Array<string>, separator: string) -> string {
+    let mut result: string = ""; let mut index: i32 = 0;
+    for part in parts { if index > 0 { result = result + separator; } result = result + part; index = index + 1; }
+    return result;
+}
+pub fn ascii_lower(text: string) -> string {
+    let mut result: string = ""; let mut index: i32 = 0; let mut start: i32 = 0;
+    while index < string_len(text) {
+        let byte: i32 = i32_from_u8(string_byte(text, index));
+        if byte >= 65 && byte <= 90 { result = result + string_slice(text, start, index) + string_from_codepoint(byte + 32); start = index + 1; }
+        index = index + 1;
+    }
+    return result + string_slice(text, start, string_len(text));
+}

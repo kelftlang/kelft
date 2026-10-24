@@ -1,0 +1,1 @@
+fn println(value:string)->void {} fn main()->void {println("x");}

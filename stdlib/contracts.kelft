@@ -1,0 +1,48 @@
+// Source-owned API boundary support. Application policy stays in its handler.
+import "../selfhost/json.kelft" as j;
+import "../selfhost/syntax.kelft" as s;
+import "./json-safe.kelft" as safe;
+
+pub fn parse(source:string)->Result<j::Value,string> {return safe::parse(source);}
+fn has(value:j::Value,key:string)->bool {match map_get::<string,j::Value>(j::object(value),key) {Option::Some(item)=>{return true;},Option::None=>{return false;}}}
+fn ends(value:string,suffix:string)->bool {return string_len(value)>=string_len(suffix)&&s::slice(value,string_len(value)-string_len(suffix),string_len(value))==suffix;}
+fn null(value:j::Value)->bool {match value {j::Value::Null=>{return true;},_=>{return false;}}}
+fn integer(value:j::Value)->bool {match value {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(n)=>{return i32_to_string(n)==raw;},Result::Error(error)=>{}}},_=>{}}return false;}
+fn uuid(value:string)->bool {if string_len(value)!=36 {return false;}let mut i:i32=0;while i<36 {let b:i32=s::byte(value,i);if i==8||i==13||i==18||i==23 {if b!=45 {return false;}}else if !(b>=48&&b<=57||b>=65&&b<=70||b>=97&&b<=102) {return false;}i=i+1;}return true;}
+fn nullable(ty:string)->bool {return ty=="void"||s::starts(ty,"Option<");}
+fn option_inner(ty:string,value:j::Value)->j::Value {if nullable(ty) {return j::field(value,"some");}return value;}
+fn valid(models:j::Value,raw:string,value:j::Value,extensible:bool,depth:i32,inout remaining:i32)->bool {
+    remaining=remaining-1;if depth>64||remaining<0 {return false;}
+    let constraints:Array<string>=string_split(raw," where ");let mut ty:string=string_replace(string_replace(constraints[0]," ",""),"\t","");
+    if ends(ty,"?") {ty="Option<"+s::slice(ty,0,string_len(ty)-1)+">";}
+    if array_len::<string>(constraints)>1 {if array_len::<string>(constraints)!=2 {return false;}let mut refined:j::Value=value;if s::starts(ty,"Option<") {if null(value) {return true;}refined=option_inner(s::slice(ty,7,string_len(ty)-1),value);}let range:Array<string>=string_split(string_split(constraints[1]," ")[1],"..");let length:i32=string_len(j::string(refined));if !j::is_string(refined)||length<s::number(range[0])||length>s::number(range[1]) {return false;}}
+    if ty=="void" {return null(value);}if ty=="Text"||ty=="string" {return j::is_string(value);}if ty=="UUID" {return j::is_string(value)&&uuid(j::string(value));}if ty=="bool" {return j::is_bool(value);}if ty=="i32" {return integer(value);}if ty=="u8" {if !integer(value) {return false;}let n:i32=s::number(j::canonical(value));return n>=0&&n<=255;}
+    if s::has(ty,"|") {for variant in string_split(ty,"|") {if j::is_string(value)&&j::string(value)==variant {return true;}}return false;}
+    let alternatives:j::Value=j::field(j::field(models,"enums"),ty);if j::is_array(alternatives) {for variant in j::array(alternatives) {if j::is_string(value)&&j::string(value)==j::string(variant) {return true;}}return false;}
+    let fields:j::Value=j::field(j::field(models,"entities"),ty);if j::is_object(fields) {
+        if !j::is_object(value) {return false;}for (key,child) in j::object(value) {if !has(fields,key)&&!extensible {return false;}}
+        for (key,field) in j::object(fields) {let field_type:string=j::string(field);let base:string=string_split(field_type," where ")[0];if !has(value,key)&&!ends(base,"?") {return false;}if !valid(models,field_type,j::field(value,key),false,depth+1,inout remaining) {return false;}}return true;
+    }
+    let parts:(string,Array<string>)=s::type_parts(ty);let base:string=parts.0;let args:Array<string>=parts.1;
+    if base=="Option"&&array_len::<string>(args)==1 {if null(value) {return true;}if nullable(args[0])&&(!j::is_object(value)||map_len::<string,j::Value>(j::object(value))!=1||!has(value,"some")) {return false;}return valid(models,args[0],option_inner(args[0],value),false,depth+1,inout remaining);}
+    if base=="Result"&&array_len::<string>(args)==2 {if !j::is_object(value)||map_len::<string,j::Value>(j::object(value))!=1 {return false;}if has(value,"ok") {return valid(models,args[0],j::field(value,"ok"),false,depth+1,inout remaining);}if has(value,"error") {return valid(models,args[1],j::field(value,"error"),false,depth+1,inout remaining);}return false;}
+    if !j::is_array(value) {return false;}let items:Array<j::Value>=j::array(value);
+    if base=="Array"&&array_len::<string>(args)==1 {for child in items {if !valid(models,args[0],child,false,depth+1,inout remaining) {return false;}}return true;}
+    if base=="tuple" {if array_len::<j::Value>(items)!=array_len::<string>(args) {return false;}let mut index:i32=0;for arg in args {if !valid(models,arg,items[index],false,depth+1,inout remaining) {return false;}index=index+1;}return true;}
+    if base=="Map"&&array_len::<string>(args)==2 {let mut keys:Map<string,bool>=map_new::<string,bool>();for pair in items {if !j::is_array(pair)||array_len::<j::Value>(j::array(pair))!=2 {return false;}let values:Array<j::Value>=j::array(pair);if !valid(models,args[0],values[0],false,depth+1,inout remaining)||!valid(models,args[1],values[1],false,depth+1,inout remaining) {return false;}let key:string=j::canonical(values[0]);match map_get::<string,bool>(keys,key) {Option::Some(old)=>{return false;},Option::None=>{}}map_set::<string,bool>(inout keys,key,true);}return true;}
+    return false;
+}
+pub fn validate(models:j::Value,ty:string,value:j::Value,extensible:bool)->bool {let mut remaining:i32=100000;return valid(models,ty,value,extensible,0,inout remaining);}
+pub fn endpoint(manifest:j::Value,id:string)->j::Value {for item in j::array(manifest) {if j::string(j::field(item,"id"))==id&&j::string(j::field(item,"kind"))=="endpoint" {return item;}}return j::Value::Null();}
+pub fn request(models:j::Value,manifest:j::Value,id:string,value:j::Value)->bool {let item:j::Value=endpoint(manifest,id);if !j::is_object(item) {return false;}return validate(models,j::string(j::field(j::field(item,"request"),"type")),value,false);}
+pub fn response(models:j::Value,manifest:j::Value,id:string,status:i32,value:j::Value)->bool {
+    let item:j::Value=endpoint(manifest,id);if !j::is_object(item) {return false;}if j::canonical(j::field(item,"status"))==i32_to_string(status) {let schema:j::Value=j::field(item,"response");return validate(models,j::string(j::field(schema,"type")),value,j::boolean(j::field(schema,"extensible")));}
+    for (name,error) in j::object(j::field(item,"errors")) {if j::canonical(j::field(error,"status"))==i32_to_string(status)&&validate(models,j::string(j::field(j::field(error,"schema"),"type")),value,false) {return true;}}return false;
+}
+pub fn serialize_request(models:j::Value,manifest:j::Value,id:string,value:j::Value)->Result<string,string> {if !request(models,manifest,id,value) {return Result::<string,string>::Error("INVALID_REQUEST");}return Result::<string,string>::Ok(j::canonical(value));}
+pub fn serialize_response(models:j::Value,manifest:j::Value,id:string,status:i32,value:j::Value)->Result<string,string> {if !response(models,manifest,id,status,value) {return Result::<string,string>::Error("INVALID_RESPONSE");}return Result::<string,string>::Ok(j::canonical(value));}
+// Route identity is unambiguous because the frontend rejects overlapping patterns.
+pub fn route(manifest:j::Value,method:string,path:string)->Option<j::Value> {
+    if !s::starts(path,"/")||s::has(path,"?")||s::has(path,"#")||s::has(path,"%") {return Option::<j::Value>::None();}
+    let actual:Array<string>=string_split(path,"/");for item in j::array(manifest) {if j::string(j::field(item,"kind"))!="endpoint"||j::string(j::field(item,"method"))!=method {continue;}let pattern:Array<string>=string_split(j::string(j::field(item,"path")),"/");if array_len::<string>(actual)!=array_len::<string>(pattern) {continue;}let mut parameters:j::Value=j::Value::Object(map_new::<string,j::Value>());let mut matches:bool=true;let mut index:i32=0;for segment in pattern {if s::starts(segment,"{") {if actual[index]=="" {matches=false;}parameters=j::set(parameters,s::slice(segment,1,string_len(segment)-1),j::Value::Text(actual[index]));}else if actual[index]!=segment {matches=false;}index=index+1;}if matches {let mut result:j::Value=j::set(item,"parameters",parameters);return Option::<j::Value>::Some(result);}}return Option::<j::Value>::None();
+}

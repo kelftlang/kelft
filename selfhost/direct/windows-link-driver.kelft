@@ -1,0 +1,37 @@
+// Compiler-facing protocol for the private Windows trusted linker role.
+import "../json.kelft" as j;
+import "../hash.kelft" as h;
+import "../syntax.kelft" as s;
+pub struct Prepared {object:Bytes,configuration:j::Value,object_hash:string}
+fn fail(message:string)->void {s::error("K0403",message,s::span("<windows-link-driver>",0,0));}
+fn need(value:bool,message:string)->void {if !value {fail(message);}}
+fn read(file:string)->Bytes {match read_file(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return [];}
+fn text(value:j::Value,key:string)->string {let field:j::Value=j::field(value,key);need(j::is_string(field),"missing linker field: "+key);return j::string(field);}
+pub fn validate(value:j::Value)->j::Value {
+ need(text(value,"schema")=="kelft-windows-linker-development/2"||text(value,"schema")=="kelft-windows-linker-installed/1","unsupported Windows linker configuration");
+ need(j::canonical(j::field(value,"linkerCapabilities"))=="[\"registryRead\"]","unsupported Windows linker capabilities");
+ let profile:string=text(value,"profile");need(profile=="windows-x86_64"||profile=="windows-arm64","native Windows linker profile required");
+ let driver:j::Value=j::field(value,"linkerDriver");let binding:j::Value=j::field(value,"systemInputBinding");
+ if driver!=j::Value::Null() {need(driver==j::Value::Text("lld-coff/1")&&text(value,"schema")=="kelft-windows-linker-installed/1"&&binding==j::Value::Text("os-system32/1")&&j::canonical(j::field(value,"runtimeInputs"))=="[]","unsupported linker driver or system binding");}else {need(binding==j::Value::Null(),"unsupported linker driver or system binding");}
+ need(text(value,"identity")==h::sha256(j::canonical(j::remove(value,"identity"))),"Windows linker configuration identity changed");return value;
+}
+pub fn configuration(file:string)->j::Value {return validate(j::parse(bytes_to_string(read(file))));}
+pub fn prepare(object:Bytes,value:j::Value,profile:string)->Prepared {
+ need(text(value,"profile")==profile,"compiler and linker architecture differ");
+ return Prepared {object:object,configuration:value,object_hash:h::sha256_bytes(object)};
+}
+fn word(bytes:Bytes,at:i32)->i32 {return i32_from_u8(bytes[at])|(i32_from_u8(bytes[at+1])<<8)|(i32_from_u8(bytes[at+2])<<16)|(i32_from_u8(bytes[at+3])<<24);}
+pub fn execute(prepared:Prepared,output:string,maximum:string)->j::Value {
+ let destination:string=canonical_path(output);match create_dir(path_dirname(destination)) {Result::Ok(ok)=>{},Result::Error(message)=>{fail(message);}}
+ let profile:string=text(prepared.configuration,"profile");let mut target:string="linker-windows-x86_64-v1";let mut machine:i32=34404;
+ if profile=="windows-arm64" {target="linker-windows-arm64-v1";machine=43620;}
+ let mut policy:j::Value=j::parse("{\"read\":[],\"write\":[]}");policy=j::set(policy,"write",j::Value::Array([j::Value::Text(destination)]));
+ match artifact_run(prepared.object,target,[destination,text(prepared.configuration,"identity")],j::canonical(policy)) {
+  Result::Ok(result)=>{need(result.0==0,"Microsoft linker failed: "+result.1+result.2);need(result.1==""&&result.2=="","unexpected Microsoft linker output");},
+  Result::Error(message)=>{fail(message);}
+ }
+ let image:Bytes=read(destination);need(array_len::<u8>(image)>=328&&image[0]==77&&image[1]==90,"invalid linked Windows image");let at:i32=word(image,60);
+ need(at>=64&&at<=array_len::<u8>(image)-264,"invalid linked PE header");need(word(image,at)==17744&&(i32_from_u8(image[at+4])|(i32_from_u8(image[at+5])<<8))==machine&&image[at+24]==11&&image[at+25]==2,"linked image architecture differs");
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft-native-link-development/1\",\"state\":\"linked\",\"selfHostingVerified\":false,\"productionClosureVerified\":false,\"releaseEligible\":false}");
+ report=j::set(report,"profile",j::Value::Text(profile));report=j::set(report,"output",j::Value::Text(destination));report=j::set(report,"objectHash",j::Value::Text(prepared.object_hash));report=j::set(report,"executableHash",j::Value::Text(h::sha256_bytes(image)));report=j::set(report,"toolchainIdentity",j::field(prepared.configuration,"identity"));report=j::set(report,"maximum",j::parse(maximum));return report;
+}

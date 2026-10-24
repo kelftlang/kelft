@@ -1,0 +1,5 @@
+// Development entry retains explicit engine discovery; installed profiles use
+// the smaller source-only compiler command and a separate native handoff.
+import "./native-compiler.kelft" as compiler;
+import "./direct/engine-driver.kelft" as engines;
+fn main()->void {let arguments:Array<string>=args();if array_len::<string>(arguments)>0&&arguments[0]=="engine-run" {engines::command(arguments);return;}compiler::command(arguments);}

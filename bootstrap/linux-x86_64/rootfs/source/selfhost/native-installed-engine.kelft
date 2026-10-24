@@ -1,0 +1,14 @@
+// Only the installed boundary supplies the selected, measured sealed engine FD.
+// The compiler namespace never receives it. No engine discovery or SDK hash
+// scan is repeated here: the boundary validates every input while sealing it.
+import "./json.kelft" as j;
+fn fail(message:string)->void {eprint("error[K0403]: "+message+"\n");exit(1);}
+fn bytes(file:string)->Bytes {match read_file(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return [];}
+fn main()->void {
+ let arguments:Array<string>=args();if array_len::<string>(arguments)<3||arguments[0]!="engine-run"||(arguments[1]!="javascript"&&arguments[1]!="wasm") {fail("explicit installed engine required");}
+ let mut policy:string="{\"execute\":false,\"read\":[],\"write\":[]}";let mut at:i32=3;
+ if at<array_len::<string>(arguments)&&arguments[at]=="--policy" {at=at+1;if at>=array_len::<string>(arguments) {fail("engine policy missing");}policy=j::canonical(j::parse(bytes_to_string(bytes(arguments[at]))));at=at+1;}
+ if at>=array_len::<string>(arguments)||arguments[at]!="--" {fail("engine argument separator missing");}at=at+1;
+ let input:Bytes=bytes(arguments[2]);let tail:Array<string>=array_slice::<string>(arguments,at,array_len::<string>(arguments));
+ match artifact_run(input,arguments[1],tail,policy) {Result::Ok(result)=>{print(result.1);eprint(result.2);exit(result.0);},Result::Error(message)=>{fail(message);}}
+}

@@ -1,0 +1,28 @@
+import "../../stdlib/testing.kelft" as testing;
+import "../../selfhost/json.kelft" as j;
+import "../../selfhost/syntax.kelft" as s;
+import "../../selfhost/intent_source.kelft" as source;
+import "../../selfhost/intent_public.kelft" as public_contracts;
+import "../../selfhost/intent_preservation.kelft" as preservation;
+import "../fixtures/kelft-testing/intent-cases.kelft" as fixtures;
+import "../fixtures/kelft-testing/intent-driver.kelft" as scenarios;
+fn preserved(inout context:testing::Context,id:string)->void {
+ let result:j::Value=scenarios::run(id);testing::equal_json(inout context,result,j::field(fixtures::scenario(id),"expected"),"complete preservation result: "+id);
+ testing::equal_string(inout context,j::string(j::field(result,"behavior")),"unverified","structural acceptance does not prove behavior");
+}
+pub fn test_public_contract_extraction(inout context:testing::Context)->void {
+ let graph:j::Value=source::lower(source::parse(j::string(j::field(fixtures::data(),"manifestSource")),"intent.kelft"));let contracts:Array<j::Value>=j::array(public_contracts::extract(graph));let mut endpoint:j::Value=j::Value::Null();
+ for item in contracts {if j::string(j::field(item,"id"))=="api.tasks" {endpoint=item;}}
+ testing::expect(inout context,j::is_object(endpoint),"real API endpoint extracted");testing::equal_json(inout context,j::field(endpoint,"status"),j::Value::Number("200"),"default success status");
+ testing::equal_json(inout context,j::field(j::field(j::field(endpoint,"errors"),"invalid_request"),"status"),j::Value::Number("400"),"inherited feature error");testing::equal_json(inout context,j::field(j::field(j::field(endpoint,"errors"),"forbidden"),"status"),j::Value::Number("403"),"endpoint error");
+ let request:j::Value=j::field(endpoint,"request");testing::equal_json(inout context,j::field(j::field(j::field(request,"fields"),"workspace"),"required"),j::Value::Bool(true),"required path request field");
+ let owner:j::Value=j::field(j::field(j::field(endpoint,"response"),"fields"),"owner");testing::expect(inout context,s::has(j::string(j::field(owner,"type")),"length 1..120"),"nested domain constraint retained");testing::equal_json(inout context,j::field(owner,"required"),j::Value::Bool(false),"optional nested field");
+ testing::equal_json(inout context,j::field(endpoint,"behaviorObligations"),j::parse("[\"Demo.api.tasks.isolation\"]"),"behavior obligation identity");
+}
+pub fn test_unchanged_real_contract_preservation(inout context:testing::Context)->void {
+ preserved(inout context,"preserve");let graph:j::Value=source::lower(source::parse(j::string(j::field(fixtures::data(),"manifestSource")),"intent.kelft"));let contracts:Array<j::Value>=j::array(public_contracts::extract(graph));
+ let policies:Array<j::Value>=j::array(j::parse("[{\"mode\":\"preserve\",\"selector\":\"api.*\"},{\"mode\":\"preserve\",\"selector\":\"domain.*\"}]"));testing::equal_json(inout context,preservation::check(contracts,contracts,policies,[]),j::parse("{\"structural\":\"passed\",\"behavior\":\"unverified\",\"requiredObligations\":[\"Demo.api.tasks.isolation\"]}"),"real extracted domain and API preservation");
+}
+pub fn test_optional_request_field_evolution(inout context:testing::Context)->void {preserved(inout context,"optional-request");}
+pub fn test_extensible_response_field_evolution(inout context:testing::Context)->void {preserved(inout context,"extensible-response");}
+pub fn test_approved_change_obligations_are_sorted_and_unique(inout context:testing::Context)->void {preserved(inout context,"approved-change");}

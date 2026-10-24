@@ -1,0 +1,28 @@
+import "../../examples/relay/collaboration.kelft" as relay;
+fn assert(value:bool)->void {if !value {eprint("assertion failed\n");exit(1);}}
+fn change(id:string,user:relay::Principal,state:Option<relay::TaskState>,title:Option<string>)->relay::Mutation {
+    return relay::Mutation {id:id,principal:user,workspace:"A",task:"task",base_revision:0,title:title,state:state,owner:Option::<Option<relay::Principal>>::None(),dependency:Option::<string>::None()};
+}
+fn main()->void {
+    let alice:relay::Principal=relay::Principal {issuer:"issuer",subject:"Alice"};let bob:relay::Principal=relay::Principal {issuer:"issuer",subject:"Bob"};
+    let session:relay::Session=relay::Session {principal:alice,expires:100,revoked:false};let bob_session:relay::Session=relay::Session {principal:bob,expires:100,revoked:false};
+    let task:relay::Task=relay::Task {id:"task",workspace:"A",title:"Original",state:relay::TaskState::Todo(),owner:Option::<relay::Principal>::None(),revision:0,title_revision:0,state_revision:0,owner_revision:0};
+    let mut store:relay::Store=relay::Store {tasks:[task],members:[relay::Membership {principal:alice,workspace:"A",role:relay::Role::Admin()},relay::Membership {principal:bob,workspace:"A",role:relay::Role::Member()}],receipts:[],audit:[]};
+    let bob_move:relay::Mutation=change("bob-move",bob,Option::<relay::TaskState>::Some(relay::TaskState::Done()),Option::<string>::None());
+    match relay::apply_mutation(inout store,bob_session,1,bob_move) {relay::Outcome::Accepted(accepted)=>{assert(accepted.revision==1);},_=>{assert(false);}}
+    let offline_move:relay::Mutation=change("alice-move",alice,Option::<relay::TaskState>::Some(relay::TaskState::Doing()),Option::<string>::None());
+    match relay::apply_mutation(inout store,session,1,offline_move) {relay::Outcome::Conflict(server,pending,fields)=>{assert(server.state==relay::TaskState::Done());assert(pending.state==offline_move.state);assert(fields[0]=="state");},_=>{assert(false);}}
+    assert(store.tasks[0].state==relay::TaskState::Done());assert(array_len::<relay::Receipt>(store.receipts)==1);
+    let independent:relay::Mutation=change("alice-title",alice,Option::<relay::TaskState>::None(),Option::<string>::Some("Updated"));
+    match relay::apply_mutation(inout store,session,1,independent) {relay::Outcome::Accepted(accepted)=>{assert(accepted.state==relay::TaskState::Done());assert(accepted.title=="Updated");assert(accepted.revision==2);},_=>{assert(false);}}
+    relay::apply_mutation(inout store,session,1,independent);assert(store.tasks[0].revision==2);assert(array_len::<relay::Receipt>(store.receipts)==2);
+    let mut duplicate:relay::Mutation=independent;duplicate.title=Option::<string>::Some("Overwrite");match relay::apply_mutation(inout store,session,1,duplicate) {relay::Outcome::Rejected(reason)=>{assert(reason=="IDEMPOTENCY_MISMATCH");},_=>{assert(false);}}
+    let expired:relay::Session=relay::Session {principal:alice,expires:1,revoked:false};match relay::apply_mutation(inout store,expired,1,independent) {relay::Outcome::Rejected(reason)=>{assert(reason=="UNAUTHORIZED");},_=>{assert(false);}}
+    match relay::change_membership(inout store,alice,"A",alice,Option::<relay::Role>::None()) {Result::Error(reason)=>{assert(reason=="LAST_ADMIN");},_=>{assert(false);}}
+    match relay::change_membership(inout store,alice,"A",bob,Option::<relay::Role>::None()) {Result::Ok(value)=>{},_=>{assert(false);}}
+    match relay::apply_mutation(inout store,bob_session,1,bob_move) {relay::Outcome::Rejected(reason)=>{assert(reason=="UNAUTHORIZED");},_=>{assert(false);}}
+    assert(!relay::authorized(store.members,alice,"B",relay::Permission::ReadTasks()));
+    assert(relay::retry_delay(0)==1000);assert(relay::retry_delay(2)==4000);assert(relay::retry_delay(100)==30000);
+    assert(relay::local_drafting(true,true,false));assert(!relay::local_drafting(true,true,true));
+    println("Relay collaboration passed");
+}

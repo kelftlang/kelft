@@ -1,0 +1,32 @@
+// Trusted optional-engine handoff. Compilation never requires this module's tools.
+import "../json.kelft" as j;
+import "../hash.kelft" as h;
+import "../syntax.kelft" as s;
+import "../intent.kelft" as intent;
+fn fail(message:string)->void {s::error("K0403",message,s::span("<native-engine-driver>",0,0));}
+fn need(ok:bool,message:string)->void {if !ok {fail(message);}}
+fn keys(value:j::Value,allowed:Array<string>)->void {need(j::is_object(value),"runtime object required");for (key,item) in j::object(value) {let mut found:bool=false;for name in allowed {if name==key {found=true;}}need(found,"unknown runtime field: "+key);}}
+fn text(value:j::Value,key:string)->string {need(j::is_string(j::field(value,key)),"runtime string required: "+key);return j::string(j::field(value,key));}
+fn read(file:string)->Bytes {match read_file(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return [];}
+fn input(value:j::Value)->void {keys(value,["path","sha256"]);let file:string=text(value,"path");need(s::starts(file,"/")&&string_len(file)<4096&&resolve_path("/",file)==file&&string_find(file,string_from_codepoint(0),0)<0,"normalized absolute runtime path required");need(intent::valid_hash("sha256:"+text(value,"sha256")),"runtime SHA-256 required");}
+fn measured(value:j::Value)->Bytes {let bytes:Bytes=read(text(value,"path"));need(h::sha256_bytes(bytes)=="sha256:"+text(value,"sha256"),"runtime input hash mismatch");return bytes;}
+fn dependencies(value:j::Value)->void {for item in j::array(j::field(value,"dependencies")) {let bytes:Bytes=measured(item);}}
+fn configuration(source:Bytes,target:string)->j::Value {
+ need(target=="javascript"||target=="wasm","unknown optional runtime target");let value:j::Value=j::parse(bytes_to_string(source));keys(value,["schema","platform","architecture","runtimes"]);need(text(value,"schema")=="kelft-artifact-runtimes/1"&&text(value,"platform")=="linux"&&text(value,"architecture")=="x86_64","unsupported runtime manifest");let runtimes:j::Value=j::field(value,"runtimes");keys(runtimes,["javascript","wasm"]);let runtime:j::Value=j::field(runtimes,target);keys(runtime,["executable","dependencies","versionArgs","versionStdout"]);input(j::field(runtime,"executable"));need(j::is_array(j::field(runtime,"dependencies")),"runtime dependencies required");let mut seen:Map<string,bool>=map_new::<string,bool>();map_set::<string,bool>(inout seen,text(j::field(runtime,"executable"),"path"),true);
+ for item in j::array(j::field(runtime,"dependencies")) {input(item);let file:string=text(item,"path");match map_get::<string,bool>(seen,file) {Option::Some(found)=>{fail("duplicate runtime input");},Option::None=>{}}map_set::<string,bool>(inout seen,file,true);}
+ let args:j::Value=j::field(runtime,"versionArgs");need(j::is_array(args)&&array_len::<j::Value>(j::array(args))==1,"fixed runtime version argument required");need(j::is_string(j::array(args)[0]),"runtime version argument required");let mut expected:string="--version";if target=="wasm" {expected="version";}need(j::string(j::array(args)[0])==expected,"unsupported runtime version argument");let version:string=text(runtime,"versionStdout");need(string_len(version)>0&&string_len(version)<=4096,"bounded runtime version output required");return runtime;
+}
+fn payload(file:string,target:string)->string {let value:Bytes=read(file);if target=="javascript" {return bytes_to_string(value);}need(array_len::<u8>(value)<=33554432,"Wasm artifact exceeds 32 MiB handoff bound");return h::bytes_hex(value);}
+fn dispatch(runtime:j::Value,target:string,file:string,arguments:Array<string>,policy:string)->Result<(i32,string,string),string> {
+ dependencies(runtime);let binary:Bytes=measured(j::field(runtime,"executable"));need(array_len::<u8>(binary)>=64&&binary[0]==127&&binary[1]==69&&binary[2]==76&&binary[3]==70&&binary[4]==2&&binary[5]==1&&binary[18]==62&&binary[19]==0&&(binary[16]==2||binary[16]==3)&&binary[17]==0,"runtime ELF64 x86-64 executable required");let mut version_arg:string="--version";if target=="wasm" {version_arg="version";}
+ match artifact_run(binary,"engine-probe-linux-x86_64-v1",[version_arg],"{\"read\":[],\"write\":[]}") {Result::Ok(result)=>{need(result.0==0&&result.1==text(runtime,"versionStdout")&&result.2=="","runtime version mismatch");},Result::Error(message)=>{fail(message);}}
+ let mut args:Array<string>=[payload(file,target)];for argument in arguments {array_push::<string>(inout args,argument);}let mut profile:string="engine-javascript-linux-x86_64-v1";if target=="wasm" {profile="engine-wasm-linux-x86_64-v1";}return artifact_run(binary,profile,args,policy);
+}
+pub fn execute(manifest:string,target:string,file:string,arguments:Array<string>,policy:string)->Result<(i32,string,string),string> {
+ let source:Bytes=read(manifest);let identity:string=h::sha256_bytes(source);let runtime:j::Value=configuration(source,target);let result:Result<(i32,string,string),string>=dispatch(runtime,target,file,arguments,policy);let after:Bytes=read(manifest);need(h::sha256_bytes(after)==identity,"runtime manifest changed during execution");let executable:Bytes=measured(j::field(runtime,"executable"));dependencies(runtime);return result;
+}
+pub fn command(arguments:Array<string>)->void {
+ need(array_len::<string>(arguments)>=5,"engine-run TARGET ARTIFACT --runtimes MANIFEST [--policy FILE] -- ARGS");let target:string=arguments[1];let file:string=arguments[2];let mut manifest:string="";let mut policy:string="{\"read\":[],\"write\":[]}";let mut args:Array<string>=[];let mut at:i32=3;
+ while at<array_len::<string>(arguments) {let flag:string=arguments[at];at=at+1;if flag=="--" {while at<array_len::<string>(arguments) {array_push::<string>(inout args,arguments[at]);at=at+1;}}else {need((flag=="--runtimes"||flag=="--policy")&&at<array_len::<string>(arguments),"unknown or incomplete engine-run option");if flag=="--runtimes" {need(manifest=="","duplicate runtime manifest");manifest=arguments[at];}else {policy=j::canonical(j::parse(bytes_to_string(read(arguments[at]))));}at=at+1;}}
+ need(manifest!="","explicit runtime manifest required");match execute(manifest,target,file,args,policy) {Result::Ok(result)=>{print(result.1);eprint(result.2);exit(result.0);},Result::Error(message)=>{fail(message);}}
+}

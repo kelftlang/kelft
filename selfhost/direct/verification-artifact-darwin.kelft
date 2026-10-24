@@ -1,0 +1,11 @@
+// Internal installed macOS artifact emission; public targets remain gated.
+import "../core.kelft" as core;import "../json.kelft" as j;import "../hash.kelft" as h;import "../syntax.kelft" as s;
+import "./darwin-aggregate.kelft" as native;import "./macho.kelft" as macho;import "./darwin-link-driver.kelft" as linker;
+fn fail(message:string)->void {s::error("K0601",message,s::span("<native-protocol>",0,0));}
+fn read(file:string)->Bytes {match read_file(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return [];}
+pub fn emit(program:core::Program,maximum:string,prepare:bool,output:string,toolchain:string)->j::Value {
+ let configuration:j::Value=linker::configuration(toolchain);let mut owned:core::Program=program;let mut object:native::Object=native::consume_guest_object(inout owned,268435456,maximum);let bytes:Bytes=native::write_object(inout object,j::string(j::field(configuration,"sdkVersion")));let mut result:j::Value=j::Value::Null();
+ if prepare {let prepared:linker::Prepared=linker::prepare(bytes,configuration,"macos-x86_64");let linked:j::Value=linker::execute(prepared,output,maximum);result=j::set(result,"artifactHash",j::field(linked,"executableHash"));}
+ else {if j::string(j::field(configuration,"profile"))!="macos-x86_64" {fail("compiler and linker architecture differ");}let image:Bytes=read(output);linker::image(image,"macos-x86_64");result=j::set(result,"artifactHash",j::Value::Text(h::sha256_bytes(image)));}
+ result=j::set(result,"objectHash",j::Value::Text(h::sha256_bytes(bytes)));return j::set(result,"toolchainIdentity",j::field(configuration,"identity"));
+}

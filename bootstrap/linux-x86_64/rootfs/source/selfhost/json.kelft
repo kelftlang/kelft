@@ -1,0 +1,96 @@
+import "./syntax.kelft" as s;
+pub enum Value { Null, Bool(bool), Number(string), Text(string), Array(Array<Value>), Object(Map<string,Value>) }
+struct Reader { text: string, index: i32, depth: i32 }
+fn bad(r: Reader) -> void { s::error("K0501", "invalid JSON", s::span("<json>", r.index, r.index)); }
+fn whitespace(inout r: Reader) -> void { while r.index < string_len(r.text) { let b: i32 = s::byte(r.text, r.index); if b != 32 && b != 9 && b != 10 && b != 13 { break; } r.index = r.index + 1; } }
+fn at(r: Reader, text: string) -> bool {if r.index+string_len(text)>string_len(r.text) {return false;}let mut i:i32=0;while i<string_len(text) {if s::byte(r.text,r.index+i)!=s::byte(text,i) {return false;}i=i+1;}return true;}
+fn need(inout r: Reader, text: string) -> void { if !at(r, text) { bad(r); } r.index = r.index + string_len(text); }
+fn hex(inout r: Reader) -> i32 {
+    let mut value: i32 = 0; let mut i: i32 = 0;
+    while i < 4 {
+        if r.index >= string_len(r.text) { bad(r); } let b: i32 = s::byte(r.text, r.index); let mut d: i32 = -1;
+        if b >= 48 && b <= 57 { d = b - 48; } if b >= 65 && b <= 70 { d = b - 65 + 10; } if b >= 97 && b <= 102 { d = b - 97 + 10; }
+        if d < 0 { bad(r); } value = value * 16 + d; r.index = r.index + 1; i = i + 1;
+    }
+    return value;
+}
+fn text(inout r: Reader) -> string {
+    need(inout r, "\""); let mut out: string = ""; let mut start: i32 = r.index;
+    while r.index < string_len(r.text) {
+        let b: i32 = s::byte(r.text, r.index);
+        if b == 34 { out = out + s::slice(r.text, start, r.index); r.index = r.index + 1; return out; }
+        if b < 32 { bad(r); }
+        if b == 92 {
+            out = out + s::slice(r.text, start, r.index); r.index = r.index + 1;
+            if r.index >= string_len(r.text) { bad(r); } let e: i32 = s::byte(r.text, r.index); r.index = r.index + 1;
+            if e == 34 { out = out + "\""; } else if e == 92 { out = out + "\\"; } else if e == 47 { out = out + "/"; }
+            else if e == 98 { out = out + string_from_codepoint(8); } else if e == 102 { out = out + string_from_codepoint(12); }
+            else if e == 110 { out = out + "\n"; } else if e == 114 { out = out + "\r"; } else if e == 116 { out = out + "\t"; }
+            else if e == 117 {
+                let mut cp: i32 = hex(inout r);
+                if cp >= 55296 && cp <= 56319 { need(inout r, "\\u"); let low: i32 = hex(inout r); if low < 56320 || low > 57343 { bad(r); } cp = 65536 + (cp - 55296) * 1024 + low - 56320; }
+                else if cp >= 56320 && cp <= 57343 { bad(r); } out = out + string_from_codepoint(cp);
+            } else { bad(r); }
+            start = r.index; continue;
+        }
+        let mut width: i32 = 1; if b >= 240 { width = 4; } else if b >= 224 { width = 3; } else if b >= 192 { width = 2; } r.index = r.index + width;
+    }
+    bad(r); return "";
+}
+fn value(inout r: Reader) -> Value {
+    r.depth=r.depth+1;if r.depth>256 {bad(r);}let result:Value=read_value(inout r);r.depth=r.depth-1;return result;
+}
+fn read_value(inout r: Reader) -> Value {
+    whitespace(inout r); if r.index >= string_len(r.text) { bad(r); }
+    if at(r, "\"") { return Value::Text(text(inout r)); }
+    if at(r, "null") { need(inout r, "null"); return Value::Null(); }
+    if at(r, "true") { need(inout r, "true"); return Value::Bool(true); }
+    if at(r, "false") { need(inout r, "false"); return Value::Bool(false); }
+    if at(r, "[") {
+        need(inout r, "["); whitespace(inout r); let mut values: Array<Value> = [];
+        if !at(r, "]") { while true { array_push::<Value>(inout values, value(inout r)); whitespace(inout r); if !at(r, ",") { break; } need(inout r, ","); } }
+        need(inout r, "]"); return Value::Array(values);
+    }
+    if at(r, "{") {
+        need(inout r, "{"); whitespace(inout r); let mut values: Map<string,Value> = map_new::<string,Value>();
+        if !at(r, "}") {
+            while true {
+                whitespace(inout r); let key: string = text(inout r); whitespace(inout r); need(inout r, ":"); let child: Value = value(inout r);
+                match map_get::<string,Value>(values, key) { Option::Some(previous) => { bad(r); }, Option::None => {} }
+                map_set::<string,Value>(inout values, key, child); whitespace(inout r); if !at(r, ",") { break; } need(inout r, ",");
+            }
+        }
+        need(inout r, "}"); return Value::Object(values);
+    }
+    let start: i32 = r.index; if at(r, "-") { r.index = r.index + 1; }
+    if r.index >= string_len(r.text) { bad(r); } let digit: i32 = s::byte(r.text, r.index);
+    if digit < 48 || digit > 57 { bad(r); }
+    r.index = r.index + 1;
+    if digit != 48 { while r.index < string_len(r.text) { let b: i32 = s::byte(r.text, r.index); if b < 48 || b > 57 { break; } r.index = r.index + 1; } }
+    let mut number: string = s::slice(r.text, start, r.index); let mut absolute: string = number; if s::starts(number, "-") { absolute = s::slice(number, 1, string_len(number)); }
+    if string_len(absolute) > 16 || string_len(absolute) == 16 && absolute > "9007199254740991" { bad(r); }
+    if number == "-0" { number = "0"; } return Value::Number(number);
+}
+pub fn parse(source: string) -> Value { let mut r: Reader = Reader { text: source, index: 0, depth: 0 }; let result: Value = value(inout r); whitespace(inout r); if r.index != string_len(source) { bad(r); } return result; }
+struct CanonicalFrame {value:Value,text:string}
+pub fn canonical(v:Value)->string {
+ let mut pending:Array<CanonicalFrame>=[CanonicalFrame {value:v,text:""}];let mut chunks:Array<string>=[];
+ while array_len::<CanonicalFrame>(pending)>0 {let f:CanonicalFrame=pending[array_len::<CanonicalFrame>(pending)-1];array_pop::<CanonicalFrame>(inout pending);if f.text!="" {array_push::<string>(inout chunks,f.text);continue;}
+  match f.value {Value::Null()=>{array_push::<string>(inout chunks,"null");},Value::Bool(b)=>{let mut text:string="false";if b {text="true";}array_push::<string>(inout chunks,text);},Value::Number(n)=>{array_push::<string>(inout chunks,n);},Value::Text(t)=>{array_push::<string>(inout chunks,s::json_quote(t));},
+   Value::Array(values)=>{array_push::<string>(inout chunks,"[");array_push::<CanonicalFrame>(inout pending,CanonicalFrame {value:v,text:"]"});let mut i:i32=array_len::<Value>(values)-1;while i>=0 {array_push::<CanonicalFrame>(inout pending,CanonicalFrame {value:values[i],text:""});if i>0 {array_push::<CanonicalFrame>(inout pending,CanonicalFrame {value:v,text:","});}i=i-1;}},
+   Value::Object(values)=>{array_push::<string>(inout chunks,"{");array_push::<CanonicalFrame>(inout pending,CanonicalFrame {value:v,text:"}"});let mut items:Array<CanonicalFrame>=[];for (key,child) in values {if array_len::<CanonicalFrame>(items)>0 {array_push::<CanonicalFrame>(inout items,CanonicalFrame {value:v,text:","});}array_push::<CanonicalFrame>(inout items,CanonicalFrame {value:v,text:s::json_quote(key)+":"});array_push::<CanonicalFrame>(inout items,CanonicalFrame {value:child,text:""});}let mut i:i32=array_len::<CanonicalFrame>(items)-1;while i>=0 {array_push::<CanonicalFrame>(inout pending,items[i]);i=i-1;}}
+  }
+ }return s::join(chunks,"");
+}
+pub fn field(v: Value, name: string) -> Value { match v { Value::Object(values) => { match map_get::<string,Value>(values, name) { Option::Some(child) => { return child; }, Option::None => {} } }, _ => {} } return Value::Null(); }
+pub fn string(v: Value) -> string { match v { Value::Text(t) => { return t; }, _ => { return ""; } } }
+pub fn array(v: Value) -> Array<Value> { match v { Value::Array(values) => { return values; }, _ => { return []; } } }
+pub fn boolean(v: Value) -> bool { match v { Value::Bool(b) => { return b; }, _ => { return false; } } }
+pub fn object(v: Value) -> Map<string,Value> { match v { Value::Object(values) => { return values; }, _ => { return map_new::<string,Value>(); } } }
+pub fn is_string(v: Value) -> bool { match v { Value::Text(t) => { return true; }, _ => { return false; } } }
+pub fn is_array(v: Value) -> bool { match v { Value::Array(t) => { return true; }, _ => { return false; } } }
+pub fn is_object(v: Value) -> bool { match v { Value::Object(t) => { return true; }, _ => { return false; } } }
+pub fn is_bool(v: Value) -> bool { match v { Value::Bool(t) => { return true; }, _ => { return false; } } }
+pub fn is_number(v:Value)->bool {match v {Value::Number(t)=>{return true;},_=>{return false;}}}
+pub fn set(v: Value, key: string, child: Value) -> Value { let mut values: Map<string,Value> = object(v); map_set::<string,Value>(inout values, key, child); return Value::Object(values); }
+pub fn remove(v: Value, key: string) -> Value { let mut values: Map<string,Value> = object(v); map_remove::<string,Value>(inout values, key); return Value::Object(values); }

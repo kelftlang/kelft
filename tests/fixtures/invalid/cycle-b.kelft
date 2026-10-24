@@ -1,0 +1,2 @@
+import "./cycle-a.kelft" as a;
+pub fn noop()->void {}

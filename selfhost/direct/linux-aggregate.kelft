@@ -1,0 +1,52 @@
+// Linux object assembly keeps platform support out of shared Core lowering.
+import "./aggregate.kelft" as aggregate;
+import "./host-runtime.kelft" as host_runtime;
+import "./host-policy.kelft" as host_policy;
+import "./linux-guest-runtime.kelft" as guest;
+import "./heap.kelft" as runtime;
+import "./opcodes.kelft" as opcodes;
+import "../json.kelft" as j;
+import "../core.kelft" as c;
+import "../syntax.kelft" as s;
+import "./ir.kelft" as ir;
+import "./x86_64.kelft" as x;
+import "./elf.kelft" as elf;
+import "./builder.kelft" as g;
+fn symbol(names:Map<string,string>,key:string)->string {match map_get::<string,string>(names,key) {Option::Some(value)=>{return value;},Option::None=>{s::error("K0403","missing function symbol",s::span("",0,0));}}return "";}
+// Keep one verified function's IR/machine instructions alive at a time.
+fn encode_core(f:c::Node,functions:Array<c::Node>,plan:aggregate::Lowering,environment:ir::Environment,imported:Array<string>,opcode_registry:Map<string,i32>,inout literal_data:Array<elf::Data>)->x::Code {
+ let first:i32=array_len::<elf::Data>(literal_data);let lowered:ir::Function=aggregate::lower_planned(f,functions,plan,inout literal_data);
+ let data:Array<elf::Data>=array_slice::<elf::Data>(literal_data,first,array_len::<elf::Data>(literal_data));ir::verify_part(lowered,environment,data);
+ return x::encode_registered(lowered.name,ir::lower(lowered,imported),opcode_registry);
+}
+pub fn emit_object(p:c::Program,heap_limit:i32)->Bytes {return emit_object_with_policy(p,heap_limit,"{\"execute\":false,\"read\":[],\"write\":[]}");}
+pub struct Object {code:Array<x::Code>,data:Array<elf::Data>,metadata:string}
+pub fn emit_object_with_policy(p:c::Program,heap_limit:i32,maximum:string)->Bytes {let mut object:Object=build_object(p,heap_limit,maximum);return consume_bytes(inout object);}
+pub fn write_object(object:Object)->Bytes {return elf::write(object.code,object.data,[],object.metadata);}
+pub fn consume_bytes(inout object:Object)->Bytes {let data:Array<elf::Data>=object.data;let metadata:string=object.metadata;return elf::consume(inout object.code,data,[],metadata);}
+pub fn build_object(p:c::Program,heap_limit:i32,maximum:string)->Object {
+ let mut owned:c::Program=p;return consume_object(inout owned,heap_limit,maximum);
+}
+// The native frontend hands over its only Core root. Keep call declarations,
+// then release each function body once its verified code has been produced.
+pub fn consume_object(inout p:c::Program,heap_limit:i32,maximum:string)->Object {
+ let host_used:bool=host_policy::uses_host(p);let fsmaximum:string=host_policy::filesystem_maximum(maximum);
+ let opcode_registry:Map<string,i32>=opcodes::registry();
+ let parsed:j::Value=j::parse(fsmaximum);let mut valid:bool=j::is_object(parsed)&&j::canonical(parsed)==fsmaximum&&string_len(fsmaximum)<=1048576;for (key,value) in j::object(parsed) {if key=="execute" {if !j::is_bool(value) {valid=false;}}else if key=="read"||key=="write" {if !j::is_array(value) {valid=false;}for root in j::array(value) {if !j::is_string(root) {valid=false;}else {let name:string=j::string(root);if string_len(name)>=4096||string_find(name,string_from_codepoint(0),0)>=0 {valid=false;}}}}else {valid=false;}}if !valid {s::error("K0403","invalid native maximum policy",s::span("",0,0));}
+ let mut filesystem:bool=host_used;for effect in p.effects {if effect=="fs.read"||effect=="fs.write"||effect=="artifact.execute" {filesystem=true;}}
+ if heap_limit<4096||heap_limit>268435456 {s::error("K0403","invalid development heap limit",s::span("",0,0));}
+ let plan:aggregate::Lowering=aggregate::prepare(p);let declarations:Array<c::Node>=aggregate::declarations(p);p.types=[];let mut additions:Array<ir::Function>=[];let mut extra_data:Array<elf::Data>=[];if host_used {additions=guest::functions();for f in host_runtime::unix_functions() {array_push::<ir::Function>(inout additions,f);}extra_data=guest::data();for d in host_runtime::data() {array_push::<elf::Data>(inout extra_data,d);}array_push::<elf::Data>(inout extra_data,host_policy::host_maximum(maximum));}let r:runtime::Runtime=aggregate::runtime_build(additions,extra_data);let base:Array<elf::Data>=aggregate::runtime_data(plan,[],r.data);
+ let mut signatures:Array<ir::Signature>=r.imports;for f in p.functions {array_push::<ir::Signature>(inout signatures,aggregate::planned_signature(f,plan));}
+ let mut imported:Array<string>=[];for signature in r.imports {array_push::<string>(inout imported,signature.name);}
+ let environment:ir::Environment=ir::verification(signatures,base);
+ let mut out:Array<x::Code>=[];let mut literal_data:Array<elf::Data>=[];let mut index:i32=0;while index<array_len::<c::Node>(p.functions) {let f:c::Node=p.functions[index];p.functions[index]=declarations[index];array_push::<x::Code>(inout out,encode_core(f,declarations,plan,environment,imported,opcode_registry,inout literal_data));index=index+1;}
+ let mut data:Array<elf::Data>=aggregate::runtime_data(plan,literal_data,r.data);array_push::<elf::Data>(inout data,elf::Data {name:"k_fs_maximum",bytes:string_to_bytes(fsmaximum)});let mut entry:string="";let mut result:string="void";let mut at:i32=0;for f in p.functions {if f.name==p.entry {entry="kf"+i32_to_string(at);if f.ty!="void" {result="i32";}}at=at+1;}
+ let mut builder:g::Builder=g::builder("k_aggregate_main",[],0,"i32");let ctx:i32=g::context(inout builder);let limit:i32=g::c(inout builder,heap_limit);g::store(inout builder,ctx,12,limit);if filesystem {let raw:i32=g::slot(inout builder,"ptr");let mut a:ir::Instruction=ir::instruction("address",raw);a.symbol="k_fs_maximum";g::emit(inout builder,a);let size:i32=g::c(inout builder,string_len(fsmaximum));g::call(inout builder,"k_fs_init",[raw,size],"void",[]);}let returned:i32=g::call(inout builder,entry,[],result,[]);
+ if host_used {g::call(inout builder,"k_fs_cleanup",[],"void",[]);}if filesystem&&!host_used {let a:i32=g::load(inout builder,ctx,88,"ptr");g::call(inout builder,"k_heap_release",[a],"void",[]);let z:i32=g::load(inout builder,ctx,96,"ptr");g::call(inout builder,"k_heap_release",[z],"void",[]);let nil_a:i32=g::nil(inout builder);g::store(inout builder,ctx,88,nil_a);let nil_z:i32=g::nil(inout builder);g::store(inout builder,ctx,96,nil_z);let wa:i32=g::load(inout builder,ctx,104,"ptr");g::call(inout builder,"k_heap_release",[wa],"void",[]);let wz:i32=g::load(inout builder,ctx,112,"ptr");g::call(inout builder,"k_heap_release",[wz],"void",[]);let nil_wa:i32=g::nil(inout builder);g::store(inout builder,ctx,104,nil_wa);let nil_wz:i32=g::nil(inout builder);g::store(inout builder,ctx,112,nil_wz);}
+ let live:i32=g::load(inout builder,ctx,4,"i32");let zero:i32=g::c(inout builder,0);let leaked:i32=g::binary(inout builder,"ne",live,zero);g::guard(inout builder,leaked);let mut code:i32=returned;if code<0 {code=g::c(inout builder,0);}
+ let low:i32=g::c(inout builder,0);let negative:i32=g::binary(inout builder,"lt_s",code,low);let high:i32=g::c(inout builder,255);let excess:i32=g::binary(inout builder,"gt_s",code,high);let invalid:i32=g::binary(inout builder,"or",negative,excess);let bad:string=g::label(inout builder);let good:string=g::label(inout builder);g::branch(inout builder,invalid,bad,good);g::begin(inout builder,bad);g::call(inout builder,"k_panic_KRT_EXIT",[],"void",[]);g::end(inout builder,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});g::begin(inout builder,good);g::ret(inout builder,code);let wrapper:ir::Function=g::finish(builder);
+ for f in p.functions {array_push::<string>(inout imported,symbol(plan.names,f.name));}array_push::<x::Code>(inout out,x::encode(wrapper.name,ir::lower(wrapper,imported)));for f in r.code {array_push::<x::Code>(inout out,f);}
+ array_push::<x::Code>(inout out,x::encode("_start",[x::make("linux_capture_process",0,0,""),x::make("linux_fs_entry",0,0,""),x::make("linux_heap_context",0,0,""),x::make("linux_process_context",0,0,""),x::make("linux_fs_context",0,0,""),x::make("call",0,0,"k_aggregate_main"),x::make("linux_exit_result",0,0,"")]));
+ return Object {code:out,data:data,metadata:"{\"schema\":\"kelft-native-object/1\",\"target\":\"x86_64\",\"platform\":\"linux\",\"format\":\"elf64\",\"runtimeABI\":\"kelft-native/1\",\"heapLayout\":\"kelft-owned-storage/2\",\"enumLayout\":\"kelft-native-enums/1\",\"stringLayout\":\"kelft-native-strings/1\",\"streamABI\":\"kelft-native-streams/1\",\"mapLayout\":\"kelft-native-maps/1\",\"graphABI\":\"kelft-native-graphs/1\",\"pathABI\":\"kelft-native-paths/1\",\"processABI\":\"kelft-native-process/1\",\"filesystemABI\":\"kelft-native-fs/3\",\"artifactABI\":\"kelft-native-artifacts/1\",\"startupContextBytes\":128,\"heapLimit\":"+i32_to_string(heap_limit)+",\"status\":\"development-aggregate-core\",\"maximum\":"+maximum+"}"};
+}
+

@@ -1,0 +1,22 @@
+{
+  "schema": "kelft.upstream-tool-sources/1",
+  "tools": [
+    {
+      "name": "Rust",
+      "version": "1.99.0",
+      "revision": "b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
+      "source": "https://github.com/rust-lang/rust/tree/b940084d7eb6a299eb4bfeb8e34901bc051e7ac4",
+      "scope": "native host compiler and linked Rust runtime",
+      "notices": "Each seed's notices/rust directory"
+    },
+    {
+      "name": "LLVM",
+      "revision": "1b9c0d5ff9bbe7634aead059efe6b11a7eeba145",
+      "source": "https://github.com/rust-lang/llvm-project/tree/1b9c0d5ff9bbe7634aead059efe6b11a7eeba145",
+      "scope": "Windows and macOS native linker and required LLVM library",
+      "notices": "Each applicable seed's notices/llvm directory"
+    }
+  ],
+  "qualification": false,
+  "releaseEligible": false
+}

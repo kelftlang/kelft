@@ -1,0 +1,113 @@
+import "./opcodes.kelft" as opcodes;
+// Private AAPCS64 encoder. x18 and all callee-saved registers remain untouched.
+import "./binary.kelft" as b;
+import "./linux-arm-services.kelft" as services;
+import "./ir.kelft" as ir;
+import "./x86_64.kelft" as x;
+pub struct Code {name:string,bytes:Bytes,relocations:Array<x::Relocation>,frame_size:i32,unwind:bool,returns:Array<i32>}
+struct Fixup {at:i32,label:string,conditional:bool}
+struct Emitter {frame:i32,bytes:Bytes,relocations:Array<x::Relocation>,labels:Map<string,i32>,fixups:Array<Fixup>,returns:Array<i32>}
+fn word(inout e:Emitter,value:i32)->void {b::word(inout e.bytes,value);}
+fn imm(inout e:Emitter,reg:i32,n:i32)->void {word(inout e,1384120320+(n&65535)*32+reg);word(inout e,1923088384+((n>>>16)&65535)*32+reg);}
+fn address(inout e:Emitter,reg:i32,base:i32,offset:i32)->void {
+ let frame:i32=e.frame;if base==29&&offset< -4095&&offset>= -frame&&frame+offset<=4095 {word(inout e,-1862269984+(frame+offset)*1024+reg);return;}
+ if offset==0 {word(inout e,-1442839584+base*65536+reg);return;}
+ let mut distance:i32=offset;if offset<0&&offset!= -2147483648 {distance=-offset;}
+ if offset!= -2147483648&&distance<=16777215 {let mut op:i32=-1862270976;if offset<0 {op=-788529152;}word(inout e,op+(distance%4096)*1024+base*32+reg);if distance>=4096 {word(inout e,op+4194304+(distance/4096)*1024+reg*32+reg);}}
+ else {if reg==base {b::error("invalid ARM64 address scratch");}imm(inout e,reg,offset);word(inout e,-1960787968+reg*65536+base*32+reg);}
+}
+fn memory(inout e:Emitter,store:bool,reg:i32,base:i32,offset:i32,width:i32)->void {let frame:i32=e.frame;let mut op:i32=0;let mut unscaled:i32=0;if width==8 {if store {op=-117440512;unscaled=-134217728;}else {op=-113246208;unscaled=-130023424;}}else if width==4 {if store {op=-1191182336;unscaled=-1207959552;}else {op=-1186988032;unscaled=-1203765248;}}else if width==1 {if store {op=956301312;unscaled=939524096;}else {op=960495616;unscaled=943718400;}}else {b::error("invalid ARM64 memory width");}if offset>=0&&offset%width==0&&offset/width<=4095 {word(inout e,op+(offset/width)*1024+base*32+reg);return;}if offset>= -256&&offset<=255 {word(inout e,unscaled+(offset&511)*4096+base*32+reg);return;}if base==29&&offset<0&&offset>= -frame {let relative:i32=frame+offset;if relative%width==0&&relative/width<=4095 {word(inout e,op+(relative/width)*1024+31*32+reg);return;}}address(inout e,12,base,offset);word(inout e,op+12*32+reg);}
+
+fn branch(inout e:Emitter,label:string,conditional:bool)->void {let at:i32=array_len::<u8>(e.bytes);array_push::<Fixup>(inout e.fixups,Fixup {at:at,label:label,conditional:conditional});if conditional {word(inout e,889192457);}else {word(inout e,335544320);}}
+fn call(inout e:Emitter,symbol:string)->void {let at:i32=array_len::<u8>(e.bytes);array_push::<x::Relocation>(inout e.relocations,x::Relocation {offset:at,symbol:symbol,kind:"call26",addend:0});word(inout e,-1811939328);}
+fn contains(values:Array<string>,value:string)->bool {for item in values {if item==value {return true;}}return false;}
+fn arithmetic(op:string)->i32 {if op=="add" {return 184549376;}if op=="sub" {return 1258291200;}if op=="mul" {return 453016576;}if op=="and" {return 167772160;}if op=="or" {return 704643072;}if op=="xor" {return 1241513984;}if op=="shl" {return 448798720;}if op=="shr_s" {return 448800768;}return 448799744;}
+fn condition(op:string)->i32 {if op=="eq" {return 0;}if op=="ne" {return 1;}if op=="lt_s" {return 11;}if op=="le_s" {return 13;}if op=="gt_s" {return 12;}return 10;}
+pub fn encode(name:string,instructions:Array<x::Machine>)->Code {return encode_registered(name,instructions,opcodes::registry());}
+// Internal calls share the immutable registry constructed by the outer encoder.
+pub fn encode_registered(name:string,instructions:Array<x::Machine>,opcode_registry:Map<string,i32>)->Code {
+ // BEGIN generated opcode constants
+ let op_add:i32=993596020;
+ let op_address:i32=745154899;
+ let op_and:i32=254395046;
+ let op_arg_address:i32=1471864344;
+ let op_arm_linux_close:i32=2045938239;
+ let op_arm_linux_exit:i32=-193686831;
+ let op_arm_linux_fchmod:i32=1405890082;
+ let op_arm_linux_getcwd:i32=1260799395;
+ let op_arm_linux_map:i32=969167693;
+ let op_arm_linux_mkdirat:i32=793972201;
+ let op_arm_linux_read:i32=-1869325295;
+ let op_arm_linux_readlinkat:i32=483132072;
+ let op_arm_linux_start:i32=-224374653;
+ let op_arm_linux_unmap:i32=-1972619776;
+ let op_arm_linux_write:i32=817269784;
+ let op_call:i32=-1276017495;
+ let op_context:i32=-1937305476;
+ let op_div_s:i32=-332448462;
+ let op_eq:i32=1142581827;
+ let op_ge_s:i32=1804211731;
+ let op_goto:i32=-173862938;
+ let op_gt_s:i32=-585182360;
+ let op_imm:i32=2129075090;
+ let op_label:i32=-157870083;
+ let op_le_s:i32=699435220;
+ let op_load:i32=-435725847;
+ let op_loc_address:i32=1992971310;
+ let op_lt_s:i32=1404448415;
+ let op_mask_u8:i32=-285466473;
+ let op_mul:i32=-343609983;
+ let op_ne:i32=1479958588;
+ let op_nonzero:i32=1790618910;
+ let op_or:i32=1563699588;
+ let op_out_address:i32=-216729632;
+ let op_prologue:i32=-656573192;
+ let op_ptr_add:i32=1697139769;
+ let op_ptr_eq:i32=376154780;
+ let op_read:i32=-824204347;
+ let op_rem_s:i32=-2091945951;
+ let op_return:i32=-2047985729;
+ let op_save:i32=-855671224;
+ let op_second:i32=-1409755939;
+ let op_shl:i32=-533861450;
+ let op_shr_s:i32=-1849078538;
+ let op_shr_u:i32=-1815523300;
+ let op_slot_address:i32=-1491298942;
+ let op_sub:i32=-598853355;
+ let op_symbol_address:i32=-434141662;
+ let op_trap:i32=1619038978;
+ let op_write:i32=-1104765092;
+ let op_xor:i32=-865346690;
+ // END generated opcode constants
+
+
+ if array_len::<x::Machine>(instructions)==0 {b::error("invalid ARM64 frame");}let first:x::Machine=instructions[0];if first.op!="prologue"||first.a<32||first.a>40000||first.a%16!=0 {b::error("invalid ARM64 frame");}let frame:i32=first.a;let mut e:Emitter=Emitter {frame:frame,bytes:[],relocations:[],labels:map_new::<string,i32>(),fixups:[],returns:[]};let mut index:i32=0;
+ for i in instructions {let operation_id:i32=opcodes::identify(i.op,opcode_registry);
+  if operation_id==op_prologue&&index!=0 {b::error("nested ARM64 prologue");}index=index+1;
+  if (operation_id==op_load||operation_id==op_second||operation_id==op_save||operation_id==op_slot_address||operation_id==op_arg_address||operation_id==op_loc_address||operation_id==op_out_address)&&(i.a> -8||i.a< -frame||i.a%8!=0) {b::error("invalid ARM64 frame slot");}
+  if operation_id==op_prologue {word(inout e,-1447068675);word(inout e,-1862269955);word(inout e,-788528129+(frame%4096)*1024);if frame>=4096 {word(inout e,-784333825+(frame/4096)*1024);}let mut n:i32=0;while n<4 {memory(inout e,true,n,29,-8-n*8,8);n=n+1;}}
+  else if operation_id==op_label {match map_get::<string,i32>(e.labels,i.symbol) {Option::Some(value)=>{b::error("duplicate ARM64 label");},Option::None=>{}}let at:i32=array_len::<u8>(e.bytes);map_set::<string,i32>(inout e.labels,i.symbol,at);}
+  else if operation_id==op_load {memory(inout e,false,9,29,i.a,8);}else if operation_id==op_second {memory(inout e,false,10,29,i.a,8);}else if operation_id==op_save {memory(inout e,true,9,29,i.a,8);}
+  else if operation_id==op_imm {imm(inout e,9,i.a);}else if operation_id==op_mask_u8 {word(inout e,1392516393);}else if operation_id==op_slot_address {address(inout e,9,29,i.a);}else if operation_id==op_context {memory(inout e,false,0,29,-8,8);}else if operation_id==op_arg_address {address(inout e,1,29,i.a);}else if operation_id==op_loc_address {address(inout e,2,29,i.a);}else if operation_id==op_out_address {address(inout e,3,29,i.a);}
+  else if operation_id==op_read {memory(inout e,false,9,9,i.b,i.a);}else if operation_id==op_write {memory(inout e,true,9,10,i.b,i.a);}else if operation_id==op_ptr_add {word(inout e,-1960787968+10*65536+9*32+9);}else if operation_id==op_ptr_eq {word(inout e,-352321505+10*65536+9*32);word(inout e,446633961);}
+  else if (operation_id==op_add||operation_id==op_sub||operation_id==op_mul||operation_id==op_and||operation_id==op_or||operation_id==op_xor||operation_id==op_shl||operation_id==op_shr_s||operation_id==op_shr_u) {let op:i32=arithmetic(i.op);word(inout e,op+10*65536+9*32+9);}
+  else if (operation_id==op_eq||operation_id==op_ne||operation_id==op_lt_s||operation_id==op_le_s||operation_id==op_gt_s||operation_id==op_ge_s) {let cc:i32=condition(i.op);word(inout e,1795162143+10*65536+9*32);word(inout e,446629856+(cc^1)*4096+9);}
+  else if operation_id==op_div_s||operation_id==op_rem_s {word(inout e,889192522);word(inout e,-736100352);if operation_id==op_div_s {imm(inout e,11,-2147483648);word(inout e,1795162143+11*65536+9*32);word(inout e,1409286337);imm(inout e,11,-1);word(inout e,1795162143+11*65536+10*32);word(inout e,1409286209);word(inout e,-736100352);}let mut reg:i32=11;if operation_id==op_div_s {reg=9;}word(inout e,448793600+10*65536+9*32+reg);if operation_id==op_rem_s {word(inout e,453017600+10*65536+9*1024+11*32+9);}}
+  else if operation_id==op_address||operation_id==op_symbol_address {let mut addend:i32=0;if operation_id==op_address {addend=i.a;}let at:i32=array_len::<u8>(e.bytes);array_push::<x::Relocation>(inout e.relocations,x::Relocation {offset:at,symbol:i.symbol,kind:"page21",addend:addend});word(inout e,-1879048183);let at2:i32=array_len::<u8>(e.bytes);array_push::<x::Relocation>(inout e.relocations,x::Relocation {offset:at2,symbol:i.symbol,kind:"pageoff12",addend:addend});word(inout e,-1862270679);if operation_id==op_symbol_address&&i.a!=0 {imm(inout e,10,i.a);word(inout e,-1960787968+10*65536+9*32+9);}}
+  else if operation_id==op_call {call(inout e,i.symbol);}else if operation_id==op_goto {branch(inout e,i.symbol,false);}else if operation_id==op_nonzero {branch(inout e,i.symbol,true);}else if operation_id==op_trap {word(inout e,-736100352);}
+  else if (operation_id==op_arm_linux_readlinkat||operation_id==op_arm_linux_read||operation_id==op_arm_linux_close||operation_id==op_arm_linux_mkdirat||operation_id==op_arm_linux_fchmod) {if i.a!=0||i.b!=0||i.symbol!="" {b::error("invalid ARM64 filesystem mechanism");}let mut number:i32=0;let mut widths:Array<i32>=[];if operation_id==op_arm_linux_readlinkat {number=78;widths=[4,8,8,4];}if operation_id==op_arm_linux_read {number=63;widths=[4,8,4];}if operation_id==op_arm_linux_close {number=57;widths=[4];}if operation_id==op_arm_linux_mkdirat {number=34;widths=[4,8,4];}if operation_id==op_arm_linux_fchmod {number=52;widths=[4,4];}memory(inout e,false,11,29,-16,8);let mut n:i32=0;while n<array_len::<i32>(widths) {memory(inout e,false,n,11,n*8,widths[n]);n=n+1;}imm(inout e,8,number);word(inout e,-738197503);word(inout e,704644073);}
+  else if operation_id==op_arm_linux_start {
+   if frame<256||i.a!=0||i.b!=0||i.symbol!="k_linux_arm_main" {b::error("invalid Linux ARM64 startup");}imm(inout e,9,0);let mut positions:Array<i32>=[-208,-200];let mut n:i32=0;while n<16 {array_push::<i32>(inout positions,-192+n*8);n=n+1;}for at in positions {memory(inout e,true,9,29,at,8);}memory(inout e,false,9,29,16,8);memory(inout e,true,9,29,-128,8);address(inout e,9,29,24);memory(inout e,true,9,29,-120,8);memory(inout e,false,10,29,16,8);word(inout e,-1962934272+10*65536+3*1024+9*32+11);word(inout e,-1862270976+8*1024+11*32+11);memory(inout e,true,11,29,-112,8);address(inout e,0,29,-192);address(inout e,1,29,-208);address(inout e,2,29,-208);address(inout e,3,29,-200);call(inout e,i.symbol);memory(inout e,false,0,29,-200,4);imm(inout e,8,94);word(inout e,-738197503);word(inout e,-736100352);
+  }else if (operation_id==op_arm_linux_map||operation_id==op_arm_linux_unmap||operation_id==op_arm_linux_write||operation_id==op_arm_linux_getcwd||operation_id==op_arm_linux_exit) {
+   if i.a!=0||i.b!=0||i.symbol!="" {b::error("invalid Linux ARM64 mechanism");}memory(inout e,false,11,29,-16,8);
+   if operation_id==op_arm_linux_map {imm(inout e,0,0);memory(inout e,false,1,11,0,4);imm(inout e,2,3);imm(inout e,3,34);word(inout e,-1837105148);imm(inout e,5,0);imm(inout e,8,222);}
+   if operation_id==op_arm_linux_unmap||operation_id==op_arm_linux_getcwd {memory(inout e,false,0,11,0,8);memory(inout e,false,1,11,8,4);let mut number:i32=17;if operation_id==op_arm_linux_unmap {number=215;}imm(inout e,8,number);}
+   if operation_id==op_arm_linux_write {memory(inout e,false,0,11,0,4);memory(inout e,false,1,11,8,8);memory(inout e,false,2,11,16,4);imm(inout e,8,64);}if operation_id==op_arm_linux_exit {memory(inout e,false,0,11,0,4);imm(inout e,8,94);}word(inout e,-738197503);if operation_id==op_arm_linux_exit {word(inout e,-736100352);}
+   if operation_id==op_arm_linux_map {word(inout e,-1837105152+4094*32+11);word(inout e,-352321505+11*65536);word(inout e,1409286211);word(inout e,-1440807968);word(inout e,-1442839575);}else {word(inout e,704644073);}
+  }else if services::supported(i.op) {if i.a!=0||i.b!=0||i.symbol!="" {b::error("invalid Linux ARM64 service operands");}for byte in services::bytes(i.op) {array_push::<u8>(inout e.bytes,byte);}}else if operation_id==op_return {if i.a!=0 {memory(inout e,false,11,29,-32,8);memory(inout e,true,9,11,0,i.a);}word(inout e,-1862270017);word(inout e,-1463714819);let at:i32=array_len::<u8>(e.bytes);array_push::<i32>(inout e.returns,at);word(inout e,-698416192);}
+  else {b::error("unsupported ARM64 operation "+i.op);}
+ }
+ for f in e.fixups {let target:i32=b::get(e.labels,f.label);let delta:i32=(target-f.at)/4;let mut value:i32=0;if f.conditional {if delta< -262144||delta>=262144 {b::error("ARM64 branch displacement overflow");}value=889192457+(delta&524287)*32;}else {if delta< -33554432||delta>=33554432 {b::error("ARM64 branch displacement overflow");}value=335544320+(delta&67108863);}b::patch(inout e.bytes,f.at,value);}
+ return Code {name:name,bytes:e.bytes,relocations:e.relocations,frame_size:frame,unwind:true,returns:e.returns};
+}
+pub fn encode_program(p:ir::Program)->Array<Code> {if p.target!="arm64"||p.platform!="linux" {b::error("expected private Linux ARM64 IR");}let mut validated:ir::Program=p;validated.target="x86_64";ir::verify(validated);let mut imports:Array<string>=[];for a in p.imports {array_push::<string>(inout imports,a.name);}let opcode_registry:Map<string,i32>=opcodes::registry();let mut out:Array<Code>=[];for f in p.functions {array_push::<Code>(inout out,encode_registered(f.name,ir::lower(f,imports),opcode_registry));}return out;}

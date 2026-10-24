@@ -1,0 +1,90 @@
+import "./opcodes.kelft" as opcodes;
+// Development Core lowering, intentionally not registered as a public target.
+import "../core.kelft" as c;
+import "../syntax.kelft" as s;
+import "./ir.kelft" as ir;
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./elf.kelft" as elf;
+import "./scalar-runtime.kelft" as runtime;
+struct Loop {stop:string,next:string}
+struct Builder {functions:Array<c::Node>,names:Map<string,string>,fn_node:c::Node,slots:Array<string>,blocks:Array<ir::Block>,locals:Map<string,i32>,locations:Map<string,i32>,serial:i32,current:i32,terminated:bool,context:i32,old_depth:i32,loops:Array<Loop>}
+fn fail(message:string,n:c::Node)->void {s::error("K0403",message,n.span);}
+fn width(ty:string,n:c::Node)->string {if ty=="i32"||ty=="bool" {return "i32";}if ty=="u8" {return "u8";}fail("development direct backend supports scalar Core only: "+ty,n);return "";}
+fn parameters(f:c::Node)->Array<c::Node> {let mut out:Array<c::Node>=[];for p in f.args {if p.op=="param" {array_push::<c::Node>(inout out,p);}}return out;}
+fn name(names:Map<string,string>,key:string)->string {match map_get::<string,string>(names,key) {Option::Some(value)=>{return value;},Option::None=>{b::error("unresolved scalar function");}}return "";}
+fn fresh(inout state:Builder,w:string)->i32 {let out:i32=array_len::<string>(state.slots);if out>=4096 {fail("development native slot limit exceeded",state.fn_node);}array_push::<string>(inout state.slots,w);return out;}
+fn label(inout state:Builder)->string {let out:string="b"+i32_to_string(state.serial);state.serial=state.serial+1;return out;}
+fn terminal(op:string,value:i32,label:string,condition:i32,yes:string,no:string)->ir::End {return ir::End {op:op,value:value,label:label,condition:condition,yes:yes,no:no};}
+fn begin(inout state:Builder,name:string)->void {let at:i32=array_len::<ir::Block>(state.blocks);array_push::<ir::Block>(inout state.blocks,ir::Block {label:name,instructions:[],end:terminal("trap",-1,"",-1,"","")});state.current=at;state.terminated=false;}
+fn emit(inout state:Builder,i:ir::Instruction)->void {if state.terminated {b::error("scalar builder emitted after terminator");}let at:i32=state.current;array_push::<ir::Instruction>(inout state.blocks[at].instructions,i);}
+fn end(inout state:Builder,t:ir::End)->void {let at:i32=state.current;state.blocks[at].end=t;state.terminated=true;}
+fn constant(inout state:Builder,value:i32,w:string)->i32 {let out:i32=fresh(inout state,w);let mut i:ir::Instruction=ir::instruction("const",out);i.value=value;emit(inout state,i);return out;}
+fn copy(inout state:Builder,value:i32)->i32 {let w:string=state.slots[value];let out:i32=fresh(inout state,w);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=value;emit(inout state,i);return out;}
+fn binary(inout state:Builder,kind:string,left:i32,right:i32)->i32 {let out:i32=fresh(inout state,"i32");let mut i:ir::Instruction=ir::instruction("binary",out);i.kind=kind;i.left=left;i.right=right;emit(inout state,i);return out;}
+fn widen(inout state:Builder,value:i32)->i32 {if state.slots[value]=="i32" {return value;}let out:i32=fresh(inout state,"i32");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=value;emit(inout state,i);return out;}
+fn panic(inout state:Builder,code:string)->void {let mut i:ir::Instruction=ir::instruction("call",-1);i.symbol="k_panic_"+code;emit(inout state,i);end(inout state,terminal("trap",-1,"",-1,"",""));}
+fn guard(inout state:Builder,condition:i32,code:string)->void {let bad:string=label(inout state);let good:string=label(inout state);end(inout state,terminal("branch",-1,"",condition,bad,good));begin(inout state,bad);panic(inout state,code);begin(inout state,good);}
+fn local(inout state:Builder,n:c::Node)->i32 {match map_get::<string,i32>(state.locals,n.name) {Option::Some(out)=>{return out;},Option::None=>{}}let out:i32=fresh(inout state,width(n.ty,n));map_set::<string,i32>(inout state.locals,n.name,out);return out;}
+fn place(inout state:Builder,n:c::Node)->i32 {if n.op!="local" {fail("development direct inout supports scalar locals only",n);}match map_get::<string,i32>(state.locations,n.name) {Option::Some(out)=>{return out;},Option::None=>{}}let slot:i32=local(inout state,n);let out:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("slot_address",out);i.slot=slot;emit(inout state,i);return out;}
+fn value(inout state:Builder,n:c::Node)->i32 {let out:i32=expression(inout state,n);if out<0 {fail("void scalar expression",n);}return out;}
+fn operator(name:string)->string {let names:Array<string>=["+","-","*","&","|","^","<<",">>",">>>","/","%","==","!=","<","<=",">",">="];let values:Array<string>=["add","sub","mul","and","or","xor","shl","shr_s","shr_u","div_s","rem_s","eq","ne","lt_s","le_s","gt_s","ge_s"];let mut at:i32=0;for item in names {if item==name {return values[at];}at=at+1;}return "";}
+fn expression(inout state:Builder,n:c::Node)->i32 {
+ let a:Array<c::Node>=n.args;
+ if n.op=="literal" {let mut number:i32=0;if n.ty=="bool" {if n.name=="true" {number=1;}}else {match string_to_i32(n.name) {Result::Ok(v)=>{number=v;},Result::Error(message)=>{fail(message,n);}}}return constant(inout state,number,width(n.ty,n));}
+ if n.op=="local" {match map_get::<string,i32>(state.locations,n.name) {Option::Some(base)=>{let out:i32=fresh(inout state,width(n.ty,n));let mut i:ir::Instruction=ir::instruction("load",out);i.base=base;emit(inout state,i);return out;},Option::None=>{}}let source:i32=local(inout state,n);return copy(inout state,source);}
+ if n.op=="location" {return place(inout state,a[0]);}
+ if n.op=="unary" {let operand:i32=value(inout state,a[0]);if n.name=="!" {let zero:i32=constant(inout state,0,"i32");return binary(inout state,"eq",operand,zero);}if n.name=="-" {let zero:i32=constant(inout state,0,"i32");return binary(inout state,"sub",zero,operand);}let minus:i32=constant(inout state,-1,"i32");return binary(inout state,"xor",operand,minus);}
+ if n.op=="binary" {
+  let left:i32=value(inout state,a[0]);
+  if n.name=="&&"||n.name=="||" {let out:i32=copy(inout state,left);let right_label:string=label(inout state);let done:string=label(inout state);let mut yes:string=right_label;let mut no:string=done;if n.name=="||" {yes=done;no=right_label;}end(inout state,terminal("branch",-1,"",left,yes,no));begin(inout state,right_label);let right:i32=value(inout state,a[1]);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=right;emit(inout state,i);end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return out;}
+  let right:i32=value(inout state,a[1]);let l:i32=widen(inout state,left);let r:i32=widen(inout state,right);
+  if n.name=="/"||n.name=="%" {let zero:i32=constant(inout state,0,"i32");let condition:i32=binary(inout state,"eq",r,zero);guard(inout state,condition,"KRT_DIV_ZERO");if n.name=="/" {let min:i32=constant(inout state,-2147483648,"i32");let first:i32=binary(inout state,"eq",l,min);let minus:i32=constant(inout state,-1,"i32");let second:i32=binary(inout state,"eq",r,minus);let overflow:i32=binary(inout state,"and",first,second);guard(inout state,overflow,"KRT_DIV_OVERFLOW");}}
+  let kind:string=operator(n.name);if kind=="" {fail("unsupported scalar operator",n);}return binary(inout state,kind,l,r);
+ }
+ if n.op=="call" {let mut callee:c::Node=n;for f in state.functions {if f.name==n.name {callee=f;}}let mut args:Array<i32>=[];let mut locations:Array<i32>=[];let mut at:i32=0;for p in parameters(callee) {let operand:i32=value(inout state,a[at]);if p.flag {array_push::<i32>(inout locations,operand);}else {array_push::<i32>(inout args,operand);}at=at+1;}let mut out:i32=-1;if n.ty!="void" {out=fresh(inout state,width(n.ty,n));}let mut i:ir::Instruction=ir::instruction("call",out);i.symbol=name(state.names,n.name);i.args=args;i.locations=locations;emit(inout state,i);return out;}
+ if n.op=="intrinsic" {
+  if n.name!="exit"&&n.name!="i32_from_u8"&&n.name!="u8_from_i32" {fail("development direct intrinsic is unavailable: "+n.name,n);}
+  let operand:i32=value(inout state,a[0]);if n.name=="i32_from_u8" {let out:i32=fresh(inout state,"i32");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=operand;emit(inout state,i);return out;}
+  let zero:i32=constant(inout state,0,"i32");let first:i32=binary(inout state,"lt_s",operand,zero);let high:i32=constant(inout state,255,"i32");let second:i32=binary(inout state,"gt_s",operand,high);let condition:i32=binary(inout state,"or",first,second);let mut code:string="KRT_U8_RANGE";if n.name=="exit" {code="KRT_EXIT";}guard(inout state,condition,code);
+  if n.name=="exit" {let mut i:ir::Instruction=ir::instruction("call",-1);i.symbol="k_scalar_exit";i.args=[operand];emit(inout state,i);return -1;}
+  let out:i32=fresh(inout state,"u8");let mut i:ir::Instruction=ir::instruction("convert",out);i.value=operand;emit(inout state,i);return out;
+ }
+ fail("development direct expression is unavailable: "+n.op,n);return -1;
+}
+fn leave(inout state:Builder,result:i32)->void {let context:i32=state.context;let depth:i32=state.old_depth;let mut i:ir::Instruction=ir::instruction("store",-1);i.base=context;i.value=depth;emit(inout state,i);end(inout state,terminal("return",result,"",-1,"",""));}
+fn statement(inout state:Builder,n:c::Node)->void {
+ if state.terminated {return;}let a:Array<c::Node>=n.args;
+ if n.op=="block" {for child in a {statement(inout state,child);}return;}
+ if n.op=="bind" {let operand:i32=value(inout state,a[0]);let out:i32=local(inout state,n);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=operand;emit(inout state,i);return;}
+ if n.op=="store" {let destination:i32=place(inout state,a[0]);let operand:i32=value(inout state,a[1]);let mut i:ir::Instruction=ir::instruction("store",-1);i.base=destination;i.value=operand;emit(inout state,i);return;}
+ if n.op=="evaluate" {expression(inout state,a[0]);return;}
+ if n.op=="return" {let mut result:i32=-1;if array_len::<c::Node>(a)>0 {result=value(inout state,a[0]);}leave(inout state,result);return;}
+ if n.op=="if" {let condition:i32=value(inout state,a[0]);let yes:string=label(inout state);let no:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("branch",-1,"",condition,yes,no));begin(inout state,yes);statement(inout state,a[1]);if !state.terminated {end(inout state,terminal("goto",-1,done,-1,"",""));}begin(inout state,no);if array_len::<c::Node>(a)>2 {statement(inout state,a[2]);}if !state.terminated {end(inout state,terminal("goto",-1,done,-1,"",""));}begin(inout state,done);return;}
+ if n.op=="while" {let test:string=label(inout state);let body:string=label(inout state);let done:string=label(inout state);end(inout state,terminal("goto",-1,test,-1,"",""));begin(inout state,test);let condition:i32=value(inout state,a[0]);end(inout state,terminal("branch",-1,"",condition,body,done));begin(inout state,body);array_push::<Loop>(inout state.loops,Loop {stop:done,next:test});statement(inout state,a[1]);array_pop::<Loop>(inout state.loops);if !state.terminated {end(inout state,terminal("goto",-1,test,-1,"",""));}begin(inout state,done);return;}
+ if n.op=="break"||n.op=="continue" {let loop:Loop=state.loops[array_len::<Loop>(state.loops)-1];let mut target:string=loop.next;if n.op=="break" {target=loop.stop;}end(inout state,terminal("goto",-1,target,-1,"",""));return;}
+ if n.op=="match" {let subject:i32=value(inout state,a[0]);let done:string=label(inout state);let mut at:i32=1;while at<array_len::<c::Node>(a) {let arm:c::Node=a[at];let p:c::Node=arm.args[0];if p.op!="pattern" {fail("development direct patterns support scalar bindings only",p);}let body:string=label(inout state);let next:string=label(inout state);let mut condition:i32=subject;if p.name=="false" {let zero:i32=constant(inout state,0,"i32");condition=binary(inout state,"eq",subject,zero);}else if p.name!="true" {condition=constant(inout state,1,"i32");}end(inout state,terminal("branch",-1,"",condition,body,next));begin(inout state,body);if p.name!="_"&&p.name!="true"&&p.name!="false" {let out:i32=local(inout state,p);let mut i:ir::Instruction=ir::instruction("copy",out);i.value=subject;emit(inout state,i);}statement(inout state,arm.args[1]);if !state.terminated {end(inout state,terminal("goto",-1,done,-1,"",""));}begin(inout state,next);at=at+1;}end(inout state,terminal("goto",-1,done,-1,"",""));begin(inout state,done);return;}
+ fail("development direct statement is unavailable: "+n.op,n);
+}
+fn lower_function(f:c::Node,functions:Array<c::Node>,names:Map<string,string>)->ir::Function {
+ let mut state:Builder=Builder {functions:functions,names:names,fn_node:f,slots:[],blocks:[],locals:map_new::<string,i32>(),locations:map_new::<string,i32>(),serial:0,current:0,terminated:false,context:-1,old_depth:-1,loops:[]};
+ begin(inout state,"entry");let context:i32=fresh(inout state,"ptr");state.context=context;emit(inout state,ir::instruction("context",context));let depth:i32=fresh(inout state,"i32");state.old_depth=depth;let mut load:ir::Instruction=ir::instruction("load",depth);load.base=context;emit(inout state,load);
+ let maximum:i32=constant(inout state,256,"i32");let exhausted:i32=binary(inout state,"ge_s",depth,maximum);guard(inout state,exhausted,"KRT_RESOURCE");let one:i32=constant(inout state,1,"i32");let next:i32=binary(inout state,"add",depth,one);let mut store:ir::Instruction=ir::instruction("store",-1);store.base=context;store.value=next;emit(inout state,store);
+ let mut argument:i32=0;let mut location:i32=0;for p in parameters(f) {if p.flag {let out:i32=fresh(inout state,"ptr");let mut i:ir::Instruction=ir::instruction("location",out);i.index=location;location=location+1;emit(inout state,i);map_set::<string,i32>(inout state.locations,p.name,out);}else {let out:i32=fresh(inout state,width(p.ty,p));let mut i:ir::Instruction=ir::instruction("argument",out);i.index=argument;argument=argument+1;emit(inout state,i);map_set::<string,i32>(inout state.locals,p.name,out);}}
+ statement(inout state,f.args[array_len::<c::Node>(f.args)-1]);if !state.terminated {if f.ty=="void" {leave(inout state,-1);}else {end(inout state,terminal("trap",-1,"",-1,"",""));}}
+ let mut reached:Map<string,i32>=map_new::<string,i32>();let mut pending:Array<string>=["entry"];while array_len::<string>(pending)>0 {let label:string=pending[array_len::<string>(pending)-1];array_pop::<string>(inout pending);match map_get::<string,i32>(reached,label) {Option::Some(value)=>{continue;},Option::None=>{}}map_set::<string,i32>(inout reached,label,1);for block in state.blocks {if block.label!=label {continue;}if block.end.op=="goto" {array_push::<string>(inout pending,block.end.label);}if block.end.op=="branch" {array_push::<string>(inout pending,block.end.yes);array_push::<string>(inout pending,block.end.no);}}}
+ let mut blocks:Array<ir::Block>=[];for block in state.blocks {match map_get::<string,i32>(reached,block.label) {Option::Some(value)=>{array_push::<ir::Block>(inout blocks,block);},Option::None=>{}}}
+ let mut params:Array<string>=[];for p in parameters(f) {if !p.flag {array_push::<string>(inout params,width(p.ty,p));}}let mut result:string="void";if f.ty!="void" {result=width(f.ty,f);}
+ return ir::Function {name:name(names,f.name),params:params,locations:location,result:result,slots:state.slots,entry:"entry",blocks:blocks};
+}
+pub fn lower(p:c::Program)->ir::Program {
+ c::validate(p);let mut names:Map<string,string>=map_new::<string,string>();let mut at:i32=0;for f in p.functions {map_set::<string,string>(inout names,f.name,"kf"+i32_to_string(at));at=at+1;}
+ let mut functions:Array<ir::Function>=[];for f in p.functions {array_push::<ir::Function>(inout functions,lower_function(f,p.functions,names));}
+ let r:runtime::Runtime=runtime::build();let result:ir::Program=ir::Program {schema:"kelft-native-ir/1",target:"x86_64",platform:"linux",abi:"kelft-native/1",functions:functions,imports:r.imports,data:r.data};ir::verify(result);return result;
+}
+pub fn emit_object(p:c::Program)->Bytes {
+ let program:ir::Program=lower(p);let r:runtime::Runtime=runtime::build();let mut imports:Array<string>=[];for signature in program.imports {array_push::<string>(inout imports,signature.name);}let opcode_registry:Map<string,i32>=opcodes::registry();let mut code:Array<x::Code>=[];for f in program.functions {array_push::<x::Code>(inout code,x::encode_registered(f.name,ir::lower(f,imports),opcode_registry));}for f in r.code {array_push::<x::Code>(inout code,f);}
+ let mut at:i32=0;let mut entry:string="";for f in p.functions {if f.name==p.entry {entry="kf"+i32_to_string(at);}at=at+1;}
+ array_push::<x::Code>(inout code,x::encode("_start",[x::make("linux_entry",0,0,""),x::make("linux_core_context",0,0,""),x::make("call",0,0,entry),x::make("linux_check_exit_result",0,0,"exit_ok"),x::make("linux_core_context",0,0,""),x::make("linux_reset_arguments",0,0,""),x::make("call",0,0,"k_panic_KRT_EXIT"),x::make("trap",0,0,""),x::make("label",0,0,"exit_ok"),x::make("linux_exit_result",0,0,"")]));
+ return elf::write(code,program.data,[],"{\"schema\":\"kelft-native-object/1\",\"target\":\"x86_64\",\"platform\":\"linux\",\"format\":\"elf64\",\"runtimeABI\":\"kelft-native/1\",\"status\":\"development-scalar-core\",\"maximum\":{\"read\":[],\"write\":[],\"execute\":false}}");
+}

@@ -1,0 +1,186 @@
+import "./parser.kelft" as parser;
+import "./toolchain/host-capabilities.kelft" as host_caps;
+import "./intent_source.kelft" as intent_source;
+import "./intent_domain.kelft" as intent_domain;
+import "./intent_public.kelft" as intent_public;
+import "./intent_enforce.kelft" as intent_enforce;
+import "./intent_capabilities.kelft" as intent_capabilities;
+import "./intent_migration.kelft" as intent_migration;
+import "./intent_wire.kelft" as intent_wire;
+import "./intent_preservation.kelft" as intent_preservation;
+import "./syntax.kelft" as syntax;
+import "./semantic.kelft" as semantic;
+import "./modules.kelft" as modules;
+import "./core.kelft" as core;
+import "./emitter.kelft" as emitter;
+import "./intent.kelft" as intent;
+import "./json.kelft" as json;
+import "./hash.kelft" as hash;
+import "./lexer.kelft" as lexer;
+import "./verification.kelft" as verification;
+import "./wasm/emitter.kelft" as wasm;
+import "./c/emitter.kelft" as c;
+import "./driver.kelft" as driver;
+fn read(path: string) -> string {
+    match read_file(path) {
+        Result::Ok(bytes)=>{match utf8_decode(bytes) {Result::Ok(value)=>{return value;},Result::Error(message)=>{syntax::error("K0005","source is not valid UTF-8",syntax::span(path,0,0));}}},
+        Result::Error(message)=>{syntax::error("K0211",message,syntax::span(path,0,0));}
+    }
+    return "";
+}
+fn intent_command(arguments: Array<string>) -> void {
+    let mut positional: Array<string> = []; let mut approved: Array<string> = []; let mut proposal_file: string = ""; let mut base_file: string = ""; let mut compiler_file: string = "";let mut declarations:string="";let mut bindings:string=""; let mut option_index: i32 = 0;
+    while option_index < array_len::<string>(arguments) {
+        let flag: string = arguments[option_index];
+        if flag=="--proposal" || flag=="--base" || flag=="--allow-change" || flag=="--compiler-file" || flag=="--intent" || flag=="--bindings" {
+            option_index=option_index+1;if option_index>=array_len::<string>(arguments) {eprint("missing Intent option value\n");exit(1);}
+            if flag=="--proposal" {proposal_file=arguments[option_index];}else if flag=="--base" {base_file=arguments[option_index];}else if flag=="--compiler-file" {compiler_file=arguments[option_index];}else if flag=="--intent" {declarations=arguments[option_index];}else if flag=="--bindings" {bindings=arguments[option_index];}else {array_push::<string>(inout approved,arguments[option_index]);}
+        } else {array_push::<string>(inout positional,flag);} option_index=option_index+1;
+    }
+    intent_arguments(positional,approved,proposal_file,base_file,compiler_file,declarations,bindings);
+}
+fn intent_arguments(arguments: Array<string>, approved: Array<string>, proposal_file: string, base_file: string, compiler_file: string,declarations:string,bindings:string) -> void {
+    if array_len::<string>(arguments) < 3 { eprint("intent command requires a JSON file\n"); exit(1); }
+    let command: string = arguments[1];
+    if command=="compare" {
+        if array_len::<string>(arguments)!=5 {eprint("compare requires baseline contracts, candidate contracts, and change policies\n");exit(1);}
+        let before:json::Value=json::parse(read(arguments[2]));let after:json::Value=json::parse(read(arguments[3]));let policies:json::Value=json::parse(read(arguments[4]));
+        if !json::is_array(before)||!json::is_array(after)||!json::is_array(policies) {syntax::error("K0710","invalid preservation input",syntax::span("<preservation>",0,0));}
+        println(json::canonical(intent_preservation::check(json::array(before),json::array(after),json::array(policies),approved)));return;
+    }
+    if command=="migrate" {
+        if array_len::<string>(arguments)!=5 {eprint("migration requires legacy Intent, declarative source and explicit identity mapping\n");exit(1);}
+        let entry:string=arguments[3];if string_len(entry)<6||syntax::slice(entry,string_len(entry)-6,string_len(entry))!=".kelft" {syntax::error("K0211","source must use .kelft",syntax::span(entry,0,0));}let relative:string=path_relative(canonical_path(current_dir()),canonical_path(entry));if relative==".."||syntax::starts(relative,"../")||syntax::has(relative,":") {eprint("migration source outside project root\n");exit(1);}
+        let graph:json::Value=intent_source::dependencies(intent_source::lower(intent_source::parse(read(entry),entry)),entry,current_dir());intent_domain::check(graph);intent_public::extract(graph);intent_capabilities::lower(graph);
+        let mut bytes:Bytes=[];match read_file(arguments[2]) {Result::Ok(value)=>{bytes=value;},Result::Error(message)=>{syntax::error("K0715",message,syntax::span(arguments[2],0,0));}}
+        let mut mapping:json::Value=json::parse(read(arguments[4]));if json::string(json::field(mapping,"kind"))=="migration" {mapping=json::field(mapping,"mappings");}println(json::canonical(intent_migration::receipt(json::parse(read(arguments[2])),bytes,graph,mapping,arguments[2],entry)));return;
+    }
+    if command == "proposal" {
+        if array_len::<string>(arguments) < 5 { eprint("proposal requires base Intent and candidate\n"); exit(1); }
+        let base: json::Value = intent::parse(read(arguments[3])); let mods: Array<modules::Module> = modules::load(arguments[4], current_dir());
+        println(json::canonical(intent::proposal_authorized(json::parse(read(arguments[2])), base, verification::candidate_hash(mods),approved))); return;
+    }
+    let value: json::Value = intent::parse(read(arguments[2]));
+    if command == "canonical" { println(json::canonical(value)); return; }
+    if command == "hash" { println(intent::semantic_hash(value)); return; }
+    if command == "check" { println("{\"hash\":" + syntax::json_quote(intent::semantic_hash(value)) + ",\"state\":" + syntax::json_quote(json::string(json::field(json::field(value, "resolution"), "state"))) + "}"); return; }
+    if command == "diff" && array_len::<string>(arguments) > 3 { println(json::canonical(intent::diff(value, intent::parse(read(arguments[3]))))); return; }
+    if command == "assumptions" {
+        if array_len::<string>(arguments) > 3 { println(json::canonical(intent::invalidate(value, json::parse(read(arguments[3]))))); }
+        else { println(json::canonical(json::field(value, "assumptions"))); } return;
+    }
+    if command == "verify" || command == "accept" {
+        if array_len::<string>(arguments) < 6 { eprint("verify/accept requires candidate, external policy, trusted fixture root\n"); exit(1); }
+        let mut report: json::Value = verification::verify_bound(value, arguments[3], json::parse(read(arguments[4])), arguments[5],declarations,bindings);
+        if compiler_file!="" {report=json::set(report,"compilerHash",json::Value::Text(hash::sha256(read(compiler_file))));}
+        let state: string = json::string(json::field(report, "state"));
+        if command == "accept" && state == "passed" {
+            let mut ledger: string = "build/intent-ledger"; let mut parent: string = "";
+            if array_len::<string>(arguments) > 6 { ledger = arguments[6]; } if array_len::<string>(arguments) > 7 { parent = arguments[7]; }
+            if parent!="" {
+                if !intent::valid_hash(parent) {eprint("invalid ledger parent\n");exit(1);}
+                let prior:json::Value=json::parse(read(resolve_path(ledger,syntax::slice(parent,7,71)+".json")));
+                if intent::semantic_hash(prior)!=parent {eprint("ledger parent hash mismatch\n");exit(1);}
+                if proposal_file=="" || base_file=="" {eprint("subsequent acceptance requires --proposal and --base\n");exit(1);}
+                let base:json::Value=intent::parse(read(base_file));if intent::semantic_hash(base)!=json::string(json::field(prior,"intentHash")) {eprint("base does not match ledger parent\n");exit(1);}
+                let proposal:json::Value=intent::proposal_authorized(json::parse(read(proposal_file)),base,json::string(json::field(report,"candidateHash")),approved);
+                if intent::semantic_hash(json::field(proposal,"next"))!=json::string(json::field(report,"intentHash")) {eprint("proposal Intent mismatch\n");exit(1);}
+            }
+            report = verification::accept(value, report, ledger, parent);
+        }
+        println(json::canonical(report)); if state == "needs-human" { exit(2); } if state != "passed" { exit(1); } return;
+    }
+    eprint("unsupported intent command\n"); exit(1);
+}
+pub fn command(arguments: Array<string>) -> void {
+    if array_len::<string>(arguments) == 0 { eprint("usage: kelft check|build|ir <file.kelft>\n"); exit(1); }
+    if arguments[0] == "version" { println("kelft 0.2.0; Kelft-SH 0.1; Intent 0.2; targets: javascript, wasm, c; native via trusted driver"); return; }
+    if arguments[0] == "intent" { intent_command(arguments); return; }
+    if arguments[0]=="protocol" {driver::command(arguments);return;}
+    if array_len::<string>(arguments) < 2 { eprint("missing entry\n"); exit(1); }
+    let mut json_module:string="../selfhost/json.kelft";let mut wire_module:string="../stdlib/contracts.kelft";
+    let command: string = arguments[0]; let entry: string = arguments[1]; let mut output: string = ""; let mut root: string = current_dir(); let mut target: string = "javascript"; let mut i: i32 = 2; let mut policy: string = ""; let mut program_args: Array<string> = []; let mut profile:string="";let mut intent_file:string="";let mut binding_file:string="";let mut host_policy:json::Value=json::Value::Null();let mut host_policy_set:bool=false;
+    while i < array_len::<string>(arguments) {
+        if arguments[i] == "-o" { i = i + 1; output = arguments[i]; }
+        else if arguments[i] == "--project-root" { i = i + 1; root = arguments[i]; }
+        else if arguments[i] == "--target" { i = i + 1; target = arguments[i]; }
+        else if arguments[i] == "--runtime-profile" { i=i+1; profile=arguments[i]; }
+        else if arguments[i] == "--intent" {i=i+1;intent_file=arguments[i];}
+        else if arguments[i] == "--bindings" {i=i+1;binding_file=arguments[i];}
+        else if arguments[i] == "--host-policy" {i=i+1;host_policy=json::parse(read(arguments[i]));host_policy_set=true;}
+        else if arguments[i] == "--json-module" {if command!="wire-models" {eprint("--json-module requires wire-models\n");exit(1);}i=i+1;json_module=arguments[i];}
+        else if arguments[i] == "--wire-module" {if command!="wire-models" {eprint("--wire-module requires wire-models\n");exit(1);}i=i+1;wire_module=arguments[i];}
+        else if arguments[i] == "--json" {}
+        else if arguments[i] == "--capabilities" { i = i + 1; policy = json::canonical(json::parse(read(arguments[i]))); }
+        else if arguments[i] == "--" { program_args = array_slice::<string>(arguments, i + 1, array_len::<string>(arguments)); break; }
+        else { eprint("unknown option " + arguments[i] + "\n"); exit(1); } i = i + 1;
+    }
+    if target != "javascript" && target != "wasm" && target!="c" { eprint("error[K0401]: unsupported target " + target + "\n"); exit(1); }
+    if profile!="" && (target=="wasm"&&profile!="wasi-preview1"&&profile!="browser-events-v1"||target=="javascript"&&profile!="node24") {eprint("error[K0402]: unsupported runtime profile\n");exit(1);}
+    let input:string=read(entry);
+    if intent_source::is_source(input) {
+        let relative:string=path_relative(canonical_path(root),canonical_path(entry));if relative==".."||syntax::starts(relative,"../")||syntax::has(relative,":") {syntax::error("K0211","module outside project root",syntax::span(entry,0,0));}
+        if string_len(entry)<6||syntax::slice(entry,string_len(entry)-6,string_len(entry))!=".kelft" {syntax::error("K0211","source must use .kelft",syntax::span(entry,0,0));}
+        let tree:syntax::Node=intent_source::parse(input,entry);
+        if command=="ast" {println("["+syntax::node_json(tree)+"]");return;}
+        let graph:json::Value=intent_source::dependencies(intent_source::lower(tree),entry,root);
+        let models:string=intent_domain::check(graph);
+        let contracts:json::Value=intent_public::extract(graph);
+        let capabilities:json::Value=intent_capabilities::lower(graph);if command=="capabilities" {println(json::canonical(capabilities));return;}
+        if command=="contracts" {println(json::canonical(contracts));return;}
+        if command=="models" {print(models);return;}
+        if command=="wire-models" {print(intent_wire::source(graph,json_module,wire_module));return;}
+        if command=="signatures" {println(json::canonical(intent_domain::signatures(graph)));return;}
+        if command=="ir" {println(json::canonical(graph));return;}
+        if command=="check" {
+            let obligations:json::Value=intent_source::obligations(graph);let mut state:string="checked";
+            for obligation in json::array(obligations) {if json::string(json::field(obligation,"method"))=="blocked" {state="needs-human";}}
+            let mut result:json::Value=json::parse("{\"schemaVersion\":\"0.2\"}");result=json::set(result,"hash",json::Value::Text(intent_source::semantic_hash(graph)));result=json::set(result,"state",json::Value::Text(state));result=json::set(result,"obligations",obligations);println(json::canonical(result));if state=="needs-human" {exit(2);}return;
+        }
+        if command!="tokens" {syntax::error("K0704","Intent builds require an accepted implementation; checking declarations does not synthesize code",tree.span);}
+    }
+    if command == "tokens" { println(syntax::tokens_json(lexer::lex(input, entry))); return; }
+    let mods: Array<modules::Module> = modules::load(entry, root);
+    if command == "ast" { let mut trees: Array<string> = []; for mod in mods { array_push::<string>(inout trees, syntax::node_json(mod.tree)); } println("[" + syntax::join(trees, ",") + "]"); return; }
+    let mut program: core::Program = semantic::analyze(mods);let mut resolved_graph:json::Value=json::Value::Null();if intent_file!="" {resolved_graph=intent_enforce::source_graph(intent_file,root,binding_file);intent_capabilities::lower(resolved_graph);program=intent_enforce::enforce(resolved_graph,program,mods,path_relative(canonical_path(root),canonical_path(intent_file)));}else if binding_file!="" {syntax::error("K0713","implementation bindings require --intent",syntax::span(binding_file,0,0));}
+    if host_policy_set&&(target!="wasm"||profile!="browser-events-v1") {syntax::error("K0402","host restrictions require the browser event profile",syntax::span("",0,0));}
+    if command == "check" { return; }
+    if command == "ir" { println(core::program_json(program)); return; }
+    if target=="c" {
+        if command!="build"||output=="" {eprint("C emission requires build -o; native execution uses the trusted build driver\n");exit(1);}
+        if policy!="" {let parsed:json::Value=json::parse(policy);process_policy(program,parsed,entry);for effect in program.effects {if effect=="fs.read"&&array_len::<json::Value>(json::array(json::field(parsed,"read")))==0||effect=="fs.write"&&array_len::<json::Value>(json::array(json::field(parsed,"write")))==0||effect=="artifact.execute"&&!json::boolean(json::field(parsed,"execute")) {syntax::error("K0213","host effect denied by capability policy",syntax::span(entry,0,0));}}}
+        let mut selected:string=profile;if selected=="" {selected="native-posix-v1";}let source:string=c::emit(program,selected,policy);
+        match create_dir(path_dirname(output)) {Result::Ok(value)=>{},Result::Error(message)=>{eprint(message+"\n");exit(1);}}
+        match write_text(output,source) {Result::Ok(value)=>{},Result::Error(message)=>{eprint(message+"\n");exit(1);}}return;
+    }
+    if target=="wasm" {
+        if command!="build"&&command!="run"||command=="build"&&output=="" {eprint("build requires -o\n");exit(1);}
+        if policy!="" {let parsed:json::Value=json::parse(policy);process_policy(program,parsed,entry);for effect in program.effects {if effect=="fs.read"&&array_len::<json::Value>(json::array(json::field(parsed,"read")))==0||effect=="fs.write"&&array_len::<json::Value>(json::array(json::field(parsed,"write")))==0||effect=="artifact.execute"&&!json::boolean(json::field(parsed,"execute")) {syntax::error("K0213","host effect denied by capability policy",syntax::span(entry,0,0));}}}
+        let mut selected_profile:string=profile;if selected_profile=="" {selected_profile="wasi-preview1";}
+        if selected_profile=="browser-events-v1"&&resolved_graph!=json::Value::Null() {let capabilities:json::Value=intent_capabilities::lower(resolved_graph);if array_len::<json::Value>(json::array(json::field(capabilities,"unsupported")))>0 {syntax::error("K0714","unsupported capability restrictions require resolution",intent_source::parse(read(intent_file),intent_file).children[0].span);}if host_policy_set {syntax::error("K0714","Intent host restrictions cannot be replaced by build flags",intent_source::parse(read(intent_file),intent_file).children[0].span);}host_policy=json::field(capabilities,"browser");}
+        let binary:Bytes=wasm::emit_profile_with_host(program,policy,selected_profile,host_policy);
+        if command=="run" {let mut grants:string=policy;if grants=="" {grants="{\"read\":[],\"write\":[]}";}match artifact_run(binary,target,program_args,grants) {Result::Ok(result)=>{print(result.1);eprint(result.2);exit(result.0);},Result::Error(message)=>{eprint(message+"\n");exit(1);}}return;}
+        match create_dir(path_dirname(output)) {Result::Ok(value)=>{},Result::Error(message)=>{eprint(message+"\n");exit(1);}}
+        match write_file(output,binary) {Result::Ok(value)=>{},Result::Error(message)=>{eprint(message+"\n");exit(1);}}return;
+    }
+    let mut source: string = emitter::emit(program);
+    if policy != "" {
+        let parsed: json::Value = json::parse(policy);process_policy(program,parsed,entry);
+        for effect in program.effects {
+            if effect == "fs.read" && array_len::<json::Value>(json::array(json::field(parsed, "read"))) == 0 || effect == "fs.write" && array_len::<json::Value>(json::array(json::field(parsed, "write"))) == 0 || effect == "artifact.execute" && !json::boolean(json::field(parsed, "execute")) { syntax::error("K0213", "host effect denied by capability policy", syntax::span(entry, 0, 0)); }
+        }
+        source = emitter::policy(source, policy);
+    }
+    if command == "run" {
+        let mut grants: string = policy; if grants == "" { grants = "{\"read\":[],\"write\":[]}"; }
+        match artifact_run(string_to_bytes(source), target, program_args, grants) {
+            Result::Ok(result) => { print(result.1); eprint(result.2); exit(result.0); }, Result::Error(message) => { eprint(message + "\n"); exit(1); }
+        }
+        return;
+    }
+    if command != "build" || output == "" { eprint("build requires -o\n"); exit(1); }
+    match create_dir(path_dirname(output)) { Result::Ok(value) => {}, Result::Error(message) => { eprint(message + "\n"); exit(1); } }
+    match write_text(output, source) { Result::Ok(value) => {}, Result::Error(message) => { eprint(message + "\n"); exit(1); } }
+}
+fn process_policy(program:core::Program,policy:json::Value,entry:string)->void {let mut present:bool=false;for (key,value) in json::object(policy) {if key=="process" {present=true;}}if present&&host_caps::validate_host_policy(host_caps::normalize_host_policy(policy))!="" {syntax::error("K0213","invalid process capability policy",syntax::span(entry,0,0));}for effect in program.effects {if effect=="process.execute"&&array_len::<json::Value>(json::array(json::field(policy,"process")))==0 {syntax::error("K0213","process execution denied by capability policy",syntax::span(entry,0,0));}}}
+fn main() -> void { command(args()); }

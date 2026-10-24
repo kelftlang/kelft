@@ -1,0 +1,115 @@
+// Read-only local-workspace policy. Input is a bounded host snapshot, never a
+// grant of filesystem, execution, verifier or approval authority.
+import "./toml.kelft" as toml;
+import "../json.kelft" as j;
+import "../syntax.kelft" as s;
+import "../hash.kelft" as h;
+struct Graph { files:Map<string,string>, nodes:Map<string,j::Value>, active:Array<string>, order:Array<j::Value> }
+fn need(ok:bool,message:string)->void {if !ok {s::error("K0801",message,s::span("<workspace>",0,0));}}
+fn field(value:j::Value,name:string)->string {let child:j::Value=j::field(value,name);need(j::is_string(child),"required text field: "+name);return j::string(child);}
+fn fields(value:j::Value,allowed:Array<string>)->void {
+ need(j::is_object(value),"manifest table required");for (name,child) in j::object(value) {let mut found:bool=false;for candidate in allowed {if candidate==name {found=true;}}need(found,"unsupported manifest field: "+name);}
+}
+fn lower(value:string)->string {let mut out:Bytes=[];for byte in string_to_bytes(value) {let mut b:i32=i32_from_u8(byte);if b>=65&&b<=90 {b=b+32;}array_push::<u8>(inout out,u8_from_i32(b));}return bytes_to_string(out);}
+fn portable(part:string)->void {
+ need(part!=""&&string_len(part)<=255,"invalid local path component");let final:i32=s::byte(part,string_len(part)-1);need(final!=32&&final!=46,"path alias is unsupported");
+ for b in string_to_bytes(part) {let n:i32=i32_from_u8(b);need(n>=32&&n!=127&&string_find("\\:<>\"|?*",string_from_codepoint(n),0)<0,"nonportable local path");}
+ let base:string=lower(string_split(part,".")[0]);need(base!="con"&&base!="prn"&&base!="aux"&&base!="nul"&&base!="conin$"&&base!="conout$","device path alias");
+ if string_len(base)==4&&(s::starts(base,"com")||s::starts(base,"lpt")) {let b:i32=s::byte(base,3);need(b<49||b>57,"device path alias");}
+}
+pub fn local(base:string,path:string)->string {
+ need(path!=""&&string_len(path)<=1024&&!s::starts(path,"/"),"relative local path required");let mut parts:Array<string>=[];
+ if base!="" {for part in string_split(base,"/") {array_push::<string>(inout parts,part);}}
+ for part in string_split(path,"/") {
+  if part==".." {need(array_len::<string>(parts)>0,"path escapes workspace root");array_pop::<string>(inout parts);}
+  else if part!="." {portable(part);array_push::<string>(inout parts,part);}
+ }
+ return s::join(parts,"/");
+}
+pub fn directory(path:string)->string {let parts:Array<string>=string_split(path,"/");let mut out:Array<string>=[];let mut at:i32=0;while at<array_len::<string>(parts)-1 {array_push::<string>(inout out,parts[at]);at=at+1;}return s::join(out,"/");}
+fn name(value:string)->void {
+ need(string_len(value)>0&&string_len(value)<=64,"package name bound");let mut at:i32=0;
+ for b in string_to_bytes(value) {let n:i32=i32_from_u8(b);need((n>=97&&n<=122)||(at>0&&n>=48&&n<=57)||(at>0&&(n==45||n==95)),"lowercase package name required");at=at+1;}
+}
+fn version(value:string)->void {
+ let parts:Array<string>=string_split(value,".");need(array_len::<string>(parts)==3,"local alpha requires an exact x.y.z version");for part in parts {need(string_len(part)>0&&string_len(part)<=8,"version component bound");need(string_len(part)==1||!s::starts(part,"0"),"version has leading zeros");for b in string_to_bytes(part) {let n:i32=i32_from_u8(b);need(n>=48&&n<=57,"local alpha requires an exact x.y.z version");}}
+}
+fn source(path:string)->void {need(string_len(path)>6&&s::slice(path,string_len(path)-6,string_len(path))==".kelft","target source must use .kelft");need(local("",path)==path,"target path must be canonical within its package");}
+pub fn validate(manifest:j::Value)->void {
+ fields(manifest,["manifest-version","package","workspace","dependencies","targets","target.bin","sources"]);
+ need(j::field(manifest,"manifest-version")==j::Value::Number("1"),"manifest-version = 1 required");
+ let package:j::Value=j::field(manifest,"package");let workspace:j::Value=j::field(manifest,"workspace");need(workspace==j::Value::Null()||j::is_object(workspace),"workspace table required");need(j::is_object(package)||j::is_object(workspace),"package or workspace table required");
+ if j::is_object(workspace) {fields(workspace,["members"]);need(j::is_array(j::field(workspace,"members")),"explicit workspace members required");for member in j::array(j::field(workspace,"members")) {need(j::is_string(member),"workspace member must be text");}}
+ if j::is_object(package) {
+  fields(package,["name","namespace","version","edition"]);name(field(package,"name"));version(field(package,"version"));
+  if j::field(package,"namespace")!=j::Value::Null() {name(field(package,"namespace"));}
+  if j::field(package,"edition")!=j::Value::Null() {need(field(package,"edition")=="0.1","only the current 0.1 source edition is implemented");}
+ }else {need(package==j::Value::Null(),"package table required");need(j::field(manifest,"dependencies")==j::Value::Null()&&j::field(manifest,"targets")==j::Value::Null()&&j::field(manifest,"target.bin")==j::Value::Null()&&j::field(manifest,"sources")==j::Value::Null(),"virtual workspace cannot declare package targets or dependencies");}
+ let targets:j::Value=j::field(manifest,"targets");let bins:j::Value=j::field(manifest,"target.bin");let mut count:i32=0;
+ if targets!=j::Value::Null() {fields(targets,["lib"]);source(field(targets,"lib"));count=count+1;}
+ if bins!=j::Value::Null() {need(j::is_array(bins),"binary target array required");let mut names:Map<string,string>=map_new::<string,string>();for bin in j::array(bins) {fields(bin,["name","path"]);let label:string=field(bin,"name");name(label);source(field(bin,"path"));match map_get::<string,string>(names,label) {Option::Some(previous)=>{need(false,"duplicate binary target");},Option::None=>{}}map_set::<string,string>(inout names,label,label);count=count+1;}}
+ if j::is_object(package) {need(count>0,"explicit library or binary target required");}
+ let sources:j::Value=j::field(manifest,"sources");if sources!=j::Value::Null() {
+  fields(sources,["files"]);let files:j::Value=j::field(sources,"files");need(j::is_array(files)&&array_len::<j::Value>(j::array(files))>0&&array_len::<j::Value>(j::array(files))<=128,"declare 1..128 source files");let mut seen:Map<string,string>=map_new::<string,string>();
+  for item in j::array(files) {need(j::is_string(item),"source path must be text");let path:string=j::string(item);source(path);let folded:string=lower(path);match map_get::<string,string>(seen,folded) {Option::Some(previous)=>{need(false,"duplicate or case-colliding source path");},Option::None=>{}}map_set::<string,string>(inout seen,folded,path);}
+  if targets!=j::Value::Null() {let mut found:bool=false;for item in j::array(files) {if item==j::field(targets,"lib") {found=true;}}need(found,"library target is absent from sources");}
+  for bin in j::array(bins) {let mut found:bool=false;for item in j::array(files) {if item==j::field(bin,"path") {found=true;}}need(found,"binary target is absent from sources");}
+ }
+ let deps:j::Value=j::field(manifest,"dependencies");if deps!=j::Value::Null() {need(j::is_object(deps),"dependency table required");for (alias,dep) in j::object(deps) {name(alias);fields(dep,["path","package"]);field(dep,"path");if j::field(dep,"package")!=j::Value::Null() {field(dep,"package");}}}
+}
+fn visit(inout graph:Graph,path:string)->j::Value {
+ for active in graph.active {need(active!=path,"cyclic local package dependency: "+path);}
+ match map_get::<string,j::Value>(graph.nodes,path) {Option::Some(node)=>{return node;},Option::None=>{}}
+ let mut raw:string="";match map_get::<string,string>(graph.files,path) {Option::Some(text)=>{raw=text;},Option::None=>{need(false,"manifest missing from snapshot: "+path);}}
+ let manifest:j::Value=toml::parse(raw,path);validate(manifest);if path!="kelft.toml" {need(j::field(manifest,"workspace")==j::Value::Null(),"nested workspace is unsupported");}
+ let mut package:j::Value=j::field(manifest,"package");need(j::is_object(package),"dependency/member must contain a package: "+path);if j::field(package,"edition")==j::Value::Null() {package=j::set(package,"edition",j::Value::Text("0.1"));}need(array_len::<string>(graph.active)<32,"local dependency depth exceeds 32 packages");
+ array_push::<string>(inout graph.active,path);let mut aliases:j::Value=j::parse("{}");
+ for (alias,dep) in j::object(j::field(manifest,"dependencies")) {
+  let root:string=local(directory(path),field(dep,"path"));let mut child_path:string="kelft.toml";if root!="" {child_path=root+"/kelft.toml";}
+  let child:j::Value=visit(inout graph,child_path);let expected:j::Value=j::field(dep,"package");let identity:j::Value=j::field(child,"package");let mut declared:string=field(identity,"name");if j::field(identity,"namespace")!=j::Value::Null() {declared=field(identity,"namespace")+"/"+declared;}
+  if expected!=j::Value::Null() {need(j::string(expected)==declared,"dependency package identity differs: "+alias);}
+  need(j::is_string(j::field(j::field(child,"targets"),"lib")),"dependency requires a library target: "+alias);aliases=j::set(aliases,alias,j::field(child,"id"));
+ }
+ array_pop::<string>(inout graph.active);
+ let mut node:j::Value=j::parse("{}");node=j::set(node,"id",j::Value::Text("path:"+path));node=j::set(node,"manifest",j::Value::Text(path));node=j::set(node,"manifestSHA256",j::Value::Text(h::sha256(raw)));node=j::set(node,"package",package);node=j::set(node,"targets",j::field(manifest,"targets"));node=j::set(node,"binaries",j::field(manifest,"target.bin"));node=j::set(node,"dependencies",aliases);
+ if j::field(manifest,"sources")!=j::Value::Null() {node=j::set(node,"sources",j::field(j::field(manifest,"sources"),"files"));}
+ map_set::<string,j::Value>(inout graph.nodes,path,node);array_push::<j::Value>(inout graph.order,j::Value::Text("path:"+path));return node;
+}
+// Request only explicitly declared paths. Hosts never interpret TOML or choose
+// dependencies. Null observations are known-missing files, not pending reads.
+pub fn pending(files:j::Value)->Array<j::Value> {
+ let mut required:Map<string,string>=map_new::<string,string>();map_set::<string,string>(inout required,"kelft.toml","kelft.toml");
+ for (path,raw) in j::object(files) {
+  need(j::is_string(raw),"manifest is missing: "+path);let manifest:j::Value=toml::parse(j::string(raw),path);validate(manifest);
+  if path=="kelft.toml" {for item in j::array(j::field(j::field(manifest,"workspace"),"members")) {let member:string=j::string(item);need(local("",member)==member&&member!="","canonical explicit workspace member required");map_set::<string,string>(inout required,member+"/kelft.toml",member);}}
+  for (alias,dep) in j::object(j::field(manifest,"dependencies")) {let root:string=local(directory(path),field(dep,"path"));let mut child:string="kelft.toml";if root!="" {child=root+"/kelft.toml";}map_set::<string,string>(inout required,child,child);}
+ }
+ need(map_len::<string,string>(required)<=128,"workspace snapshot limit");let mut out:Array<j::Value>=[];
+ for (path,unused) in required {match map_get::<string,j::Value>(j::object(files),path) {Option::Some(raw)=>{},Option::None=>{array_push::<j::Value>(inout out,j::Value::Text(path));}}}
+ return out;
+}
+pub fn metadata(request:j::Value)->j::Value {
+ fields(request,["schema","manifests"]);need(field(request,"schema")=="kelft.workspace-request/1","unsupported workspace request");let files:j::Value=j::field(request,"manifests");need(j::is_object(files),"manifest snapshot required");
+ let mut graph:Graph=Graph {files:map_new::<string,string>(),nodes:map_new::<string,j::Value>(),active:[],order:[]};let mut folded:Map<string,string>=map_new::<string,string>();let mut total:i32=0;let mut count:i32=0;
+ for (path,raw) in j::object(files) {
+  need(local("",path)==path&&(path=="kelft.toml"||(string_len(path)>11&&s::slice(path,string_len(path)-11,string_len(path))=="/kelft.toml")),"canonical manifest snapshot path required");need(j::is_string(raw),"manifest snapshot must contain UTF-8 text");let text:string=j::string(raw);need(string_len(text)<=65536,"manifest exceeds 64 KiB");total=total+string_len(text);count=count+1;need(total<=1048576&&count<=128,"workspace snapshot limit");
+  let key:string=lower(path);match map_get::<string,string>(folded,key) {Option::Some(previous)=>{need(false,"case-colliding manifest paths");},Option::None=>{}}map_set::<string,string>(inout folded,key,path);map_set::<string,string>(inout graph.files,path,text);
+ }
+ let mut raw:string="";match map_get::<string,string>(graph.files,"kelft.toml") {Option::Some(text)=>{raw=text;},Option::None=>{need(false,"root kelft.toml is missing");}}
+ let root:j::Value=toml::parse(raw,"kelft.toml");validate(root);let mut members:Map<string,string>=map_new::<string,string>();
+ if j::is_object(j::field(root,"package")) {map_set::<string,string>(inout members,"kelft.toml","kelft.toml");}
+ for item in j::array(j::field(j::field(root,"workspace"),"members")) {
+  let path:string=j::string(item);let normalized:string=local("",path);need(normalized==path&&normalized!="","canonical explicit workspace member required; globs are not supported");let manifest:string=path+"/kelft.toml";
+  match map_get::<string,string>(members,manifest) {Option::Some(previous)=>{need(false,"duplicate workspace member");},Option::None=>{}}map_set::<string,string>(inout members,manifest,manifest);
+ }
+ let mut selected:Array<j::Value>=[];
+ for (path,unused) in members {let node:j::Value=visit(inout graph,path);array_push::<j::Value>(inout selected,j::field(node,"id"));}
+ need(array_len::<j::Value>(selected)>0,"workspace has no packages");
+ let mut nodes:Array<j::Value>=[];for (path,node) in graph.nodes {array_push::<j::Value>(inout nodes,node);}
+ let mut data:j::Value=j::parse("{\"schema\":\"kelft.workspace-metadata/1\",\"sourceEdition\":\"0.1\",\"lockfile\":\"kelft.lock\",\"lockfileImplemented\":false,\"sourceFilesChecked\":false}");data=j::set(data,"packages",j::Value::Array(nodes));data=j::set(data,"members",j::Value::Array(selected));data=j::set(data,"dependencyOrder",j::Value::Array(graph.order));data=j::set(data,"rootManifestSHA256",j::Value::Text(h::sha256(raw)));
+ let mut out:j::Value=j::parse("{\"schema\":\"kelft.command-result/1\",\"command\":\"metadata\",\"status\":\"success\"}");return j::set(out,"data",data);
+}
+fn main()->void {
+ let arguments:Array<string>=args();need(array_len::<string>(arguments)==1,"expected one private workspace snapshot path");
+ match read_file(arguments[0]) {Result::Ok(bytes)=>{need(array_len::<u8>(bytes)<=2097152,"workspace request exceeds 2 MiB");match utf8_decode(bytes) {Result::Ok(raw)=>{println(j::canonical(metadata(j::parse(raw))));},Result::Error(message)=>{need(false,"workspace snapshot is not valid UTF-8");}}},Result::Error(message)=>{need(false,"cannot read workspace snapshot: "+message);}}
+}

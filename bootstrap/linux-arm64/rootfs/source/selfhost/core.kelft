@@ -1,0 +1,142 @@
+import "./syntax.kelft" as s;
+import "./intrinsics.kelft" as builtins;
+pub struct Node { op: string, name: string, ty: string, flag: bool, args: Array<Node>, span: s::Span }
+pub struct Program { entry: string, types: Array<Node>, functions: Array<Node>, effects: Array<string> }
+pub fn make(op: string, name: string, ty: string, args: Array<Node>, location: s::Span, flag: bool) -> Node {
+    return Node { op: op, name: name, ty: ty, args: args, span: location, flag: flag };
+}
+pub fn sort_strings(inout values: Array<string>) -> void {
+    let mut i: i32 = 1;
+    while i < array_len::<string>(values) {
+        let mut j: i32 = i;
+        while j > 0 && values[j] < values[j - 1] { let value: string = values[j]; values[j] = values[j - 1]; values[j - 1] = value; j = j - 1; }
+        i = i + 1;
+    }
+}
+fn resolved(value_type:string,types:Array<Node>,depth:i32)->bool {
+    if depth>64 {return false;}if value_type=="i32"||value_type=="u8"||value_type=="string"||value_type=="bool"||value_type=="void" {return true;}
+    let parts:(string,Array<string>)=s::type_parts(value_type);let mut known:bool=false;for t in types {if t.name==value_type {known=true;}}
+    if !known && parts.0!="tuple" && parts.0!="Array" && parts.0!="Map" && parts.0!="Option" && parts.0!="Result" {return false;}
+    if !known && parts.0!="tuple" {let mut count:i32=1;if parts.0=="Map"||parts.0=="Result" {count=2;}if array_len::<string>(parts.1)!=count {return false;}}
+    for arg in parts.1 {if !resolved(arg,types,depth+1) {return false;}}return true;
+}
+fn unify(pattern:string,actual:string,inout sub:Map<string,string>)->bool {
+    if s::starts(pattern,"$") {match map_get::<string,string>(sub,pattern) {Option::Some(old)=>{return old==actual;},Option::None=>{map_set::<string,string>(inout sub,pattern,actual);return true;}}}
+    let a:(string,Array<string>)=s::type_parts(pattern);let b:(string,Array<string>)=s::type_parts(actual);if a.0!=b.0||array_len::<string>(a.1)!=array_len::<string>(b.1) {return false;}
+    let mut i:i32=0;for arg in a.1 {if !unify(arg,b.1[i],inout sub) {return false;}i=i+1;}return true;
+}
+fn validate_one(n: Node, names: Array<string>, effects:Array<string>, types:Array<Node>) -> void {
+    let valid: Array<string> = ["struct", "enum", "literal", "local", "unary", "binary", "array", "tuple", "record", "field", "index", "call", "intrinsic", "variant", "location", "function", "param", "block", "bind", "store", "evaluate", "if", "while", "for", "match", "arm", "return", "break", "continue", "pattern", "tuple_pattern", "variant_pattern"];
+    let mut found: bool = false; for op in valid { if n.op == op { found = true; } }
+    if !found || n.ty == "" { s::error("K0301", "invalid Core operation or type", n.span); }
+    if !resolved(n.ty,types,0) {s::error("K0301","unresolved Core type",n.span);}
+    let count:i32=array_len::<Node>(n.args);let mut arity:bool=true;
+    if n.op=="literal"||n.op=="local"||n.op=="param"||n.op=="break"||n.op=="continue"||n.op=="pattern" {arity=count==0;}
+    if n.op=="unary"||n.op=="location"||n.op=="bind"||n.op=="evaluate" {arity=count==1;}
+    if n.op=="binary"||n.op=="index"||n.op=="store"||n.op=="while"||n.op=="arm" {arity=count==2;}
+    if n.op=="for" {arity=count==3;}if n.op=="if" {arity=count==2||count==3;}if n.op=="return"||n.op=="field" {arity=count<=1;}
+    if !arity {s::error("K0301","invalid Core arity",n.span);}
+    if n.op=="local"||n.op=="param"||n.op=="bind"||n.op=="pattern" && n.name!="_" && n.name!="true" && n.name!="false" {
+        let mut valid_id:bool=s::starts(n.name,"v")&&string_len(n.name)>1;let mut i:i32=1;while i<string_len(n.name) {let b:i32=s::byte(n.name,i);if b<48||b>57 {valid_id=false;}i=i+1;}if !valid_id {s::error("K0301","invalid Core local ID",n.span);}
+    }
+    if n.op=="literal" {
+        let mut literal:bool=n.ty=="string";
+        if n.ty=="bool" {literal=n.name=="true"||n.name=="false";}
+        if n.ty=="i32"||n.ty=="u8" {match string_to_i32(n.name) {Result::Ok(value)=>{literal=n.ty=="i32"||value>=0&&value<=255;},Result::Error(message)=>{}}}
+        if !literal {s::error("K0301","invalid Core literal",n.span);}
+    }
+    if n.op=="location" {if n.ty!=n.args[0].ty||n.args[0].op!="local"&&n.args[0].op!="field"&&n.args[0].op!="index" {s::error("K0301","invalid Core location",n.span);}}
+    if n.op=="binary" {
+        let comparison:bool=n.name=="=="||n.name=="!="||n.name=="<"||n.name=="<="||n.name==">"||n.name==">="||n.name=="&&"||n.name=="||";
+        let mut result:string=n.args[0].ty;if comparison {result="bool";}if n.args[0].ty!=n.args[1].ty||n.ty!=result {s::error("K0301","binary type mismatch",n.span);}
+    }
+    if n.op=="if"||n.op=="while" {if n.args[0].ty!="bool" {s::error("K0301","Boolean condition required",n.span);}}
+    if n.op=="store" {if n.args[0].ty!=n.args[1].ty {s::error("K0301","store type mismatch",n.span);}}
+    if n.op == "call" { found = false; for name in names { if name == n.name { found = true; } } if !found { s::error("K0301", "unresolved Core call", n.span); } }
+    if n.op=="intrinsic" {
+        let signature:builtins::Signature=builtins::signature(n.name);let mut sub:Map<string,string>=map_new::<string,string>();
+        if signature.name==""||array_len::<string>(signature.params)!=count||!unify(signature.result,n.ty,inout sub) {s::error("K0301","invalid Core intrinsic signature",n.span);}
+        let mut i:i32=0;for param in signature.params {let mut mutable:bool=false;for mode in signature.modes {if mode==i {mutable=true;}}if !unify(param,n.args[i].ty,inout sub)||mutable!=(n.args[i].op=="location") {s::error("K0301","invalid Core intrinsic signature",n.span);}i=i+1;}
+        if map_len::<string,string>(sub)!=signature.generics {s::error("K0301","invalid Core intrinsic signature",n.span);}
+        if signature.effect!="" {for effect in string_split(signature.effect,"|") {let mut present:bool=false;for existing in effects {if existing==effect {present=true;}}if !present {s::error("K0301","missing Core effect",n.span);}}}
+    }
+
+}
+fn validate_node(n:Node,names:Array<string>,effects:Array<string>,types:Array<Node>)->void {let mut pending:Array<Node>=[n];while array_len::<Node>(pending)>0 {let current:Node=pending[array_len::<Node>(pending)-1];array_pop::<Node>(inout pending);validate_one(current,names,effects,types);let mut i:i32=array_len::<Node>(current.args);while i>0 {i=i-1;array_push::<Node>(inout pending,current.args[i]);}}}
+pub fn validate(p: Program) -> void {
+    let mut names: Array<string> = []; let mut entry: bool = false;
+    for f in p.functions {for old in names {if old==f.name {s::error("K0301","duplicate Core function",f.span);}}array_push::<string>(inout names, f.name); if f.name == p.entry { entry = true; } }
+    if !entry { s::error("K0301", "missing Core entry", s::span("", 0, 0)); }
+    for f in p.functions {
+        if f.op!="function"||!function_id(f.name)||array_len::<Node>(f.args)==0 {s::error("K0301","invalid Core function declaration",f.span);}
+        if f.args[array_len::<Node>(f.args)-1].op!="block" {s::error("K0301","invalid Core function declaration",f.span);}
+        let mut params:Array<string>=[];let mut i:i32=0;while i<array_len::<Node>(f.args)-1 {let param:Node=f.args[i];if param.op!="param" {s::error("K0301","invalid Core function declaration",f.span);}for old in params {if old==param.name {s::error("K0301","duplicate Core parameter",f.span);}}array_push::<string>(inout params,param.name);i=i+1;}
+        if f.name==p.entry&&(array_len::<string>(params)>0||f.ty!="void"&&f.ty!="i32") {s::error("K0301","invalid Core entry signature",f.span);}
+        validate_node(f, names,p.effects,p.types);
+    }
+    for t in p.types {if t.op!="struct"&&t.op!="enum" {s::error("K0301","invalid Core type declaration",t.span);}validate_node(t, names,p.effects,p.types);}
+    for f in p.functions {let mut env:Map<string,Binding>=map_new::<string,Binding>();for param in f.args {if param.op=="param" {map_set::<string,Binding>(inout env,param.name,Binding {ty:param.ty,mutable:param.flag});}}scope(f.args[array_len::<Node>(f.args)-1],inout env,0,f.ty,p.functions);}
+}
+fn function_id(value:string)->bool {
+    let split:i32=string_find(value,"::",0);if split<2||!s::starts(value,"m") {return false;}let mut i:i32=1;while i<split {let b:i32=s::byte(value,i);if b<48||b>57 {return false;}i=i+1;}
+    let mut name:string=s::slice(value,split+2,string_len(value));let generic:i32=string_find(name,"<",0);if generic>=0 {if s::slice(name,string_len(name)-1,string_len(name))!=">" {return false;}let mut j:i32=generic+1;if j>=string_len(name)-1 {return false;}while j<string_len(name)-1 {if s::byte(name,j)>=128 {return false;}let char:string=s::slice(name,j,j+1);if !s::has("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_:<>,()",char) {return false;}j=j+1;}name=s::slice(name,0,generic);}
+    if string_len(name)==0 {return false;}let first:i32=s::byte(name,0);if first>=48&&first<=57 {return false;}i=0;while i<string_len(name) {if s::byte(name,i)>=128 {return false;}let char:string=s::slice(name,i,i+1);if !s::has("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_",char) {return false;}i=i+1;}return true;
+}
+struct Binding {ty:string,mutable:bool}
+fn writable(n:Node,env:Map<string,Binding>)->void {
+    let mut root:Node=n;while root.op=="field"||root.op=="index" {root=root.args[0];}
+    let mut mutable:bool=false;match map_get::<string,Binding>(env,root.name) {Option::Some(b)=>{mutable=b.mutable;},Option::None=>{}}
+    if root.op!="local"||!mutable {s::error("K0301","nonmutable Core location",n.span);}
+}
+fn bind_pattern(n:Node,inout env:Map<string,Binding>)->void {
+ let mut pending:Array<Node>=[n];while array_len::<Node>(pending)>0 {let current:Node=pending[array_len::<Node>(pending)-1];array_pop::<Node>(inout pending);if current.op=="pattern"&&current.name!="_"&&current.name!="true"&&current.name!="false" {map_set::<string,Binding>(inout env,current.name,Binding {ty:current.ty,mutable:false});}let mut i:i32=array_len::<Node>(current.args);while i>0 {i=i-1;array_push::<Node>(inout pending,current.args[i]);}}
+}
+struct ScopeFrame {node:Node,loops:i32,step:i32,index:i32,saved:Map<string,Binding>}
+fn scope_frame(n:Node,loops:i32)->ScopeFrame {return ScopeFrame {node:n,loops:loops,step:0,index:0,saved:map_new::<string,Binding>()};}
+fn scope_wait(inout pending:Array<ScopeFrame>,f:ScopeFrame,child:Node,loops:i32)->void {array_push::<ScopeFrame>(inout pending,f);let next:ScopeFrame=scope_frame(child,loops);array_push::<ScopeFrame>(inout pending,next);}
+fn scope(n_input:Node,inout env:Map<string,Binding>,loops_input:i32,result:string,functions:Array<Node>)->void {
+ let mut pending:Array<ScopeFrame>=[scope_frame(n_input,loops_input)];
+ while array_len::<ScopeFrame>(pending)>0 {let mut f:ScopeFrame=pending[array_len::<ScopeFrame>(pending)-1];array_pop::<ScopeFrame>(inout pending);let n:Node=f.node;
+  if f.step==0 {
+   if n.op=="local" {let mut valid:bool=false;match map_get::<string,Binding>(env,n.name) {Option::Some(b)=>{valid=b.ty==n.ty;},Option::None=>{}}if !valid {s::error("K0301","unresolved or mistyped Core local",n.span);}}
+   if n.op=="block" {f.saved=env;f.step=1;}
+   else if n.op=="bind" {f.step=2;scope_wait(inout pending,f,n.args[0],f.loops);continue;}
+   else {
+    if n.op=="location"||n.op=="store" {writable(n.args[0],env);}
+    if n.op=="return" {let mut actual:string="void";if array_len::<Node>(n.args)>0 {actual=n.args[0].ty;}if actual!=result {s::error("K0301","return type mismatch",n.span);}}
+    if n.op=="break"||n.op=="continue" {if f.loops==0 {s::error("K0301","Core loop control outside loop",n.span);}}
+    if n.op=="for" {f.step=3;scope_wait(inout pending,f,n.args[1],f.loops);continue;}
+    if n.op=="match" {f.step=5;scope_wait(inout pending,f,n.args[0],f.loops);continue;}
+    if n.op=="call" {for function in functions {if function.name==n.name {let mut params:Array<Node>=[];for p in function.args {if p.op=="param" {array_push::<Node>(inout params,p);}}if n.ty!=function.ty||array_len::<Node>(params)!=array_len::<Node>(n.args) {s::error("K0301","Core call signature mismatch",n.span);}let mut i:i32=0;for p in params {if p.ty!=n.args[i].ty||p.flag!=(n.args[i].op=="location") {s::error("K0301","Core call signature mismatch",n.span);}i=i+1;}}}}
+    f.step=1;
+   }
+  }else if f.step==2 {if n.ty!=n.args[0].ty {s::error("K0301","binding type mismatch",n.span);}map_set::<string,Binding>(inout env,n.name,Binding {ty:n.ty,mutable:n.flag});continue;}
+  else if f.step==3 {f.saved=env;bind_pattern(n.args[0],inout env);f.step=4;scope_wait(inout pending,f,n.args[2],f.loops+1);continue;}
+  else if f.step==4 {env=f.saved;continue;}
+  else if f.step==5 {f.index=1;f.step=6;}
+  else if f.step==7 {env=f.saved;f.index=f.index+1;f.step=6;}
+  else {f.index=f.index+1;}
+  if f.step==6 {if f.index>=array_len::<Node>(n.args) {continue;}let arm:Node=n.args[f.index];f.saved=env;bind_pattern(arm.args[0],inout env);f.step=7;scope_wait(inout pending,f,arm.args[1],f.loops);continue;}
+  if f.index>=array_len::<Node>(n.args) {if n.op=="block" {env=f.saved;}continue;}
+  let mut loops:i32=f.loops;if n.op=="while"&&f.index==1 {loops=loops+1;}scope_wait(inout pending,f,n.args[f.index],loops);
+ }
+}
+
+struct JsonFrame {node:Node,index:i32}
+pub fn node_json(n:Node)->string {
+ let mut pending:Array<JsonFrame>=[JsonFrame {node:n,index:0}];let mut chunks:Array<string>=[];
+ while array_len::<JsonFrame>(pending)>0 {
+  let mut f:JsonFrame=pending[array_len::<JsonFrame>(pending)-1];array_pop::<JsonFrame>(inout pending);let current:Node=f.node;
+  if f.index==0 {let mut flag:string="false";if current.flag {flag="true";}array_push::<string>(inout chunks,"{\"op\":"+s::json_quote(current.op)+",\"name\":"+s::json_quote(current.name)+",\"type\":"+s::json_quote(current.ty)+",\"flag\":"+flag+",\"args\":[");}
+  else if f.index<array_len::<Node>(current.args) {array_push::<string>(inout chunks,",");}
+  if f.index<array_len::<Node>(current.args) {let child:Node=current.args[f.index];f.index=f.index+1;array_push::<JsonFrame>(inout pending,f);array_push::<JsonFrame>(inout pending,JsonFrame {node:child,index:0});}
+  else {array_push::<string>(inout chunks,"],\"span\":"+s::span_json(current.span)+"}");}
+ }
+ return s::join(chunks,"");
+}
+pub fn program_json(p: Program) -> string {
+    let mut types: Array<string> = []; for t in p.types { array_push::<string>(inout types, node_json(t)); }
+    let mut functions: Array<string> = []; for f in p.functions { array_push::<string>(inout functions, node_json(f)); }
+    let mut effects: Array<string> = []; for e in p.effects { array_push::<string>(inout effects, s::json_quote(e)); }
+    return "{\"schemaVersion\":\"0.1\",\"entry\":" + s::json_quote(p.entry) + ",\"types\":[" + s::join(types, ",") + "],\"functions\":[" + s::join(functions, ",") + "],\"effects\":[" + s::join(effects, ",") + "]}";
+}

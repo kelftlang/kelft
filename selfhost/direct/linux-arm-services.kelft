@@ -1,0 +1,52 @@
+// Linux ARM64 syscall bridges.
+import "../hash.kelft" as h;
+import "./ir.kelft" as ir;
+pub fn supported(op:string)->bool {return op=="arm_linux_openat2"||op=="arm_linux_artifact_memfd_create"||op=="arm_linux_artifact_pipe2"||op=="arm_linux_artifact_execveat"||op=="arm_linux_artifact_wait4"||op=="arm_linux_artifact_kill"||op=="arm_linux_artifact_setpgid"||op=="arm_linux_artifact_clock_gettime"||op=="arm_linux_artifact_fcntl"||op=="arm_linux_artifact_exit"||op=="arm_linux_artifact_close_range"||op=="arm_linux_artifact_lseek"||op=="arm_linux_artifact_getpid"||op=="arm_linux_artifact_getppid"||op=="arm_linux_artifact_prctl"||op=="arm_linux_artifact_fork"||op=="arm_linux_artifact_dup2"||op=="arm_linux_artifact_poll"||op=="arm_linux_artifact_size"||op=="arm_linux_linker_limits"||op=="arm_linux_engine_limits";}
+pub fn bytes(op:string)->Bytes {
+if op=="arm_linux_openat2" {return h::hex_bytes("ab035ff8600140b9610540f9620940f9631940b97f60007160000054a002809212000014ff8300d1490040f92a0949ca0c0098d24a010c8a29010aca29090acae90300f9490440f9e90700f9490840f9e90b00f9e2030091a83680520800a072010000d4ff830091e903002a");}
+if op=="arm_linux_artifact_memfd_create" {return h::hex_bytes("ab035ff8600140f9610940b9e82280520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_pipe2" {return h::hex_bytes("ab035ff8600140f9610940b9680780520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_execveat" {return h::hex_bytes("ab035ff8600140b9610540f9620940f9630d40f9642140b9282380520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_wait4" {return h::hex_bytes("ab035ff8600140b9610540f9621140b9630d40f9882080520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_kill" {return h::hex_bytes("ab035ff8600140b9610940b9281080520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_setpgid" {return h::hex_bytes("ab035ff8600140b9610940b9481380520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_clock_gettime" {return h::hex_bytes("ab035ff8600140b9610540f9280e80520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_fcntl" {return h::hex_bytes("ab035ff8600140b9610940b9621140b9280380520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_exit" {return h::hex_bytes("ab035ff8600140b9a80b80520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_close_range" {return h::hex_bytes("ab035ff8600140b9610940b9621140b9883680520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_lseek" {return h::hex_bytes("ab035ff8600140b9610940b9621140b9c80780520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_getpid" {return h::hex_bytes("ab035ff8881580520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_getppid" {return h::hex_bytes("ab035ff8a81580520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_prctl" {return h::hex_bytes("ab035ff8600140b9610940b9621140b9631940b9642140b9e81480520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_fork" {return h::hex_bytes("ab035ff8200280520000a072010080520100a072020080520200a072030080520300a072040080520400a072881b80520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_dup2" {return h::hex_bytes("ab035ff8600140b9610940b91f00016bc0000054020080520200a072080380520800a072010000d4e903002a");}
+if op=="arm_linux_artifact_poll" {return h::hex_bytes("ab035ff8600140f9610940b9691140b9ff4300d10a7d80520a00a0722c09ca1aec0300f98da50a1b0a488852ea01a072ad7daa9bed0700f9e2030091030080520300a072040080520400a072280980520800a072010000d4ff430091e903002a");}
+if op=="arm_linux_artifact_size" {return h::hex_bytes("ab035ff8600140b9010080520100a072420080520200a072c80780520800a072010000d4a000f8b70b0080520b80a0721f000beb69000054e0ff9f52e0ffbf72e903002a");}
+if op=="arm_linux_linker_limits" {return h::hex_bytes("ab035ff8ff4300d1090080520980a072e90300f9e90700f9200080520000a072e1030091881480520800a072010000d4600100b5090080520900a872e90300f9e90700f9200180520000a072e1030091881480520800a072010000d4ff430091e903002a");}
+if op=="arm_linux_engine_limits" {return h::hex_bytes("ffc308d1090480520900a072e91300b9890080520900a072e91700b9a90280522900a072e91b00b9e91680520900b872e91f00b9c90080520900a072e92300b9090080520900b072e92700b9090480520900a072e92b00b9090080520900a072e92f00b9a90680520920a072e93300b9090080520900a872e93700b9c90080520900a072e93b00b9090080520900b072e93f00b9a90280520920a072e94300b9693680520900a072e94700b9c90080520900a072e94b00b9c9048052a900a072e94f00b9a902805209a0a072e95300b9891b80520900a072e95700b9090480520900a072e95b00b9090280520900a072e95f00b9890a80520900a072e96300b9092080522900a072e96700b9a90280520920a072e96b00b9092080522900a072e96f00b9c90080520900a072e97300b909008052e9ffaf72e97700b9c90080520900a072e97b00b929008052a900a072e97f00b9a90280520920a072e98300b9c91880520900a072e98700b9c90080520900a072e98b00b929008052a900a072e98f00b9a90280520920a072e99300b9e91880520900a072e99700b9c90080520900a072e99b00b929008052a900a072e99f00b9a90280520920a072e9a300b9691980520900a072e9a700b9c90080520900a072e9ab00b929008052a900a072e9af00b9a90280520920a072e9b300b9091980520900a072e9b700b9c90080520900a072e9bb00b929008052a900a072e9bf00b9a90280520920a072e9c300b9291980520900a072e9c700b9c90080520900a072e9cb00b929008052a900a072e9cf00b9a90280520920a072e9d300b9491980520900a072e9d700b9c90080520900a072e9db00b929008052a900a072e9df00b9a90280520920a072e9e300b9491e80520900a072e9e700b9c90080520900a072e9eb00b929008052a900a072e9ef00b9a90280520920a072e9f300b9c91980520900a072e9f700b9c90080520900a072e9fb00b929008052a900a072e9ff00b9a90280520920a072e90301b9691a80520900a072e90701b9c90080520900a072e90b01b929008052a900a072e90f01b9a90280520920a072e91301b9a92180520900a072e91701b9c90080520900a072e91b01b929008052a900a072e91f01b9a90280520920a072e92301b9290c80520900a072e92701b9c90080520900a072e92b01b929008052a900a072e92f01b9a90280520920a072e93301b9892180520900a072e93701b9c90080520900a072e93b01b929008052a900a072e93f01b9a90280520920a072e94301b9090580520900a072e94701b9c90080520900a072e94b01b929008052a900a072e94f01b9a90280520920a072e95301b9e90480520900a072e95701b9c90080520900a072e95b01b929008052a900a072e95f01b9a90280520920a072e96301b9290580520900a072e96701b9c90080520900a072e96b01b929008052a900a072e96f01b9a90280520920a072e97301b9a90e80520900a072e97701b9c90080520900a072e97b01b929008052a900a072e97f01b9a90280520920a072e98301b9c92180520900a072e98701b9c90080520900a072e98b01b929008052a900a072e98f01b9a90280520920a072e99301b9e92180520900a072e99701b9c90080520900a072e99b01b929008052a900a072e99f01b9a90280520920a072e9a301b9092380520900a072e9a701b9c90080520900a072e9ab01b929008052a900a072e9af01b9a90280520920a072e9b301b9291e80520900a072e9b701b9c90080520900a072e9bb01b929008052a900a072e9bf01b9a90280520920a072e9c301b9691b80520900a072e9c701b9c90080520900a072e9cb01b929008052a900a072e9cf01b9a90280520920a072e9d301b9291b80520900a072e9d701b9c90080520900a072e9db01b929008052a900a072e9df01b9a90280520920a072e9e301b9491b80520900a072e9e701b9c90080520900a072e9eb01b929008052a900a072e9ef01b9a90280520920a072e9f301b9293580520900a072e9f701b9c90080520900a072e9fb01b929008052a900a072e9ff01b9a90280520920a072e90302b9492380520900a072e90702b9c90080520900a072e90b02b929008052a900a072e90f02b9a90280520920a072e91302b9a91b80520900a072e91702b9c90080520900a072e91b02b929008052a900a072e91f02b9c90080520900a072e92302b909008052e9ffaf72e92702b9690880520900a072e90300b9e9430091e90700f9c00480520000a072210080520100a072020080520200a072030080520300a072040080520400a072e81480520800a072010000d4a00100b5c00280520000a072410080520100a072e2030091030080520300a072040080520400a072e81480520800a072010000d4ffc30891e903002a");}
+exit(1);return [];
+}
+pub fn signatures()->Array<ir::Signature> {return [ir::Signature {name:"k_os_engine_limits",params:[],locations:0,result:"i32"},ir::Signature {name:"k_os_artifact_size",params:["i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_linker_limits",params:[],locations:0,result:"i32"},ir::Signature {name:"k_os_memfd_create",params:["ptr","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_fork",params:[],locations:0,result:"i32"},ir::Signature {name:"k_os_pipe2",params:["ptr","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_dup2",params:["i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_execveat",params:["i32","ptr","ptr","ptr","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_wait4",params:["i32","ptr","i32","ptr"],locations:0,result:"i32"},ir::Signature {name:"k_os_kill",params:["i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_setpgid",params:["i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_clock_gettime",params:["i32","ptr"],locations:0,result:"i32"},ir::Signature {name:"k_os_fcntl",params:["i32","i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_exit",params:["i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_poll",params:["ptr","i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_close_range",params:["i32","i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_lseek",params:["i32","i32","i32"],locations:0,result:"i32"},ir::Signature {name:"k_os_getpid",params:[],locations:0,result:"i32"},ir::Signature {name:"k_os_getppid",params:[],locations:0,result:"i32"},ir::Signature {name:"k_os_prctl",params:["i32","i32","i32","i32","i32"],locations:0,result:"i32"}];}
+pub fn mechanism(name:string)->string {
+if name=="k_os_engine_limits" {return "arm_linux_engine_limits";}
+if name=="k_os_artifact_size" {return "arm_linux_artifact_size";}
+if name=="k_os_linker_limits" {return "arm_linux_linker_limits";}
+if name=="k_os_memfd_create" {return "arm_linux_artifact_memfd_create";}
+if name=="k_os_fork" {return "arm_linux_artifact_fork";}
+if name=="k_os_pipe2" {return "arm_linux_artifact_pipe2";}
+if name=="k_os_dup2" {return "arm_linux_artifact_dup2";}
+if name=="k_os_execveat" {return "arm_linux_artifact_execveat";}
+if name=="k_os_wait4" {return "arm_linux_artifact_wait4";}
+if name=="k_os_kill" {return "arm_linux_artifact_kill";}
+if name=="k_os_setpgid" {return "arm_linux_artifact_setpgid";}
+if name=="k_os_clock_gettime" {return "arm_linux_artifact_clock_gettime";}
+if name=="k_os_fcntl" {return "arm_linux_artifact_fcntl";}
+if name=="k_os_exit" {return "arm_linux_artifact_exit";}
+if name=="k_os_poll" {return "arm_linux_artifact_poll";}
+if name=="k_os_close_range" {return "arm_linux_artifact_close_range";}
+if name=="k_os_lseek" {return "arm_linux_artifact_lseek";}
+if name=="k_os_getpid" {return "arm_linux_artifact_getpid";}
+if name=="k_os_getppid" {return "arm_linux_artifact_getppid";}
+if name=="k_os_prctl" {return "arm_linux_artifact_prctl";}
+exit(1);return "";
+}

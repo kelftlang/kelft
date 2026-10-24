@@ -1,0 +1,27 @@
+// Source-only request handling shared by installed object-emission entries.
+import "../json.kelft" as j;
+pub struct Request {entry:string,root:string,output:string,maximum:string,declarations:string,bindings:string,sdk:string}
+fn fail(message:string)->void {eprint("error[K0403]: "+message+"\n");exit(1);}
+pub fn handles(arguments:Array<string>)->bool {return array_len::<string>(arguments)>0&&arguments[0]=="native-object";}
+pub fn parse(arguments:Array<string>)->Request {
+ if array_len::<string>(arguments)<2 {fail("native-object requires an entry");}
+ let mut r:Request=Request {entry:arguments[1],root:current_dir(),output:"",maximum:"{\"execute\":false,\"read\":[],\"write\":[]}",declarations:"",bindings:"",sdk:"14.0"};
+ let mut seen:Map<string,bool>=map_new::<string,bool>();let mut at:i32=2;
+ while at<array_len::<string>(arguments) {
+  let flag:string=arguments[at];
+  if flag!="-o"&&flag!="--project-root"&&flag!="--capabilities"&&flag!="--intent"&&flag!="--bindings"&&flag!="--sdk-version" {fail("unknown object option: "+flag);}
+  match map_get::<string,bool>(seen,flag) {Option::Some(value)=>{fail("duplicate object option: "+flag);},Option::None=>{}}
+  map_set::<string,bool>(inout seen,flag,true);at=at+1;if at>=array_len::<string>(arguments) {fail("missing object option value");}
+  let value:string=arguments[at];
+  if flag=="-o" {r.output=value;}else if flag=="--project-root" {r.root=value;}else if flag=="--intent" {r.declarations=value;}else if flag=="--bindings" {r.bindings=value;}else if flag=="--sdk-version" {r.sdk=value;}else {
+   match read_text(value) {Result::Ok(text)=>{r.maximum=j::canonical(j::parse(text));},Result::Error(message)=>{fail(message);}}
+  }at=at+1;
+ }
+ if r.output=="" {fail("object emission requires -o");}
+ if r.bindings!=""&&r.declarations=="" {fail("implementation bindings require --intent");}
+ return r;
+}
+pub fn write(r:Request,bytes:Bytes)->void {
+ match create_dir(path_dirname(r.output)) {Result::Ok(value)=>{},Result::Error(message)=>{fail(message);}}
+ match write_file(r.output,bytes) {Result::Ok(value)=>{},Result::Error(message)=>{fail(message);}}
+}

@@ -1,0 +1,3 @@
+// Explicit optional-engine entry. No compiler or Intent session is linked here.
+import "./direct/engine-driver.kelft" as engine;
+fn main()->void {engine::command(args());}

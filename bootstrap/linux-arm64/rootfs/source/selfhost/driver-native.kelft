@@ -1,0 +1,107 @@
+import "./toolchain/host-capabilities.kelft" as host_caps;
+// Trusted native transaction entry. Optional engines use separate profiles.
+import "./direct/native-target.kelft" as native_targets;
+import "./json.kelft" as j;
+import "./hash.kelft" as h;
+import "./syntax.kelft" as s;
+import "./intent.kelft" as intent;
+import "./verification-native.kelft" as verification;
+import "./modules.kelft" as modules;
+import "./semantic.kelft" as semantic;
+import "./core.kelft" as ir;
+fn text(v:j::Value,key:string)->string {return j::string(j::field(v,key));}
+fn error(message:string)->void {s::error("K0601",message,s::span("<driver-protocol>",0,0));}
+fn require(condition:bool,message:string)->void {if !condition {error(message);}}
+fn read(path:string)->string {match read_text(path) {Result::Ok(value)=>{return value;},Result::Error(message)=>{error(message);}}return "";}
+fn bytes(path:string)->Bytes {match read_file(path) {Result::Ok(value)=>{return value;},Result::Error(message)=>{error(message);}}return [];}
+fn strings(value:j::Value)->Array<string> {require(j::is_array(value),"expected string array");let mut out:Array<string>=[];for v in j::array(value) {require(j::is_string(v),"expected string array member");array_push::<string>(inout out,j::string(v));}return out;}
+fn keys(value:j::Value,allowed:Array<string>)->void {require(j::is_object(value),"expected protocol object");for (key, item) in j::object(value) {let mut known:bool=false;for name in allowed {if name==key {known=true;}}require(known,"unknown protocol field: "+key);}}
+fn snapshot(value:j::Value)->void {
+ require(j::is_object(value),"file-effect snapshot required");for (path,entry) in j::object(value) {
+  require((s::starts(path,"/project/")||path=="/project")&&resolve_path("/project",path)==path,"file-effect path escapes guest project");
+  if j::is_string(j::field(entry,"hash")) {keys(entry,["hash","bytesHex"]);require(j::is_string(j::field(entry,"bytesHex"))&&intent::valid_hash(text(entry,"hash")),"invalid file-effect digest");let raw:Bytes=h::hex_bytes(text(entry,"bytesHex"));require(h::sha256_bytes(raw)==text(entry,"hash"),"file-effect bytes do not match digest");}
+  else if j::is_string(j::field(entry,"symlink")) {keys(entry,["symlink"]);}
+  else {keys(entry,["directory"]);require(j::is_bool(j::field(entry,"directory"))&&j::boolean(j::field(entry,"directory")),"invalid file-effect entry");}
+ }
+}
+pub fn checked(request:j::Value,native:bool)->void {
+ keys(request,["schemaVersion","sessionId","action","entry","target","runtimeProfile","artifactPath","args","permissions","intentPath","policyPath","proposalPath","basePath","approved","ledger","parent","compilerHash","registryHash","driverHash","runtimeIdentity","limits","nativeToolchain"]);
+ require(j::is_object(request)&&text(request,"schemaVersion")=="0.1","unsupported driver protocol");require(native&&native_targets::is_native(text(request,"target")),"native target requires trusted protocol");
+ require(native_targets::is_native(text(request,"target"))&&text(request,"runtimeProfile")==native_targets::profile(text(request,"target")),"unsupported runtime profile");
+ if native_targets::is_native(text(request,"target")) {require(j::is_string(j::field(request,"nativeToolchain"))&&text(request,"nativeToolchain")!="","native toolchain required");}else {require(j::canonical(j::field(request,"nativeToolchain"))=="null","native toolchain requires a native target");}
+ require(text(request,"sessionId")!=""&&intent::valid_hash(text(request,"compilerHash"))&&intent::valid_hash(text(request,"registryHash")),"missing driver identities");
+ require(intent::valid_hash(text(request,"driverHash"))&&j::is_object(j::field(request,"runtimeIdentity")),"missing collector identity");
+ let paths:Array<string>=["entry","artifactPath","intentPath","policyPath","proposalPath","basePath","ledger","parent"];for field in paths {require(j::is_string(j::field(request,field)),"missing protocol path field");}
+ let arguments:Array<string>=strings(j::field(request,"args"));let approved:Array<string>=strings(j::field(request,"approved"));let policy:j::Value=j::field(request,"permissions");keys(policy,["read","write","execute","process"]);let mut process_present:bool=false;for (key,value) in j::object(policy) {if key=="process" {process_present=true;}}if process_present {require(host_caps::validate_host_policy(host_caps::normalize_host_policy(policy))=="","invalid process capability policy");}let reads:Array<string>=strings(j::field(policy,"read"));let writes:Array<string>=strings(j::field(policy,"write"));
+ let limits:j::Value=j::field(request,"limits");keys(limits,["timeoutMs","memoryBytes","stdoutBytes","stderrBytes"]);let limit_fields:Array<string>=["timeoutMs","memoryBytes","stdoutBytes","stderrBytes"];for field in limit_fields {require(j::is_number(j::field(limits,field)),"execution limit must be an integer");let n:i32=s::number(j::canonical(j::field(limits,field)));require(n>=0,"negative execution limit");if field=="timeoutMs" {require(n>0&&n<=3600000,"invalid execution timeout");}else if field=="memoryBytes" {require(n>0&&n<=1073741824,"invalid memory bound");}else {require(n<=67108864,"invalid output bound");}}
+ let action:string=text(request,"action");require(action=="run"||action=="verify"||action=="accept","unsupported driver action");require(text(request,"entry")!="","candidate required");
+ for field in limit_fields {let encoded:string=j::canonical(j::field(limits,field));require(encoded==i32_to_string(s::number(encoded)),"execution limit is outside the integer range");}
+}
+fn report(request:j::Value,prepare:bool,results:j::Value,native:j::Value)->j::Value {
+ let action:string=text(request,"action");let target:string=text(request,"target");let entry:string=text(request,"entry");let output:string=text(request,"artifactPath");
+ let mut out:j::Value=j::Value::Null();
+ if action=="run" {
+  let mods:Array<modules::Module>=modules::load(entry,current_dir());let program:ir::Program=semantic::analyze(mods);let permissions:j::Value=j::field(request,"permissions");
+  for effect in program.effects {require(effect!="artifact.execute","candidate execution authority denied");require(effect!="process.execute"||array_len::<j::Value>(j::array(j::field(permissions,"process")))>0,"process execution denied by capability policy");require(effect!="fs.read"||array_len::<j::Value>(j::array(j::field(permissions,"read")))>0,"read effect denied");require(effect!="fs.write"||array_len::<j::Value>(j::array(j::field(permissions,"write")))>0,"write effect denied");}
+  let artifact:Bytes=[];let native_report:j::Value=native;require(native_targets::is_native(target)&&j::is_object(native_report),"native artifact required");
+
+  out=j::parse("{\"schemaVersion\":\"0.1\",\"state\":\"passed\",\"results\":[]}");out=j::set(out,"candidateHash",j::Value::Text(verification::candidate_hash(mods)));out=j::set(out,"artifactHash",j::Value::Text(h::sha256_bytes(artifact)));out=j::set(out,"policyHash",j::Value::Text(intent::semantic_hash(permissions)));
+  if native_targets::is_native(target) {out=j::set(out,"artifactHash",j::field(native_report,"artifactHash"));out=j::set(out,"objectHash",j::field(native_report,"objectHash"));out=j::set(out,"toolchainIdentity",j::field(native_report,"toolchainIdentity"));}
+  let mut execution:j::Value=j::parse("{\"id\":\"run\",\"verifier\":\"run\"}");execution=j::set(execution,"args",j::field(request,"args"));execution=j::set(execution,"permissions",permissions);execution=j::set(execution,"artifactHash",j::field(out,"artifactHash"));execution=j::set(execution,"target",j::Value::Text(target));execution=j::set(execution,"fixtureHash",j::Value::Text(h::sha256("")));out=j::set(out,"executionRequests",j::Value::Array([execution]));
+ }else {
+  let value:j::Value=intent::parse(read(text(request,"intentPath")));let policy:j::Value=j::parse(read(text(request,"policyPath")));
+  out=verification::verify_emitted_for(value,entry,policy,"/fixtures",target,true,prepare,results,output,"","",native);
+ }
+ if action=="accept" {
+  let mut proposal_hash:string="";let mut base_hash:string="";
+  if text(request,"proposalPath")!=""||text(request,"basePath")!="" {
+   require(text(request,"proposalPath")!=""&&text(request,"basePath")!="","acceptance requires both proposal and base");
+   let base:j::Value=intent::parse(read(text(request,"basePath")));let proposal:j::Value=j::parse(read(text(request,"proposalPath")));
+   if text(out,"state")=="passed" {
+    let approved:j::Value=intent::proposal_authorized(proposal,base,text(out,"candidateHash"),strings(j::field(request,"approved")));
+    require(intent::semantic_hash(j::field(approved,"next"))==text(out,"intentHash"),"proposal Intent mismatch");
+   }
+   proposal_hash=intent::semantic_hash(proposal);base_hash=intent::semantic_hash(base);
+  }
+  out=j::set(out,"proposalHash",j::Value::Text(proposal_hash));out=j::set(out,"baseHash",j::Value::Text(base_hash));
+ }
+ return j::set(out,"compilerHash",j::field(request,"compilerHash"));
+}
+pub fn prepare_artifact(request:j::Value,native:j::Value)->j::Value {
+ checked(request,j::is_object(native));let mut plan:j::Value=j::parse("{\"schemaVersion\":\"0.1\"}");
+ plan=j::set(plan,"sessionId",j::field(request,"sessionId"));plan=j::set(plan,"requestHash",j::Value::Text(h::sha256(j::canonical(request))));plan=j::set(plan,"registryHash",j::field(request,"registryHash"));plan=j::set(plan,"target",j::field(request,"target"));plan=j::set(plan,"runtimeProfile",j::field(request,"runtimeProfile"));plan=j::set(plan,"limits",j::field(request,"limits"));plan=j::set(plan,"artifactPath",j::field(request,"artifactPath"));
+ plan=j::set(plan,"report",report(request,true,j::Value::Array([]),native));return j::set(plan,"planHash",j::Value::Text(h::sha256(j::canonical(plan))));
+}
+fn finalize_artifact(request:j::Value,native:j::Value)->j::Value {
+ checked(request,j::is_object(native));let plan:j::Value=j::parse(read("/control/plan.json"));let evidence:j::Value=j::parse(read("/control/evidence.json"));
+ keys(evidence,["schemaVersion","sessionId","planHash","compilerHash","registryHash","driverHash","runtimeIdentity","results","receipt"]);
+ require(text(plan,"planHash")==h::sha256(j::canonical(j::remove(plan,"planHash"))),"plan integrity mismatch");require(text(plan,"requestHash")==h::sha256(j::canonical(request)),"request revision mismatch");
+ require(text(evidence,"schemaVersion")=="0.1"&&text(evidence,"sessionId")==text(request,"sessionId")&&text(evidence,"planHash")==text(plan,"planHash")&&text(evidence,"compilerHash")==text(request,"compilerHash")&&text(evidence,"registryHash")==text(request,"registryHash")&&text(evidence,"driverHash")==text(request,"driverHash")&&j::canonical(j::field(evidence,"runtimeIdentity"))==j::canonical(j::field(request,"runtimeIdentity")),"evidence binding mismatch");
+ let key:Bytes=bytes("/control/session.key");require(array_len::<u8>(key)==32,"invalid evidence key");require(text(evidence,"receipt")==h::hmac_sha256(key,string_to_bytes(j::canonical(j::remove(evidence,"receipt")))),"invalid evidence receipt");
+ let expected:Array<j::Value>=j::array(j::field(j::field(plan,"report"),"executionRequests"));let results:j::Value=j::field(evidence,"results");require(j::is_array(results)&&array_len::<j::Value>(j::array(results))==array_len::<j::Value>(expected),"evidence coverage mismatch");
+ for row in j::array(results) {
+  let trap:j::Value=j::field(row,"trap");let failure:j::Value=j::field(row,"error");
+  require(j::canonical(trap)=="null"||j::is_string(trap)&&s::starts(j::string(trap),"KRT_"),"invalid trap category");
+  if text(row,"status")=="exited" {require(j::canonical(failure)=="null","normal execution contains an infrastructure error");let encoded:string=j::canonical(j::field(row,"exit"));require(encoded==i32_to_string(s::number(encoded)),"exit status is outside the integer range");}
+  else {require(j::canonical(j::field(row,"exit"))=="null"&&j::is_string(failure)&&j::string(failure)!="","failed execution lacks an infrastructure error");}
+ }
+ for row in j::array(results) {keys(row,["status","artifactHash","exit","stdoutHex","stderrHex","trap","error","id","verifier","fixtureHash","fileEffects"]);require(j::is_object(row)&&j::is_string(j::field(row,"stdoutHex"))&&j::is_string(j::field(row,"stderrHex")),"malformed execution bytes");let stdout:Bytes=h::hex_bytes(text(row,"stdoutHex"));let stderr:Bytes=h::hex_bytes(text(row,"stderrHex"));let limits:j::Value=j::field(request,"limits");require(array_len::<u8>(stdout)<=s::number(j::canonical(j::field(limits,"stdoutBytes")))&&array_len::<u8>(stderr)<=s::number(j::canonical(j::field(limits,"stderrBytes"))),"execution evidence exceeds output bound");let effects:j::Value=j::field(row,"fileEffects");keys(effects,["before","after"]);snapshot(j::field(effects,"before"));snapshot(j::field(effects,"after"));if text(row,"status")=="exited" {require(j::is_number(j::field(row,"exit")),"invalid exit status");let code:i32=s::number(j::canonical(j::field(row,"exit")));require(code>=0&&code<=255,"invalid exit status");}else {require(text(row,"status")=="resource-error"||text(row,"status")=="execution-error","unknown execution status");}let mut count:i32=0;for wanted in expected {if text(row,"id")==text(wanted,"id")&&text(row,"verifier")==text(wanted,"verifier")&&text(row,"artifactHash")==text(wanted,"artifactHash")&&text(row,"fixtureHash")==text(wanted,"fixtureHash") {count=count+1;}}require(count==1,"unknown or substituted execution evidence");let mut duplicates:i32=0;for other in j::array(results) {if text(other,"id")==text(row,"id") {duplicates=duplicates+1;}}require(duplicates==1,"duplicate execution evidence");}
+ let mut out:j::Value=report(request,false,results,native);let prior:j::Value=j::field(plan,"report");let keys:Array<string>=["candidateHash","artifactHash","objectHash","toolchainIdentity","intentHash","policyHash","fixtureHash","dependencyHashes","executionRequests","proposalHash","baseHash"];
+ for field in keys {require(j::canonical(j::field(out,field))==j::canonical(j::field(prior,field)),"verified input revision changed: "+field);}
+ if text(request,"action")=="run" {for row in j::array(results) {require(text(row,"status")=="exited","candidate execution failed");}out=j::set(out,"executions",results);}
+ out=j::set(out,"evidenceHash",j::Value::Text(h::sha256(j::canonical(evidence))));out=j::set(out,"registryHash",j::field(request,"registryHash"));
+ out=j::set(out,"driverHash",j::field(request,"driverHash"));out=j::set(out,"runtimeIdentity",j::field(request,"runtimeIdentity"));
+ out=j::set(out,"executions",results);out=j::set(out,"limits",j::field(request,"limits"));out=j::set(out,"sessionId",j::field(request,"sessionId"));out=j::set(out,"planHash",j::field(plan,"planHash"));out=j::set(out,"receipt",j::field(evidence,"receipt"));
+ require(string_len(j::canonical(out))<=67104768,"final evidence report exceeds the compiler output bound");
+ if text(request,"action")=="accept"&&text(out,"state")=="passed" {
+  let value:j::Value=intent::parse(read(text(request,"intentPath")));let parent:string=text(request,"parent");let ledger:string=text(request,"ledger");
+  if parent!="" {require(intent::valid_hash(parent),"invalid ledger parent");let previous:j::Value=j::parse(read(resolve_path(ledger,s::slice(parent,7,71)+".json")));require(intent::semantic_hash(previous)==parent,"ledger parent mismatch");require(text(request,"proposalPath")!=""&&text(request,"basePath")!="","subsequent acceptance needs proposal and base");let base:j::Value=intent::parse(read(text(request,"basePath")));require(intent::semantic_hash(base)==text(previous,"intentHash"),"base does not match ledger parent");let proposal:j::Value=intent::proposal_authorized(j::parse(read(text(request,"proposalPath"))),base,text(out,"candidateHash"),strings(j::field(request,"approved")));require(intent::semantic_hash(j::field(proposal,"next"))==text(out,"intentHash"),"proposal Intent mismatch");}
+  out=verification::accept(value,out,ledger,parent);
+ }return out;
+}
+pub fn command(arguments:Array<string>)->void {command_with_artifact(arguments,j::Value::Null());}
+pub fn command_with_artifact(arguments:Array<string>,native:j::Value)->void {
+ require(array_len::<string>(arguments)==3,"protocol requires phase and trusted request path");let request:j::Value=j::parse(read(arguments[2]));let mut value:j::Value=j::Value::Null();
+ if arguments[1]=="prepare" {value=prepare_artifact(request,native);}else if arguments[1]=="finalize" {value=finalize_artifact(request,native);}else {error("unknown protocol phase");}
+ println(j::canonical(value));let mut state:string=text(value,"state");if arguments[1]=="prepare" {state=text(j::field(value,"report"),"state");}if state=="needs-human" {exit(2);}if state=="failed" {exit(1);}
+}

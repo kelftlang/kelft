@@ -1,0 +1,1 @@
+fn f<T>(x:T)->T{return x;}fn main()->void {f::<i32>::<string>(1);}

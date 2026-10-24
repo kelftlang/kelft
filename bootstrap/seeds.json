@@ -1,0 +1,71 @@
+{
+  "schema": "kelft.native-seeds/1",
+  "version": "0.1.0-alpha.1",
+  "hosts": [
+    {
+      "target": "linux-x86_64",
+      "nativeRebuildAvailable": true,
+      "workflowVerified": true,
+      "inventory": "linux-x86_64/seed.json",
+      "platformPrerequisites": [
+        "Ubuntu 24.04 with the recorded boundary input identities",
+        "bubblewrap and a policy permitting unprivileged user namespaces"
+      ],
+      "releaseEligible": false
+    },
+    {
+      "target": "linux-arm64",
+      "nativeRebuildAvailable": true,
+      "workflowVerified": true,
+      "inventory": "linux-arm64/seed.json",
+      "platformPrerequisites": [
+        "Ubuntu 24.04 with the recorded boundary input identities",
+        "bubblewrap and a policy permitting unprivileged user namespaces"
+      ],
+      "releaseEligible": false
+    },
+    {
+      "target": "windows-x86_64",
+      "nativeRebuildAvailable": true,
+      "workflowVerified": true,
+      "inventory": "windows-x86_64/seed.json",
+      "platformPrerequisites": [
+        "Windows 11 or Windows Server 2025 on the native architecture",
+        "Named System32 modules required by the boundary"
+      ],
+      "releaseEligible": false
+    },
+    {
+      "target": "windows-arm64",
+      "nativeRebuildAvailable": true,
+      "workflowVerified": true,
+      "inventory": "windows-arm64/seed.json",
+      "platformPrerequisites": [
+        "Windows 11 on ARM64",
+        "Named System32 modules required by the boundary"
+      ],
+      "releaseEligible": false
+    },
+    {
+      "target": "macos-x86_64",
+      "nativeRebuildAvailable": true,
+      "workflowVerified": true,
+      "inventory": "macos-x86_64/seed.json",
+      "platformPrerequisites": [
+        "macOS 15 on Intel"
+      ],
+      "releaseEligible": false
+    },
+    {
+      "target": "macos-arm64",
+      "nativeRebuildAvailable": true,
+      "workflowVerified": true,
+      "inventory": "macos-arm64/seed.json",
+      "platformPrerequisites": [
+        "macOS 14 or newer on Apple Silicon"
+      ],
+      "releaseEligible": false
+    }
+  ],
+  "releaseEligible": false
+}

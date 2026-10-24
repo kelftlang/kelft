@@ -1,0 +1,14 @@
+{
+  "schema": "kelft-native-resource-registry/2",
+  "roles": ["compiler", "candidate", "linker"],
+  "compiler": {"languageHeapBytes": 268435456, "wallMs": 600000},
+  "initialStackBytes": 16777216,
+  "profiles": {
+    "linux-x86_64": {"quantity": "virtual-address-bytes", "scope": "process", "ceilingBytes": 1073741824, "mechanism": "RLIMIT_AS", "stackMechanism": "RLIMIT_STACK"},
+    "linux-arm64": {"quantity": "virtual-address-bytes", "scope": "process", "ceilingBytes": 1073741824, "mechanism": "RLIMIT_AS", "stackMechanism": "RLIMIT_STACK"},
+    "windows-x86_64": {"quantity": "committed-bytes", "scope": "job", "ceilingBytes": 1073741824, "mechanism": "JOB_OBJECT_LIMIT_JOB_MEMORY+JOB_OBJECT_LIMIT_PROCESS_MEMORY", "stackMechanism": "PE-initial-stack-reserve"},
+    "windows-arm64": {"quantity": "committed-bytes", "scope": "job", "ceilingBytes": 1073741824, "mechanism": "JOB_OBJECT_LIMIT_JOB_MEMORY+JOB_OBJECT_LIMIT_PROCESS_MEMORY", "stackMechanism": "PE-initial-stack-reserve"},
+    "macos-x86_64": {"quantity": "virtual-address-bytes", "scope": "process", "ceilingBytes": 68719476736, "mechanism": "RLIMIT_AS", "stackMechanism": "RLIMIT_STACK"},
+    "macos-arm64": {"quantity": "virtual-address-bytes", "scope": "process", "ceilingBytes": 549755813888, "mechanism": "RLIMIT_AS", "stackMechanism": "RLIMIT_STACK"}
+  }
+}

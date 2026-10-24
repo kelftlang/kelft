@@ -1,0 +1,337 @@
+{
+  "print": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "void"
+  },
+  "println": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "void"
+  },
+  "eprint": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "void"
+  },
+  "i32_to_string": {
+    "generics": 0,
+    "params": [
+      "i32"
+    ],
+    "result": "string"
+  },
+  "string_to_i32": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "Result<i32,string>"
+  },
+  "i32_from_u8": {
+    "generics": 0,
+    "params": [
+      "u8"
+    ],
+    "result": "i32"
+  },
+  "u8_from_i32": {
+    "generics": 0,
+    "params": [
+      "i32"
+    ],
+    "result": "u8"
+  },
+  "string_len": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "i32"
+  },
+  "string_byte": {
+    "generics": 0,
+    "params": [
+      "string",
+      "i32"
+    ],
+    "result": "u8"
+  },
+  "string_slice": {
+    "generics": 0,
+    "params": [
+      "string",
+      "i32",
+      "i32"
+    ],
+    "result": "string"
+  },
+  "string_find": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string",
+      "i32"
+    ],
+    "result": "i32"
+  },
+  "string_replace": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string",
+      "string"
+    ],
+    "result": "string"
+  },
+  "string_split": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string"
+    ],
+    "result": "Array<string>"
+  },
+  "string_from_codepoint": {
+    "generics": 0,
+    "params": [
+      "i32"
+    ],
+    "result": "string"
+  },
+  "string_to_bytes": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "Array<u8>"
+  },
+  "bytes_to_string": {
+    "generics": 0,
+    "params": [
+      "Array<u8>"
+    ],
+    "result": "string"
+  },
+  "utf8_decode": {
+    "generics": 0,
+    "params": [
+      "Array<u8>"
+    ],
+    "result": "Result<string,string>"
+  },
+  "array_len": {
+    "generics": 1,
+    "params": [
+      "Array<$0>"
+    ],
+    "result": "i32"
+  },
+  "array_push": {
+    "generics": 1,
+    "params": [
+      "Array<$0>",
+      "$0"
+    ],
+    "result": "void",
+    "inout": [
+      0
+    ]
+  },
+  "array_pop": {
+    "generics": 1,
+    "params": [
+      "Array<$0>"
+    ],
+    "result": "Option<$0>",
+    "inout": [
+      0
+    ]
+  },
+  "array_slice": {
+    "generics": 1,
+    "params": [
+      "Array<$0>",
+      "i32",
+      "i32"
+    ],
+    "result": "Array<$0>"
+  },
+  "map_new": {
+    "generics": 2,
+    "params": [],
+    "result": "Map<$0,$1>"
+  },
+  "map_len": {
+    "generics": 2,
+    "params": [
+      "Map<$0,$1>"
+    ],
+    "result": "i32"
+  },
+  "map_get": {
+    "generics": 2,
+    "params": [
+      "Map<$0,$1>",
+      "$0"
+    ],
+    "result": "Option<$1>"
+  },
+  "map_set": {
+    "generics": 2,
+    "params": [
+      "Map<$0,$1>",
+      "$0",
+      "$1"
+    ],
+    "result": "void",
+    "inout": [
+      0
+    ]
+  },
+  "map_remove": {
+    "generics": 2,
+    "params": [
+      "Map<$0,$1>",
+      "$0"
+    ],
+    "result": "bool",
+    "inout": [
+      0
+    ]
+  },
+  "args": {
+    "generics": 0,
+    "params": [],
+    "result": "Array<string>"
+  },
+  "read_file": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "Result<Array<u8>,string>",
+    "effect": "fs.read"
+  },
+  "read_text": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "Result<string,string>",
+    "effect": "fs.read"
+  },
+  "write_file": {
+    "generics": 0,
+    "params": [
+      "string",
+      "Array<u8>"
+    ],
+    "result": "Result<bool,string>",
+    "effect": "fs.write"
+  },
+  "write_text": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string"
+    ],
+    "result": "Result<bool,string>",
+    "effect": "fs.write"
+  },
+  "resolve_path": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string"
+    ],
+    "result": "string"
+  },
+  "path_dirname": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "string"
+  },
+  "path_relative": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string"
+    ],
+    "result": "string"
+  },
+  "canonical_path": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "string",
+    "effect": "fs.read"
+  },
+  "artifact_run": {
+    "generics": 0,
+    "params": [
+      "Array<u8>",
+      "string",
+      "Array<string>",
+      "string"
+    ],
+    "result": "Result<(i32,string,string),string>",
+    "effect": "artifact.execute"
+  },
+  "create_dir": {
+    "generics": 0,
+    "params": [
+      "string"
+    ],
+    "result": "Result<bool,string>",
+    "effect": "fs.write"
+  },
+  "write_once": {
+    "generics": 0,
+    "params": [
+      "string",
+      "string"
+    ],
+    "result": "Result<bool,string>",
+    "effect": "fs.read|fs.write"
+  },
+  "process_run": {
+    "generics": 0,
+    "params": ["string"],
+    "result": "string",
+    "effect": "process.execute"
+  },
+  "filesystem_read": {
+    "generics": 0,
+    "params": ["string"],
+    "result": "string",
+    "effect": "fs.read"
+  },
+  "filesystem_write": {
+    "generics": 0,
+    "params": ["string"],
+    "result": "string",
+    "effect": "fs.write"
+  },
+  "current_dir": {
+    "generics": 0,
+    "params": [],
+    "result": "string"
+  },
+  "exit": {
+    "generics": 0,
+    "params": [
+      "i32"
+    ],
+    "result": "void"
+  }
+}

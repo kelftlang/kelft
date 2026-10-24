@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "0.1",
+  "positive": [
+    {
+      "entry": "tests/fixtures/relay-client-conformance.kelft",
+      "stdout": "Relay durable client transitions passed\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "examples/relay/main.kelft",
+      "stdout": "Relay Core checks passed\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/wire-conformance.kelft",
+      "stdout": "Core wire boundaries passed\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/relay-collaboration.kelft",
+      "stdout": "Relay collaboration passed\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "examples/hello.kelft",
+      "stdout": "Hello, Kelft!\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/values.kelft",
+      "stdout": "1\n2\n2\n99\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/generics.kelft",
+      "stdout": "42\ngeneric\n1\n2\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/collections.kelft",
+      "stdout": "1\n2\n4\na2\nz1\ntuple\n9\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/arithmetic.kelft",
+      "stdout": "-2147483648\n1410065408\n-2\n-1\n0\n2147483647\n2\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/unicode.kelft",
+      "stdout": "7\né\naé😀\n255\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/unicode-leading.kelft",
+      "stdout": "é😀\n😀\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/modules.kelft",
+      "stdout": "42\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/patterns.kelft",
+      "stdout": "yes\nno\nnone\ntf\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/evaluation-order.kelft",
+      "stdout": "1\n2\n4\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/recursion.kelft",
+      "stdout": "720\n1\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/hash.kelft",
+      "stdout": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\nsha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\nsha256:1184d1f608158eea09d297565575892231550c403aaa913008d867a97cfd5c76\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/wasm-values.kelft",
+      "stdout": "31\n32\n1023\n1024\n1099\n1101\na\nb\nc\n😀!\na😀z\n18\n",
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/hmac.kelft",
+      "stdout": "hmac-sha256:b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7\nsha256:f742b965f156c10374bc23aea96e3a8aff8facd6fc079defeaa30219ad86f211\n",
+      "stderr": "",
+      "exit": 0
+    }
+  ],
+  "negative": [
+    {
+      "entry": "tests/fixtures/conformance/invalid-0.kelft",
+      "code": "K0207"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-1.kelft",
+      "code": "K0206"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-2.kelft",
+      "code": "K0205"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-3.kelft",
+      "code": "K0205"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-4.kelft",
+      "code": "K0209"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-5.kelft",
+      "code": "K0210"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-6.kelft",
+      "code": "K0208"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-7.kelft",
+      "code": "K0003"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-8.kelft",
+      "code": "K0001"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-9.kelft",
+      "code": "K0206"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-10.kelft",
+      "code": "K0206"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-11.kelft",
+      "code": "K0210"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-12.kelft",
+      "code": "K0210"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-13.kelft",
+      "code": "K0203"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-14.kelft",
+      "code": "K0201"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-15.kelft",
+      "code": "K0209"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-16.kelft",
+      "code": "K0203"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-17.kelft",
+      "code": "K0203"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-18.kelft",
+      "code": "K0101"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-19.kelft",
+      "code": "K0201"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-20.kelft",
+      "code": "K0201"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-21.kelft",
+      "code": "K0101"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-22.kelft",
+      "code": "K0101"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-23.kelft",
+      "code": "K0101"
+    },
+    {
+      "entry": "tests/fixtures/conformance/invalid-24.kelft",
+      "code": "K0102"
+    }
+  ],
+  "negativeModules": [
+    {
+      "entry": "tests/fixtures/invalid/cycle-a.kelft",
+      "code": "K0212"
+    },
+    {
+      "entry": "tests/fixtures/invalid/private.kelft",
+      "code": "K0202"
+    }
+  ],
+  "runtime": [
+    {
+      "entry": "tests/fixtures/conformance/runtime-6.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_MEMORY]\n",
+      "exit": 0
+    },
+    {
+      "entry": "tests/fixtures/conformance/runtime-0.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_EMPTY_SEPARATOR]\n",
+      "exit": 1
+    },
+    {
+      "entry": "tests/fixtures/conformance/runtime-1.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_DIV_ZERO]\n",
+      "exit": 1
+    },
+    {
+      "entry": "tests/fixtures/conformance/runtime-2.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_DIV_OVERFLOW]\n",
+      "exit": 1
+    },
+    {
+      "entry": "tests/fixtures/conformance/runtime-3.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_BOUNDS]\n",
+      "exit": 1
+    },
+    {
+      "entry": "tests/fixtures/conformance/runtime-4.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_UTF8_BOUNDARY]\n",
+      "exit": 1
+    },
+    {
+      "entry": "tests/fixtures/conformance/runtime-5.kelft",
+      "stdout": "",
+      "stderr": "error[KRT_UTF8]\n",
+      "exit": 1
+    },
+    {
+      "entry": "tests/fixtures/invalid-core.kelft",
+      "stdout": "",
+      "stderr": "error[K0301]: invalid Core literal\n  invalid:0-0\n",
+      "exit": 1
+    }
+  ]
+}

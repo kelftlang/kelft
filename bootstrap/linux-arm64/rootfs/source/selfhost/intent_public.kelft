@@ -1,0 +1,75 @@
+import "./syntax.kelft" as s;
+import "./json.kelft" as j;
+import "./core.kelft" as core;
+
+fn text(n:j::Value,key:string)->string {return j::string(j::field(n,key));}
+fn number(v:j::Value)->i32 {match v {j::Value::Number(value)=>{return s::number(value);},_=>{return 0;}}}
+fn bad(n:j::Value,message:string)->void {let span:j::Value=j::field(n,"span");s::error("K0711",message,s::span(text(span,"file"),number(j::field(span,"start")),number(j::field(span,"end"))));}
+fn children(graph:j::Value,id:string)->Array<j::Value> {let mut out:Array<j::Value>=[];for n in j::array(j::field(graph,"nodes")) {if text(n,"scope")==id {array_push::<j::Value>(inout out,n);}}return out;}
+fn named(graph:j::Value,kind:string,name:string)->j::Value {for n in j::array(j::field(graph,"nodes")) {if text(n,"kind")==kind&&text(n,"name")==name {return n;}}return j::Value::Null();}
+fn definition(graph:j::Value,entity:j::Value)->j::Value {let mut out:j::Value=j::parse("{}");for n in children(graph,text(entity,"id")) {if text(n,"kind")=="field" {out=j::set(out,text(n,"name"),j::Value::Text(text(n,"value")));}}return out;}
+fn first(b:i32)->bool {return b>=65&&b<=90||b>=97&&b<=122||b==95;}
+fn next(b:i32)->bool {return first(b)||b>=48&&b<=57;}
+fn identifier(value:string)->bool {if value==""||!first(s::byte(value,0)) {return false;}let mut i:i32=1;while i<string_len(value) {if !next(s::byte(value,i)) {return false;}i=i+1;}return true;}
+fn field_type(graph:j::Value,ty:string)->string {
+    let mut aliases:j::Value=j::parse("{}");for entity in j::array(j::field(graph,"nodes")) {if text(entity,"kind")!="entity" {continue;}for field in children(graph,text(entity,"id")) {if text(field,"kind")!="field" {continue;}let mut raw:string=string_replace(string_replace(string_split(text(field,"value")," where ")[0]," ",""),"\t","");if string_len(raw)>0&&s::slice(raw,string_len(raw)-1,string_len(raw))=="?" {raw=s::slice(raw,0,string_len(raw)-1);}if s::has(raw,"|") {let mut variants:Array<j::Value>=[];for variant in string_split(raw,"|") {array_push::<j::Value>(inout variants,j::Value::Text(variant));}aliases=j::set(aliases,text(entity,"name")+"_"+text(field,"name"),j::Value::Array(variants));}}}
+    let mut definitions:j::Value=j::parse("{}");let mut enums:j::Value=j::parse("{}");let mut seen:Map<string,bool>=map_new::<string,bool>();let mut pending:Array<string>=[ty];
+    while array_len::<string>(pending)>0 {
+        let value:string=string_split(pending[array_len::<string>(pending)-1]," where ")[0];array_pop::<string>(inout pending);if s::has(value,"|") {continue;}let mut i:i32=0;
+        while i<string_len(value) {
+            if !first(s::byte(value,i)) {i=i+1;continue;}let start:i32=i;i=i+1;while i<string_len(value)&&next(s::byte(value,i)) {i=i+1;}
+            let name:string=s::slice(value,start,i);let alternatives:j::Value=j::field(aliases,name);if j::is_array(alternatives) {enums=j::set(enums,name,alternatives);continue;}let entity:j::Value=named(graph,"entity",name);let mut known:bool=false;match map_get::<string,bool>(seen,name) {Option::Some(v)=>{known=true;},Option::None=>{}}
+            if j::is_object(entity)&&!known {map_set::<string,bool>(inout seen,name,true);definitions=j::set(definitions,name,definition(graph,entity));for field in children(graph,text(entity,"id")) {if text(field,"kind")=="field" {array_push::<string>(inout pending,text(field,"value"));}}}
+        }
+    }
+    if map_len::<string,bool>(seen)==0&&map_len::<string,j::Value>(j::object(enums))==0 {return ty;}let mut out:j::Value=j::parse("{}");out=j::set(out,"type",j::Value::Text(ty));out=j::set(out,"entities",definitions);if map_len::<string,j::Value>(j::object(enums))>0 {out=j::set(out,"enums",enums);}return j::canonical(out);
+}
+fn schema(graph:j::Value,ty:string,n:j::Value,extensible:bool)->j::Value {
+    let mut fields:j::Value=j::parse("{}");if ty!="void" {
+        let entity:j::Value=named(graph,"entity",ty);if !j::is_object(entity) {bad(n,"endpoint schema must name an entity or void");}
+        for field in children(graph,text(entity,"id")) {if text(field,"kind")!="field" {continue;}let value:string=text(field,"value");let base:string=string_split(value," where ")[0];let optional:bool=string_len(base)>0&&s::slice(base,string_len(base)-1,string_len(base))=="?";
+            let mut item:j::Value=j::parse("{}");item=j::set(item,"type",j::Value::Text(field_type(graph,value)));item=j::set(item,"required",j::Value::Bool(!optional));fields=j::set(fields,text(field,"name"),item);
+        }
+    }
+    let mut out:j::Value=j::parse("{}");out=j::set(out,"type",j::Value::Text(ty));out=j::set(out,"fields",fields);return j::set(out,"extensible",j::Value::Bool(extensible));
+}
+fn obligations(graph:j::Value,node:j::Value)->j::Value {
+    let mut out:Array<j::Value>=[];let id:string=text(node,"id");for n in j::array(j::field(graph,"nodes")) {let kind:string=text(n,"kind");let scope:string=text(n,"scope");if (kind=="must"||kind=="ensures"||kind=="scenario"||kind=="roles"||kind=="use"||kind=="require"||kind=="allow"||kind=="deny")&&(scope==text(graph,"id")||id==scope||s::starts(id,scope+".")||s::starts(scope,id+".")) {array_push::<j::Value>(inout out,j::Value::Text(text(n,"id")));}}return j::Value::Array(out);
+}
+fn one(members:Array<j::Value>,kind:string,endpoint:j::Value,optional:bool)->j::Value {
+    let mut out:j::Value=j::Value::Null();let mut count:i32=0;for n in members {if text(n,"kind")==kind {out=n;count=count+1;}}
+    if count>1||!optional&&count!=1 {bad(endpoint,"endpoint requires exactly one "+kind);}return out;
+}
+fn contract(graph:j::Value,n:j::Value,id:string,kind:string,request:j::Value,response:j::Value)->j::Value {
+    let mut out:j::Value=j::parse("{}");out=j::set(out,"id",j::Value::Text(id));out=j::set(out,"kind",j::Value::Text(kind));out=j::set(out,"name",j::Value::Text(text(n,"name")));out=j::set(out,"method",j::Value::Text(""));out=j::set(out,"path",j::Value::Text(""));out=j::set(out,"request",request);out=j::set(out,"response",response);out=j::set(out,"errors",j::parse("{}"));return j::set(out,"behaviorObligations",obligations(graph,n));
+}
+pub fn extract(graph:j::Value)->j::Value {
+    let nodes:Array<j::Value>=j::array(j::field(graph,"nodes"));let mut contracts:Map<string,j::Value>=map_new::<string,j::Value>();let mut routes:Map<string,bool>=map_new::<string,bool>();let mut ids:Array<string>=[];
+    for n in nodes {if text(n,"kind")=="entity" {let id:string="domain."+text(n,"name");let fields:j::Value=schema(graph,text(n,"name"),n,false);map_set::<string,j::Value>(inout contracts,id,contract(graph,n,id,"domain",fields,fields));array_push::<string>(inout ids,id);}}
+    for endpoint in nodes {
+        if text(endpoint,"kind")!="endpoint" {continue;}let mut parent:j::Value=j::Value::Null();for n in nodes {if text(n,"id")==text(endpoint,"scope") {parent=n;}}
+        if text(parent,"kind")!="feature"||text(parent,"name")!="api" {bad(endpoint,"endpoint must be declared inside feature api");}
+        let members:Array<j::Value>=children(graph,text(endpoint,"id"));let method:j::Value=one(members,"method",endpoint,false);let route:j::Value=one(members,"path",endpoint,false);let request:j::Value=one(members,"request",endpoint,false);let response:j::Value=one(members,"response",endpoint,false);let binding:j::Value=one(members,"implementation",endpoint,true);let status:j::Value=one(members,"status",endpoint,true);let extension:j::Value=one(members,"extensible",endpoint,true);
+        let m:string=text(method,"value");if text(method,"form")!="prose"||m!="GET"&&m!="POST"&&m!="PUT"&&m!="PATCH"&&m!="DELETE" {bad(method,"unsupported endpoint method");}
+        let path:string=text(route,"value");if text(route,"form")!="string"||!s::starts(path,"/") {bad(route,"invalid endpoint path");}
+        let mut parameters:Array<string>=[];let mut segments:Array<string>=[];if path!="/" {for segment in string_split(s::slice(path,1,string_len(path)),"/") {
+            if segment=="" {bad(route,"invalid endpoint path");}if s::starts(segment,"{")&&s::slice(segment,string_len(segment)-1,string_len(segment))=="}" {let name:string=s::slice(segment,1,string_len(segment)-1);if !identifier(name) {bad(route,"invalid endpoint path");}for old in parameters {if name==old {bad(route,"duplicate endpoint path parameter");}}array_push::<string>(inout parameters,name);array_push::<string>(inout segments,"{}");}
+            else {let mut i:i32=0;while i<string_len(segment) {let b:i32=s::byte(segment,i);if !next(b)&&b!=46&&b!=126&&b!=45 {bad(route,"invalid endpoint path");}i=i+1;}array_push::<string>(inout segments,segment);}
+        }}
+        let shape:string=m+" /"+s::join(segments,"/");for (old,enabled) in routes {let parts:Array<string>=string_split(old," ");let mut previous:Array<string>=[];if parts[1]!="/" {previous=string_split(s::slice(parts[1],1,string_len(parts[1])),"/");}if parts[0]!=m||array_len::<string>(previous)!=array_len::<string>(segments) {continue;}let mut overlap:bool=true;let mut index:i32=0;for segment in segments {if segment!="{}"&&previous[index]!="{}"&&segment!=previous[index] {overlap=false;}index=index+1;}if overlap {bad(endpoint,"overlapping endpoint routes");}}map_set::<string,bool>(inout routes,shape,true);
+        if j::is_object(binding) {let bp:Array<string>=string_split(text(binding,"value"),"::");if text(binding,"form")!="string"||array_len::<string>(bp)!=2 {bad(binding,"invalid endpoint implementation binding");}if !s::starts(bp[0],"./")&&!s::starts(bp[0],"../")||string_len(bp[0])<6||s::slice(bp[0],string_len(bp[0])-6,string_len(bp[0]))!=".kelft"||!identifier(bp[1]) {bad(binding,"invalid endpoint implementation binding");}}
+        let mut success:i32=200;if j::is_object(status) {let raw:string=text(status,"value");success=-1;match string_to_i32(raw) {Result::Ok(v)=>{success=v;},Result::Error(message)=>{}}if text(status,"form")!="prose"||string_len(raw)!=3||i32_to_string(success)!=raw||!(success>=200&&success<=299||success==301||success==302||success==303||success==307||success==308) {bad(status,"invalid endpoint success status");}}
+        if j::is_object(extension)&&(text(extension,"form")!="prose"||text(extension,"value")!="response") {bad(extension,"only response schemas may be explicitly extensible");}
+        if text(request,"form")!="prose"||text(response,"form")!="prose" {bad(endpoint,"endpoint schemas must name an entity or void");}
+        let req:j::Value=schema(graph,text(request,"value"),request,false);let res:j::Value=schema(graph,text(response,"value"),response,j::is_object(extension));
+        if success==204&&text(response,"value")!="void" {bad(response,"status 204 requires a void response");}for name in parameters {if !j::boolean(j::field(j::field(j::field(req,"fields"),name),"required")) {bad(request,"path parameters must be required request fields");}}
+        if success>=300&&text(response,"value")!="void" {bad(response,"redirect status requires a void response");}
+        let mut error_members:Array<j::Value>=[];for error in children(graph,text(parent,"id")) {if text(error,"kind")!="error" {continue;}let mut overridden:bool=false;for local in members {if text(local,"kind")=="error"&&text(local,"name")==text(error,"name") {overridden=true;}}if !overridden {array_push::<j::Value>(inout error_members,error);}}for error in members {if text(error,"kind")=="error" {array_push::<j::Value>(inout error_members,error);}}
+        let mut errors:j::Value=j::parse("{}");for error in error_members {let parts:Array<string>=string_split(text(error,"value")," ");let mut code:i32=-1;if array_len::<string>(parts)==2 {match string_to_i32(parts[0]) {Result::Ok(v)=>{code=v;},Result::Error(message)=>{}}}
+            if text(error,"name")==""||text(error,"form")!="prose"||array_len::<string>(parts)!=2||code<400||code>599||i32_to_string(code)!=parts[0]||!identifier(parts[1]) {bad(error,"error requires a stable name, status, and schema");}
+            let mut item:j::Value=j::parse("{}");item=j::set(item,"status",j::Value::Number(i32_to_string(code)));item=j::set(item,"schema",schema(graph,parts[1],error,false));errors=j::set(errors,text(error,"name"),item);
+        }
+        let id:string="api."+text(endpoint,"name");let mut out:j::Value=contract(graph,endpoint,id,"endpoint",req,res);out=j::set(out,"method",j::Value::Text(m));out=j::set(out,"path",j::Value::Text(path));out=j::set(out,"status",j::Value::Number(i32_to_string(success)));out=j::set(out,"errors",errors);match map_get::<string,j::Value>(contracts,id) {Option::Some(v)=>{bad(endpoint,"duplicate public contract identity");},Option::None=>{}}map_set::<string,j::Value>(inout contracts,id,out);array_push::<string>(inout ids,id);
+    }
+    core::sort_strings(inout ids);let mut out:Array<j::Value>=[];for id in ids {match map_get::<string,j::Value>(contracts,id) {Option::Some(v)=>{array_push::<j::Value>(inout out,v);},Option::None=>{}}}return j::Value::Array(out);
+}

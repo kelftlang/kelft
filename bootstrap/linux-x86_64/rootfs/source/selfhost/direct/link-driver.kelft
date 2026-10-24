@@ -1,0 +1,42 @@
+// Development Linux driver. The public target/profile release gates still apply.
+import "../json.kelft" as j;
+import "../hash.kelft" as h;
+import "../syntax.kelft" as s;
+import "../intent.kelft" as intent;
+pub struct Input {path:string,sha256:string}
+pub struct Prepared {payload:Bytes,configuration:j::Value,identity:string,object_hash:string}
+fn fail(message:string)->void {s::error("K0403",message,s::span("<native-link-driver>",0,0));}
+fn need(ok:bool,message:string)->void {if !ok {fail(message);}}
+fn text(v:j::Value,key:string)->string {let value:j::Value=j::field(v,key);need(j::is_string(value),"missing toolchain string: "+key);return j::string(value);}
+fn keys(v:j::Value,allowed:Array<string>)->void {need(j::is_object(v),"toolchain object required");for (key,value) in j::object(v) {let mut known:bool=false;for name in allowed {if name==key {known=true;}}need(known,"unknown toolchain field: "+key);}}
+fn absolute(value:string)->void {need(s::starts(value,"/")&&string_len(value)<4096&&canonical_path(value)==value&&string_find(value,string_from_codepoint(0),0)<0,"absolute normalized Linux toolchain path required: "+value);}
+fn read(path:string)->Bytes {match read_file(path) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return [];}
+fn input(value:j::Value)->Input {keys(value,["path","sha256"]);let path:string=text(value,"path");let sha:string=text(value,"sha256");absolute(path);need(intent::valid_hash(sha),"invalid toolchain input hash");return Input {path:path,sha256:sha};}
+fn measured(value:Input)->Bytes {let bytes:Bytes=read(value.path);need(h::sha256_bytes(bytes)==value.sha256,"toolchain input changed: "+value.path);return bytes;}
+pub fn configuration(file:string)->j::Value {
+ let value:j::Value=j::parse(bytes_to_string(read(file)));keys(value,["schema","profile","state","linker","runtimeInputs","identity"]);
+ need(text(value,"schema")=="kelft-native-linker-development/1"&&(text(value,"profile")=="linux-x86_64"||text(value,"profile")=="linux-arm64")&&text(value,"state")=="observed","unsupported or non-development linker configuration");
+ let linker:j::Value=j::field(value,"linker");keys(linker,["path","sha256","version"]);let path:string=text(linker,"path");absolute(path);need(intent::valid_hash(text(linker,"sha256"))&&s::starts(text(linker,"version"),"GNU ld ("),"measured GNU linker required");
+ let runtime:j::Value=j::field(value,"runtimeInputs");need(j::is_array(runtime)&&array_len::<j::Value>(j::array(runtime))>0,"linker runtime inventory required");let mut seen:Map<string,bool>=map_new::<string,bool>();map_set::<string,bool>(inout seen,path,true);
+ for item in j::array(runtime) {let measured:Input=input(item);match map_get::<string,bool>(seen,measured.path) {Option::Some(old)=>{fail("duplicate toolchain input");},Option::None=>{}}map_set::<string,bool>(inout seen,measured.path,true);}
+ need(text(value,"identity")==h::sha256(j::canonical(j::remove(value,"identity"))),"toolchain configuration identity changed");return value;
+}
+fn linker(value:j::Value)->Input {let item:j::Value=j::field(value,"linker");return Input {path:text(item,"path"),sha256:text(item,"sha256")};}
+pub fn recheck(value:j::Value)->void {let tool:Bytes=measured(linker(value));for item in j::array(j::field(value,"runtimeInputs")) {let bytes:Bytes=measured(input(item));}}
+fn word(inout out:Bytes,n:i32)->void {let mut i:i32=0;while i<4 {array_push::<u8>(inout out,u8_from_i32((n>>>(i*8))&255));i=i+1;}}
+pub fn prepare(object:Bytes,value:j::Value)->Prepared {
+ // Object/tool originals expire in the caller's preparation phase. The service
+ // snapshots each image into its own sealed memory file before execution.
+ recheck(value);let tool:Bytes=measured(linker(value));let mut payload:Bytes=[75,76,78,75,1,0,0,0];word(inout payload,array_len::<u8>(tool));word(inout payload,array_len::<u8>(object));for byte in tool {array_push::<u8>(inout payload,byte);}for byte in object {array_push::<u8>(inout payload,byte);}
+ return Prepared {payload:payload,configuration:value,identity:text(value,"identity"),object_hash:h::sha256_bytes(object)};
+}
+pub fn execute(prepared:Prepared,output:string,maximum:string)->j::Value {
+ let destination:string=canonical_path(output);let parent:string=path_dirname(destination);
+ match create_dir(parent) {Result::Ok(ok)=>{},Result::Error(message)=>{fail(message);}}
+ let mut policy:j::Value=j::parse("{\"read\":[],\"write\":[]}");policy=j::set(policy,"write",j::Value::Array([j::Value::Text(parent)]));
+ recheck(prepared.configuration);
+ let profile:string=text(prepared.configuration,"profile");let mut service:string="linker-linux-x86_64-v1";let mut machine:i32=62;if profile=="linux-arm64" {service="linker-linux-arm64-v1";machine=183;}
+ match artifact_run(prepared.payload,service,[destination],j::canonical(policy)) {Result::Ok(result)=>{if result.0!=0 {fail("GNU linker failed: "+result.2);}need(result.1==""&&result.2=="","unexpected linker output");},Result::Error(message)=>{fail(message);}}
+ recheck(prepared.configuration);let image:Bytes=read(destination);need(array_len::<u8>(image)>=64&&image[0]==127&&image[1]==69&&image[2]==76&&image[3]==70&&image[4]==2&&image[5]==1&&image[16]==2&&image[17]==0&&i32_from_u8(image[18])==machine&&image[19]==0,"invalid linked Linux executable");
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft-native-link-development/1\",\"state\":\"linked\",\"profile\":\"linux-x86_64\",\"selfHostingVerified\":false,\"productionClosureVerified\":false,\"releaseEligible\":false}");report=j::set(report,"profile",j::Value::Text(profile));report=j::set(report,"output",j::Value::Text(destination));report=j::set(report,"objectHash",j::Value::Text(prepared.object_hash));report=j::set(report,"executableHash",j::Value::Text(h::sha256_bytes(image)));report=j::set(report,"toolchainIdentity",j::Value::Text(prepared.identity));report=j::set(report,"maximum",j::parse(maximum));return report;
+}

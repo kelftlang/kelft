@@ -1,0 +1,48 @@
+// Language intrinsic signatures.
+pub struct Signature { name: string, generics: i32, params: Array<string>, result: string, modes: Array<i32>, effect: string }
+pub fn signature(name: string) -> Signature {
+    if name == "print" { return Signature { name: name, generics: 0, params: ["string"], result: "void", modes: [], effect: "" }; }
+    if name == "println" { return Signature { name: name, generics: 0, params: ["string"], result: "void", modes: [], effect: "" }; }
+    if name == "eprint" { return Signature { name: name, generics: 0, params: ["string"], result: "void", modes: [], effect: "" }; }
+    if name == "i32_to_string" { return Signature { name: name, generics: 0, params: ["i32"], result: "string", modes: [], effect: "" }; }
+    if name == "string_to_i32" { return Signature { name: name, generics: 0, params: ["string"], result: "Result<i32,string>", modes: [], effect: "" }; }
+    if name == "i32_from_u8" { return Signature { name: name, generics: 0, params: ["u8"], result: "i32", modes: [], effect: "" }; }
+    if name == "u8_from_i32" { return Signature { name: name, generics: 0, params: ["i32"], result: "u8", modes: [], effect: "" }; }
+    if name == "string_len" { return Signature { name: name, generics: 0, params: ["string"], result: "i32", modes: [], effect: "" }; }
+    if name == "string_byte" { return Signature { name: name, generics: 0, params: ["string","i32"], result: "u8", modes: [], effect: "" }; }
+    if name == "string_slice" { return Signature { name: name, generics: 0, params: ["string","i32","i32"], result: "string", modes: [], effect: "" }; }
+    if name == "string_find" { return Signature { name: name, generics: 0, params: ["string","string","i32"], result: "i32", modes: [], effect: "" }; }
+    if name == "string_replace" { return Signature { name: name, generics: 0, params: ["string","string","string"], result: "string", modes: [], effect: "" }; }
+    if name == "string_split" { return Signature { name: name, generics: 0, params: ["string","string"], result: "Array<string>", modes: [], effect: "" }; }
+    if name == "string_from_codepoint" { return Signature { name: name, generics: 0, params: ["i32"], result: "string", modes: [], effect: "" }; }
+    if name == "string_to_bytes" { return Signature { name: name, generics: 0, params: ["string"], result: "Array<u8>", modes: [], effect: "" }; }
+    if name == "bytes_to_string" { return Signature { name: name, generics: 0, params: ["Array<u8>"], result: "string", modes: [], effect: "" }; }
+    if name == "utf8_decode" { return Signature { name: name, generics: 0, params: ["Array<u8>"], result: "Result<string,string>", modes: [], effect: "" }; }
+    if name == "array_len" { return Signature { name: name, generics: 1, params: ["Array<$0>"], result: "i32", modes: [], effect: "" }; }
+    if name == "array_push" { return Signature { name: name, generics: 1, params: ["Array<$0>","$0"], result: "void", modes: [0], effect: "" }; }
+    if name == "array_pop" { return Signature { name: name, generics: 1, params: ["Array<$0>"], result: "Option<$0>", modes: [0], effect: "" }; }
+    if name == "array_slice" { return Signature { name: name, generics: 1, params: ["Array<$0>","i32","i32"], result: "Array<$0>", modes: [], effect: "" }; }
+    if name == "map_new" { return Signature { name: name, generics: 2, params: [], result: "Map<$0,$1>", modes: [], effect: "" }; }
+    if name == "map_len" { return Signature { name: name, generics: 2, params: ["Map<$0,$1>"], result: "i32", modes: [], effect: "" }; }
+    if name == "map_get" { return Signature { name: name, generics: 2, params: ["Map<$0,$1>","$0"], result: "Option<$1>", modes: [], effect: "" }; }
+    if name == "map_set" { return Signature { name: name, generics: 2, params: ["Map<$0,$1>","$0","$1"], result: "void", modes: [0], effect: "" }; }
+    if name == "map_remove" { return Signature { name: name, generics: 2, params: ["Map<$0,$1>","$0"], result: "bool", modes: [0], effect: "" }; }
+    if name == "args" { return Signature { name: name, generics: 0, params: [], result: "Array<string>", modes: [], effect: "" }; }
+    if name == "read_file" { return Signature { name: name, generics: 0, params: ["string"], result: "Result<Array<u8>,string>", modes: [], effect: "fs.read" }; }
+    if name == "read_text" { return Signature { name: name, generics: 0, params: ["string"], result: "Result<string,string>", modes: [], effect: "fs.read" }; }
+    if name == "write_file" { return Signature { name: name, generics: 0, params: ["string","Array<u8>"], result: "Result<bool,string>", modes: [], effect: "fs.write" }; }
+    if name == "write_text" { return Signature { name: name, generics: 0, params: ["string","string"], result: "Result<bool,string>", modes: [], effect: "fs.write" }; }
+    if name == "resolve_path" { return Signature { name: name, generics: 0, params: ["string","string"], result: "string", modes: [], effect: "" }; }
+    if name == "path_dirname" { return Signature { name: name, generics: 0, params: ["string"], result: "string", modes: [], effect: "" }; }
+    if name == "path_relative" { return Signature { name: name, generics: 0, params: ["string","string"], result: "string", modes: [], effect: "" }; }
+    if name == "canonical_path" { return Signature { name: name, generics: 0, params: ["string"], result: "string", modes: [], effect: "fs.read" }; }
+    if name == "artifact_run" { return Signature { name: name, generics: 0, params: ["Array<u8>","string","Array<string>","string"], result: "Result<(i32,string,string),string>", modes: [], effect: "artifact.execute" }; }
+    if name == "create_dir" { return Signature { name: name, generics: 0, params: ["string"], result: "Result<bool,string>", modes: [], effect: "fs.write" }; }
+    if name == "write_once" { return Signature { name: name, generics: 0, params: ["string","string"], result: "Result<bool,string>", modes: [], effect: "fs.read|fs.write" }; }
+    if name == "process_run" { return Signature { name: name, generics: 0, params: ["string"], result: "string", modes: [], effect: "process.execute" }; }
+    if name == "filesystem_read" { return Signature { name: name, generics: 0, params: ["string"], result: "string", modes: [], effect: "fs.read" }; }
+    if name == "filesystem_write" { return Signature { name: name, generics: 0, params: ["string"], result: "string", modes: [], effect: "fs.write" }; }
+    if name == "current_dir" { return Signature { name: name, generics: 0, params: [], result: "string", modes: [], effect: "" }; }
+    if name == "exit" { return Signature { name: name, generics: 0, params: ["i32"], result: "void", modes: [], effect: "" }; }
+    return Signature { name: "", generics: 0, params: [], result: "", modes: [], effect: "" };
+}

@@ -1,0 +1,9 @@
+// Typed byte reuse only; shared, full and wide arrays use the existing generic path.
+import "./builder.kelft" as g;
+import "./ir.kelft" as ir;
+pub fn function()->ir::Function {
+ let mut b:g::Builder=g::builder("k_u8_push",["ptr","ptr"],0,"void");let cell:i32=g::argument(inout b,0);let value:i32=g::argument(inout b,1);let array:i32=g::load(inout b,cell,0,"ptr");let marker:i32=g::load(inout b,array,36,"i32");let length:i32=g::load(inout b,array,8,"i32");let references:i32=g::load(inout b,array,0,"i32");let zero:i32=g::c(inout b,0);let packed:i32=g::binary(inout b,"lt_s",marker,zero);let one:i32=g::c(inout b,1);let unique:i32=g::binary(inout b,"eq",references,one);let mask:i32=g::c(inout b,-1);let capacity:i32=g::binary(inout b,"xor",marker,mask);let minimum:i32=g::c(inout b,0);let nonnegative:i32=g::binary(inout b,"ge_s",length,minimum);let fits:i32=g::binary(inout b,"lt_s",length,capacity);let limit:i32=g::c(inout b,268435400);let bounded:i32=g::binary(inout b,"lt_s",length,limit);
+ let room:i32=g::binary(inout b,"and",fits,bounded);let range:i32=g::binary(inout b,"and",nonnegative,room);let owned:i32=g::binary(inout b,"and",unique,range);let valid:i32=g::binary(inout b,"and",packed,owned);let reuse:string=g::label(inout b);let fallback:string=g::label(inout b);g::branch(inout b,valid,reuse,fallback);
+ g::begin(inout b,reuse);let byte:i32=g::load(inout b,value,0,"u8");let header:i32=g::c(inout b,40);let offset:i32=g::binary(inout b,"add",header,length);let target:i32=g::pointer(inout b,array,offset);g::store(inout b,target,0,byte);let increment:i32=g::c(inout b,1);let next:i32=g::binary(inout b,"add",length,increment);g::store(inout b,array,8,next);g::ret(inout b,-1);
+ g::begin(inout b,fallback);g::call(inout b,"k_array_push",[cell,value],"void",[]);g::ret(inout b,-1);return g::finish(b);
+}

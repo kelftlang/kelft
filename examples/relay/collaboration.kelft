@@ -1,0 +1,91 @@
+// Relay policy lives in deterministic Core; host adapters supply transport/storage.
+pub enum Role { Admin, Member }
+pub enum Permission { ReadTasks, WriteTasks, ManageMembers, ManageWorkspace }
+pub enum TaskState { Todo, Doing, Done }
+pub struct Principal { issuer:string, subject:string }
+pub struct Membership { principal:Principal, workspace:string, role:Role }
+pub struct Session { principal:Principal, expires:i32, revoked:bool }
+pub struct Task {
+    id:string, workspace:string, title:string, state:TaskState, owner:Option<Principal>,
+    revision:i32, title_revision:i32, state_revision:i32, owner_revision:i32
+}
+pub struct Mutation {
+    id:string, principal:Principal, workspace:string, task:string, base_revision:i32,
+    title:Option<string>, state:Option<TaskState>, owner:Option<Option<Principal>>,
+    dependency:Option<string>
+}
+pub struct Receipt { operation:Mutation, accepted:Task }
+pub struct Audit { actor:Principal, workspace:string, action:string, subject:string }
+pub struct Store { tasks:Array<Task>, members:Array<Membership>, receipts:Array<Receipt>, audit:Array<Audit> }
+pub enum Outcome { Accepted(Task), Conflict(Task,Mutation,Array<string>), Rejected(string) }
+
+pub fn permits(role:Role,permission:Permission)->bool {
+    match role {
+        Role::Admin=>{return true;},
+        Role::Member=>{return permission==Permission::ReadTasks()||permission==Permission::WriteTasks();}
+    }
+}
+pub fn authorized(members:Array<Membership>,principal:Principal,workspace:string,permission:Permission)->bool {
+    for member in members {if member.principal==principal&&member.workspace==workspace {return permits(member.role,permission);}}
+    return false;
+}
+pub fn valid_session(session:Session,now:i32)->bool {return !session.revoked&&now>=0&&now<session.expires;}
+pub fn retry_delay(failures:i32)->i32 {
+    let mut delay:i32=1000;let mut i:i32=0;
+    while i<failures&&delay<30000 {delay=delay*2;i=i+1;}
+    if delay>30000 {return 30000;}return delay;
+}
+pub fn local_drafting(unlocked:bool,locally_authorized:bool,known_revoked:bool)->bool {return unlocked&&locally_authorized&&!known_revoked;}
+pub fn synchronize_allowed(store:Store,session:Session,now:i32,original:Principal,workspace:string)->bool {
+    return session.principal==original&&valid_session(session,now)&&authorized(store.members,original,workspace,Permission::WriteTasks());
+}
+pub fn change_membership(inout store:Store,actor:Principal,workspace:string,target:Principal,next:Option<Role>)->Result<bool,string> {
+    if !authorized(store.members,actor,workspace,Permission::ManageMembers()) {return Result::<bool,string>::Error("FORBIDDEN");}
+    let mut target_index:i32=-1;let mut admins:i32=0;let mut i:i32=0;
+    for member in store.members {if member.workspace==workspace {if member.role==Role::Admin() {admins=admins+1;}if member.principal==target {target_index=i;}}i=i+1;}
+    if target_index<0 {return Result::<bool,string>::Error("NOT_MEMBER");}
+    let mut remains_admin:bool=false;match next {Option::Some(role)=>{remains_admin=role==Role::Admin();},Option::None=>{}}
+    if store.members[target_index].role==Role::Admin()&&admins==1&&!remains_admin {return Result::<bool,string>::Error("LAST_ADMIN");}
+    let mut members:Array<Membership>=[];i=0;
+    for member in store.members {if i!=target_index {array_push::<Membership>(inout members,member);}else {match next {Option::Some(role)=>{array_push::<Membership>(inout members,Membership {principal:target,workspace:workspace,role:role});},Option::None=>{}}}i=i+1;}
+    store.members=members;array_push::<Audit>(inout store.audit,Audit {actor:actor,workspace:workspace,action:"membership_changed",subject:target.subject});return Result::<bool,string>::Ok(true);
+}
+pub fn apply_mutation(inout store:Store,session:Session,now:i32,operation:Mutation)->Outcome {
+    // Recheck authority before returning even a previously accepted operation.
+    if !synchronize_allowed(store,session,now,operation.principal,operation.workspace) {return Outcome::Rejected("UNAUTHORIZED");}
+    for receipt in store.receipts {
+        if receipt.operation.id==operation.id&&receipt.operation.principal==operation.principal&&receipt.operation.workspace==operation.workspace {
+            if receipt.operation!=operation {return Outcome::Rejected("IDEMPOTENCY_MISMATCH");}return Outcome::Accepted(receipt.accepted);
+        }
+    }
+    match operation.dependency {
+        Option::Some(id)=>{
+            let mut found:bool=false;
+            for receipt in store.receipts {if receipt.operation.id==id&&receipt.operation.principal==operation.principal&&receipt.operation.workspace==operation.workspace&&receipt.operation.task==operation.task&&receipt.accepted.revision==operation.base_revision {found=true;}}
+            if !found {return Outcome::Rejected("DEPENDENCY_PENDING");}
+        },Option::None=>{}
+    }
+    let mut index:i32=-1;let mut i:i32=0;for task in store.tasks {if task.id==operation.task&&task.workspace==operation.workspace {index=i;}i=i+1;}
+    if index<0 {return Outcome::Rejected("NOT_FOUND");}let previous:Task=store.tasks[index];
+    if operation.base_revision<0||operation.base_revision>previous.revision||operation.id=="" {return Outcome::Rejected("INVALID_REVISION");}
+    let mut conflicts:Array<string>=[];let mut next:Task=previous;
+    match operation.title {Option::Some(title)=>{
+        if string_len(title)<1||string_len(title)>120 {return Outcome::Rejected("INVALID_TITLE");}
+        if previous.title_revision>operation.base_revision&&previous.title!=title {array_push::<string>(inout conflicts,"title");}next.title=title;
+    },Option::None=>{}}
+    match operation.state {Option::Some(state)=>{if previous.state_revision>operation.base_revision&&previous.state!=state {array_push::<string>(inout conflicts,"state");}next.state=state;},Option::None=>{}}
+    match operation.owner {Option::Some(owner)=>{
+        match owner {Option::Some(principal)=>{if !authorized(store.members,principal,operation.workspace,Permission::ReadTasks()) {return Outcome::Rejected("INVALID_OWNER");}},Option::None=>{}}
+        if previous.owner_revision>operation.base_revision&&previous.owner!=owner {array_push::<string>(inout conflicts,"owner");}next.owner=owner;
+    },Option::None=>{}}
+    if array_len::<string>(conflicts)>0 {return Outcome::Conflict(previous,operation,conflicts);}
+    if next!=previous {
+        if previous.revision==2147483647 {return Outcome::Rejected("REVISION_EXHAUSTED");}
+        next.revision=previous.revision+1;
+        if next.title!=previous.title {next.title_revision=next.revision;}
+        if next.state!=previous.state {next.state_revision=next.revision;}
+        if next.owner!=previous.owner {next.owner_revision=next.revision;}
+    }
+    store.tasks[index]=next;array_push::<Receipt>(inout store.receipts,Receipt {operation:operation,accepted:next});
+    array_push::<Audit>(inout store.audit,Audit {actor:operation.principal,workspace:operation.workspace,action:"task_changed",subject:operation.task});return Outcome::Accepted(next);
+}

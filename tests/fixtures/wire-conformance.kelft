@@ -1,0 +1,16 @@
+import "../../stdlib/contracts.kelft" as wire;
+import "../../stdlib/api-boundary.kelft" as boundary;
+import "../../selfhost/json.kelft" as j;
+fn expect(value:bool)->void {if !value {eprint("wire conformance failed\n");exit(1);}}
+fn main()->void {
+    let models:j::Value=j::parse("{\"entities\":{\"User\":{\"id\":\"UUID\",\"name\":\"Text where length 1..8\"},\"Request\":{\"users\":\"Array<Option<User>>\",\"index\":\"Map<i32,Result<User,UUID>>\",\"nested\":\"Option<Option<Text>>\",\"count\":\"u8\",\"pair\":\"(UUID,Array<UUID>)\",\"state\":\"todo|done\",\"owner\":\"User?\"}},\"enums\":{}}");
+    let uuid:string="12345678-1234-1234-1234-123456789abc";let user:j::Value=j::parse("{\"id\":\"12345678-1234-1234-1234-123456789abc\",\"name\":\"Ada\"}");
+    let mut input:j::Value=j::parse("{\"users\":[],\"index\":[],\"nested\":{\"some\":null},\"count\":255,\"pair\":[\"12345678-1234-1234-1234-123456789abc\",[]],\"state\":\"todo\"}");
+    input=j::set(input,"users",j::Value::Array([user,j::Value::Null()]));expect(wire::validate(models,"Request",input,false));expect(!wire::validate(models,"Request",j::set(input,"extra",j::Value::Bool(true)),false));expect(wire::validate(models,"Request",j::set(input,"extra",j::Value::Bool(true)),true));
+    expect(!wire::validate(models,"Request",j::set(input,"count",j::Value::Number("256")),false));expect(!wire::validate(models,"Request",j::set(input,"nested",j::Value::Text("bad")),false));expect(!wire::validate(models,"Request",j::set(input,"owner",j::set(user,"name",j::Value::Text(""))),false));
+    let mut index:j::Value=j::parse("[[1,{\"ok\":{\"id\":\"12345678-1234-1234-1234-123456789abc\",\"name\":\"Ada\"}}],[2,{\"error\":\"12345678-1234-1234-1234-123456789abc\"}]]");expect(wire::validate(models,"Map<i32,Result<User,UUID>>",index,false));index=j::Value::Array([j::array(index)[0],j::array(index)[0]]);expect(!wire::validate(models,"Map<i32,Result<User,UUID>>",index,false));expect(!wire::validate(models,"UUID",j::Value::Text("bad"),false));
+    let malformed:Array<string>=["{\"a\":1,\"a\":2}","[1,]","01","1.5","-","truefalse","\"\\ud800\"","9007199254740992"];
+    for source in malformed {match wire::parse(source) {Result::Ok(value)=>{expect(false);},Result::Error(error)=>{expect(error=="INVALID_JSON");}}}
+    match wire::parse("\"\\ud83d\\ude80\"") {Result::Ok(value)=>{expect(j::string(value)=="🚀");},Result::Error(error)=>{expect(false);}}
+    println("Core wire boundaries passed");
+}

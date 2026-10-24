@@ -1,0 +1,27 @@
+// Native test selection is bounded by the existing case limit.
+import "../json.kelft" as j;
+import "../syntax.kelft" as s;
+
+fn decimal(raw:string)->i32 {
+ if string_len(raw)==0||string_len(raw)>4||s::byte(raw,0)<49||s::byte(raw,0)>57 {return 0;}
+ let mut value:i32=0;let mut at:i32=0;
+ while at<string_len(raw) {let digit:i32=s::byte(raw,at)-48;if digit<0||digit>9 {return 0;}value=value*10+digit;at=at+1;}
+ return value;
+}
+pub fn parse_test_shard(raw:string)->Array<i32> {
+ if string_len(raw)<3||string_len(raw)>9 {return [];}
+ let parts:Array<string>=string_split(raw,"/");if array_len::<string>(parts)!=2 {return [];}
+ let index:i32=decimal(parts[0]);let count:i32=decimal(parts[1]);
+ if index<1||count<index||count>4096 {return [];}return [index,count];
+}
+pub fn select_test_shard(cases:Array<j::Value>,raw:string,portable:bool)->Array<j::Value> {
+ if raw=="" {return cases;}let pair:Array<i32>=parse_test_shard(raw);
+ let mut key:string="id";if portable {key="file";}
+ let mut units:Map<string,bool>=map_new::<string,bool>();
+ for test in cases {map_set::<string,bool>(inout units,j::string(j::field(test,key)),true);}
+ let mut selected:Map<string,bool>=map_new::<string,bool>();let mut position:i32=0;
+ for (unit,present) in units {if position%pair[1]==pair[0]-1 {map_set::<string,bool>(inout selected,unit,true);}position=position+1;}
+ let mut out:Array<j::Value>=[];
+ for test in cases {match map_get::<string,bool>(selected,j::string(j::field(test,key))) {Option::Some(present)=>{array_push::<j::Value>(inout out,test);},Option::None=>{}}}
+ return out;
+}

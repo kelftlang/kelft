@@ -1,0 +1,920 @@
+{
+  "compiler": {
+    "bytes": 15423160,
+    "sha256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712"
+  },
+  "host": "linux-arm64",
+  "hostsRebuilt": false,
+  "object": {
+    "bytes": 21846904,
+    "sha256": "sha256:a51f9dbc197d4f8827e2286916b0790945d8dae7eb2c1e8100d0b47701ddacbb"
+  },
+  "origin": "local-rebuild",
+  "policies": {
+    "rebuild": {
+      "bytes": 411792,
+      "sha256": "sha256:dd99140f46589d19b3a40dcb81d85498974a9b5eb3c5b7e649fa1e488d3bed44"
+    },
+    "testing": {
+      "bytes": 1626344,
+      "sha256": "sha256:312e89840aa7bb4e11dcbb9de81547d5306b242c95769c730863a1ece93a9385"
+    }
+  },
+  "protocol": "0.1",
+  "releaseEligible": false,
+  "schema": "kelft.native-rebuild/1",
+  "seedCompilerSHA256": "sha256:5bddb532f45cc7e2526929ab5a84a7952a6dc517eaeb32b1dfba7c706dc6505c",
+  "sourceInventorySHA256": "sha256:769eaaf9b797708835fa3fb8fe39a93ac0896cffb58ba4cb940a47c8dad5e55e",
+  "sourceRoot": ".",
+  "sources": [
+    {
+      "bytes": 14298,
+      "mode": 420,
+      "path": "selfhost/c/emitter.kelft",
+      "sha256": "sha256:f0352f3f6f598641e7b9ce053c9000074a3f864e2c24d2362c1491f74f3fb06e"
+    },
+    {
+      "bytes": 31084,
+      "mode": 420,
+      "path": "selfhost/c/runtime.kelft",
+      "sha256": "sha256:e1f20725b08e02bef9e3415bba017c5c29274acf02fd58822b6d6bd56ff32abd"
+    },
+    {
+      "bytes": 14844,
+      "mode": 420,
+      "path": "selfhost/core.kelft",
+      "sha256": "sha256:28038a5feb2a5b2ad9bb58f7d5278df822a5abf8dd690220ff5c8bad5d6bab63"
+    },
+    {
+      "bytes": 14722,
+      "mode": 420,
+      "path": "selfhost/direct/aggregate-runtime.kelft",
+      "sha256": "sha256:19bf9389374217abf533a918970068396c0c0c2bae16a20482a20cbee1f0b9e1"
+    },
+    {
+      "bytes": 89767,
+      "mode": 420,
+      "path": "selfhost/direct/aggregate.kelft",
+      "sha256": "sha256:a8318273bc4b2c4fca8672f09b0d690a4ae17bf870939492d7308edec2251d11"
+    },
+    {
+      "bytes": 10927,
+      "mode": 420,
+      "path": "selfhost/direct/arm-elf.kelft",
+      "sha256": "sha256:4738b52b561cf7ef598aba25f83fcafb1bd89bf8ef118c967437d2f6018152b5"
+    },
+    {
+      "bytes": 14263,
+      "mode": 420,
+      "path": "selfhost/direct/arm64.kelft",
+      "sha256": "sha256:17fa68d12e28a290fe2b6b60bab8cfe92f574965067c81602b4c97c5e170e6c5"
+    },
+    {
+      "bytes": 99134,
+      "mode": 420,
+      "path": "selfhost/direct/artifact-runtime.kelft",
+      "sha256": "sha256:d28f61c9fe349fcf8a1cc03c0af4217b92847cedfdc209aee0713fee46dee188"
+    },
+    {
+      "bytes": 3083,
+      "mode": 420,
+      "path": "selfhost/direct/binary.kelft",
+      "sha256": "sha256:3bad316e772c3af25b0cf49244c3e9da9ede5b35d1694e8cd2daf53f2c93dd16"
+    },
+    {
+      "bytes": 4680,
+      "mode": 420,
+      "path": "selfhost/direct/builder.kelft",
+      "sha256": "sha256:aaeccc6214a7b756bff318408c56e07fcaca3c3e2d5a58eab61efea4140146b9"
+    },
+    {
+      "bytes": 5349,
+      "mode": 420,
+      "path": "selfhost/direct/byte-append.kelft",
+      "sha256": "sha256:3bdbd9aefaf43707bf4bf06f7fd50af432783375109a16c1ea6ed45380093c43"
+    },
+    {
+      "bytes": 5868,
+      "mode": 420,
+      "path": "selfhost/direct/byte-copy.kelft",
+      "sha256": "sha256:4127982eb09ac587383701b1b54a5458fa6d42eb41a40c52ad559eb9e51406b4"
+    },
+    {
+      "bytes": 1822,
+      "mode": 420,
+      "path": "selfhost/direct/byte-push.kelft",
+      "sha256": "sha256:6e02ec754395fb93d69e2ca0c3134026d941ceaa7468f056fba169a57e31f71b"
+    },
+    {
+      "bytes": 88896,
+      "mode": 420,
+      "path": "selfhost/direct/channel-runtime.kelft",
+      "sha256": "sha256:a286d3d88905ba1ba2e4f19423b60fd062dc4c0ea2e044d187fcc5a1013bbacd"
+    },
+    {
+      "bytes": 8751,
+      "mode": 420,
+      "path": "selfhost/direct/coff-arm.kelft",
+      "sha256": "sha256:47f3ee4a3766ba9a2e7561467bc42335eee307ae08882549d113d015920d5b75"
+    },
+    {
+      "bytes": 8090,
+      "mode": 420,
+      "path": "selfhost/direct/coff.kelft",
+      "sha256": "sha256:dbc5ced9bb176ca1789aaa9166d895b879665645830e07f6ba349a7ccc1b94a5"
+    },
+    {
+      "bytes": 26130,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-aggregate.kelft",
+      "sha256": "sha256:d84efb1133f1c1d913bfadde950b44dde0cc8add10112f03456ed90ba8dfe6e9"
+    },
+    {
+      "bytes": 1598,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-api.kelft",
+      "sha256": "sha256:b35cd3bde01f0c33c61fbfb4374d23ad814e006aa6c1dd7383c21ddda866b554"
+    },
+    {
+      "bytes": 26136,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-arm-aggregate.kelft",
+      "sha256": "sha256:d8632c3ce11e6bce3f00a367403d670cb200919f16d8161e3ac52b4c3c282511"
+    },
+    {
+      "bytes": 7825,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-arm64.kelft",
+      "sha256": "sha256:4a491ee2dc79f8ab3c036ac75ae615394a1cae66c3380342c17ca643c2b13731"
+    },
+    {
+      "bytes": 56247,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-fs-runtime.kelft",
+      "sha256": "sha256:8dbd942fd9b48027a7c987344a53debfee87c1f386d57d2ea611a7cd78ef6b1b"
+    },
+    {
+      "bytes": 164032,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-guest-runtime.kelft",
+      "sha256": "sha256:50e6c325ae5a8fe2faa87e249929541a511eb57d97d074ee8f217ed084c27329"
+    },
+    {
+      "bytes": 4934,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-link-driver.kelft",
+      "sha256": "sha256:ed4c37770c8aff4a2362aef0653be1a2e797c6ef0dd09db96f933dd8a1e0400c"
+    },
+    {
+      "bytes": 7916,
+      "mode": 420,
+      "path": "selfhost/direct/darwin-x86_64.kelft",
+      "sha256": "sha256:224998448168a6eb4d6c12f97bf9452ab93680a202c47894b2118dbf9a7339f6"
+    },
+    {
+      "bytes": 9800,
+      "mode": 420,
+      "path": "selfhost/direct/elf.kelft",
+      "sha256": "sha256:33ff3ef10bec320fd824aa7edae58bc8569e1797f860345cfb5d0005679caae8"
+    },
+    {
+      "bytes": 2933,
+      "mode": 420,
+      "path": "selfhost/direct/engine-boundary.kelft",
+      "sha256": "sha256:5cba7e4b3a0ebfe1241bb03856b4528c8fd2f094c4da04693b1e788010bfa17f"
+    },
+    {
+      "bytes": 6263,
+      "mode": 420,
+      "path": "selfhost/direct/engine-driver.kelft",
+      "sha256": "sha256:36d20886a2232d049a79cce8723955032e2b2a4a2d4efbab45b8793952d5e89a"
+    },
+    {
+      "bytes": 33242,
+      "mode": 420,
+      "path": "selfhost/direct/fs-policy-runtime.kelft",
+      "sha256": "sha256:0b5ab0ad9da3a10187c4d0ddaabf24898cb49e04819736d93c96399c850daa6c"
+    },
+    {
+      "bytes": 41892,
+      "mode": 420,
+      "path": "selfhost/direct/fs-runtime.kelft",
+      "sha256": "sha256:f3b4b82f25e6fd354d19637f2b81da365d76b27daf87029501413ecb992592a5"
+    },
+    {
+      "bytes": 17295,
+      "mode": 420,
+      "path": "selfhost/direct/graph-runtime.kelft",
+      "sha256": "sha256:fa8afaa0c8d5689b01e94e4f1f92844c5dbd8428614ee87fab3b76c7d5c3a93b"
+    },
+    {
+      "bytes": 12568,
+      "mode": 420,
+      "path": "selfhost/direct/heap.kelft",
+      "sha256": "sha256:918f5fc881a55aa28b3e85f153328a0fe897c11eb1ad2d16655322325f0cf2c5"
+    },
+    {
+      "bytes": 1336,
+      "mode": 420,
+      "path": "selfhost/direct/host-policy.kelft",
+      "sha256": "sha256:da7914b99da55319f10bbb904e980dac64a5e4a6bbafd1a52fb13d2ae4a51d84"
+    },
+    {
+      "bytes": 41451,
+      "mode": 420,
+      "path": "selfhost/direct/host-runtime.kelft",
+      "sha256": "sha256:e897abf49470ba938b0572d17956151901408cfa4fc64b703b74b02795105f44"
+    },
+    {
+      "bytes": 19078,
+      "mode": 420,
+      "path": "selfhost/direct/ir.kelft",
+      "sha256": "sha256:1cbad7c64bf78223904b70c32da1bfb2181fe78ea5d77c86bd45614c5df4535f"
+    },
+    {
+      "bytes": 5922,
+      "mode": 420,
+      "path": "selfhost/direct/link-driver.kelft",
+      "sha256": "sha256:6c7c12aaedb9fc163a7eb1dbe391c03d7a66074043234be0582a1c41a56f6522"
+    },
+    {
+      "bytes": 8729,
+      "mode": 420,
+      "path": "selfhost/direct/linux-aggregate.kelft",
+      "sha256": "sha256:d85356961604166799f044b47b5fd92373cb0e79e709a65d81fcaef9d12670b0"
+    },
+    {
+      "bytes": 20553,
+      "mode": 420,
+      "path": "selfhost/direct/linux-arm-aggregate.kelft",
+      "sha256": "sha256:721ad0f21764f60823aa3bf29ee3b77aab25dcc5e5ccd2d38b1c12a3d2d4758d"
+    },
+    {
+      "bytes": 10455,
+      "mode": 420,
+      "path": "selfhost/direct/linux-arm-services.kelft",
+      "sha256": "sha256:e4013ef20bf3095341b55791b0ed6a8ca1c92a8c655266d088ba30f837fa58b0"
+    },
+    {
+      "bytes": 46539,
+      "mode": 420,
+      "path": "selfhost/direct/linux-guest-runtime.kelft",
+      "sha256": "sha256:0ba9adf5b32a15ee6587f82c311b1faf57dcfa523fb3e8f867b15f8c2a9ac2c9"
+    },
+    {
+      "bytes": 5636,
+      "mode": 420,
+      "path": "selfhost/direct/linux-runtime-data.kelft",
+      "sha256": "sha256:6012ba14f2a36a634cf9f93139320105f57a26b6c3eb9b013ca64e83b5abdfa9"
+    },
+    {
+      "bytes": 11211,
+      "mode": 420,
+      "path": "selfhost/direct/macho-arm.kelft",
+      "sha256": "sha256:839816d6e9dbd0050cdf4ce0f126e610198079ff86f0fe7492f3b66da84a8221"
+    },
+    {
+      "bytes": 11181,
+      "mode": 420,
+      "path": "selfhost/direct/macho.kelft",
+      "sha256": "sha256:2f4835e3aa0d6f626a76f371fbb509837e7dbed926b2230544307ea7574528de"
+    },
+    {
+      "bytes": 6541,
+      "mode": 420,
+      "path": "selfhost/direct/map-runtime.kelft",
+      "sha256": "sha256:579112b7c858170e93a7905ffc13980d8177521f8ac32e0caf9b255e4c56d458"
+    },
+    {
+      "bytes": 663,
+      "mode": 420,
+      "path": "selfhost/direct/native-target.kelft",
+      "sha256": "sha256:1dcc5facb98c02c6800ecc0fda199ec8e3768618a7f86d71ca2f9e86852cba4d"
+    },
+    {
+      "bytes": 3211,
+      "mode": 420,
+      "path": "selfhost/direct/opcodes.kelft",
+      "sha256": "sha256:12d22d71a2c7305cbed38d62b1742d7478b99c400f33f60b23b636e497386974"
+    },
+    {
+      "bytes": 5332,
+      "mode": 420,
+      "path": "selfhost/direct/package-driver.kelft",
+      "sha256": "sha256:5257d7888d860f8093105b862d44551a561fdd56d2dd2ebc1f8b121d40774965"
+    },
+    {
+      "bytes": 6799,
+      "mode": 420,
+      "path": "selfhost/direct/packed-runtime.kelft",
+      "sha256": "sha256:21c96e22f742eced2b53c5200d02059f6a5d4bb8cd500c77e7c2a0440da8a943"
+    },
+    {
+      "bytes": 29725,
+      "mode": 420,
+      "path": "selfhost/direct/path-runtime.kelft",
+      "sha256": "sha256:fb23367bdc429095b60104db1470d66bbbeeb4e2939f0054100decc50694bcab"
+    },
+    {
+      "bytes": 14194,
+      "mode": 420,
+      "path": "selfhost/direct/pool.kelft",
+      "sha256": "sha256:e0bc6fb72e0527887c1d7cb198c65db9ce5b630f78faa5432a438dad24c66939"
+    },
+    {
+      "bytes": 5021,
+      "mode": 420,
+      "path": "selfhost/direct/process-runtime.kelft",
+      "sha256": "sha256:51733fe1aeae5f8246e01355478edef577235bb5af10534ed77408e007841bed"
+    },
+    {
+      "bytes": 2364,
+      "mode": 420,
+      "path": "selfhost/direct/protocol-darwin-arm.kelft",
+      "sha256": "sha256:8456be5eda0a8f9bf49e1a71ad815f5b2ac8938516ea6cba33d7f8b3a96b5ffd"
+    },
+    {
+      "bytes": 2361,
+      "mode": 420,
+      "path": "selfhost/direct/protocol-darwin.kelft",
+      "sha256": "sha256:333289a0e9d2db437e4248731ceba34689294bd68c745f781cfc8e1142766549"
+    },
+    {
+      "bytes": 2356,
+      "mode": 420,
+      "path": "selfhost/direct/protocol-linux-arm.kelft",
+      "sha256": "sha256:f9c0c7cb87988bd54444b36f88d8a95be57dd053ae0bd729d47a18c2b5b36994"
+    },
+    {
+      "bytes": 2367,
+      "mode": 420,
+      "path": "selfhost/direct/protocol-windows-arm.kelft",
+      "sha256": "sha256:b1c7290501fb9a6796e90bbfe813ddf78b1ba63b26ccebdee3639fc797b56b2b"
+    },
+    {
+      "bytes": 2364,
+      "mode": 420,
+      "path": "selfhost/direct/protocol-windows.kelft",
+      "sha256": "sha256:c22c1bca91bd02e0267758db8bc3e0b1f9ed6e50a49f8a162d542b0de84a2280"
+    },
+    {
+      "bytes": 2347,
+      "mode": 420,
+      "path": "selfhost/direct/protocol.kelft",
+      "sha256": "sha256:2f22a79c7f6d99f51fe807001bb40c0fab79ee820a3731b71d4d6aefdb997992"
+    },
+    {
+      "bytes": 2523,
+      "mode": 420,
+      "path": "selfhost/direct/runtime-ir.kelft",
+      "sha256": "sha256:1b1e0212ab6022ff14abe4af7dd5a2ac3a7115e1f9c610e2e96c289fb58a21b6"
+    },
+    {
+      "bytes": 1380,
+      "mode": 420,
+      "path": "selfhost/direct/scalar-runtime.kelft",
+      "sha256": "sha256:cbb1457a5e8be7a02ba638c895aeed18a21a7bdcdc83c715fb7f9d4796e50b7f"
+    },
+    {
+      "bytes": 17239,
+      "mode": 420,
+      "path": "selfhost/direct/scalar.kelft",
+      "sha256": "sha256:f72df39c6d83b6724c41e7e8ecc891cfe53e4a6c45ce1261ea4d87fd172009c5"
+    },
+    {
+      "bytes": 3011,
+      "mode": 420,
+      "path": "selfhost/direct/stream-runtime.kelft",
+      "sha256": "sha256:d9979fd99a19ff1ec6c8fc96e9238a3c38d571957f73a3cfcea849b64f3208d5"
+    },
+    {
+      "bytes": 25493,
+      "mode": 420,
+      "path": "selfhost/direct/string-runtime.kelft",
+      "sha256": "sha256:bb651883e730ff17042df9ca2811ec11c515d51f80f8b3309017b0d413ce7b10"
+    },
+    {
+      "bytes": 8069,
+      "mode": 420,
+      "path": "selfhost/direct/string-transform-runtime.kelft",
+      "sha256": "sha256:80dd9c28bfbedcb7f3c144e09fa2334ec78d497ba225ea4c69e0c7c08a5ded4d"
+    },
+    {
+      "bytes": 1636,
+      "mode": 420,
+      "path": "selfhost/direct/verification-artifact-darwin-arm.kelft",
+      "sha256": "sha256:5b46a5288d22c0657d96c0a854b1158a77d55c2b674b70217f1f6e76e326406c"
+    },
+    {
+      "bytes": 1631,
+      "mode": 420,
+      "path": "selfhost/direct/verification-artifact-darwin.kelft",
+      "sha256": "sha256:7948c85c939a9ec13450325e167c4b2b673d15f8a6f7280a5c359f4f02c042cc"
+    },
+    {
+      "bytes": 1800,
+      "mode": 420,
+      "path": "selfhost/direct/verification-artifact-linux-arm.kelft",
+      "sha256": "sha256:c3cf5ab110ba96288df6ff9f76e8e1817fa7fdf4472655f4fb1ce08b196adf99"
+    },
+    {
+      "bytes": 1666,
+      "mode": 420,
+      "path": "selfhost/direct/verification-artifact-windows-arm.kelft",
+      "sha256": "sha256:ca712592715a52fc55280b23455159e5806c1e560b0326e540ccd042ba1681bc"
+    },
+    {
+      "bytes": 1660,
+      "mode": 420,
+      "path": "selfhost/direct/verification-artifact-windows.kelft",
+      "sha256": "sha256:29d4338953d31c9b571f44457be989095fc158c0c24a391e5bd985cfeb6af395"
+    },
+    {
+      "bytes": 1707,
+      "mode": 420,
+      "path": "selfhost/direct/verification-artifact.kelft",
+      "sha256": "sha256:fe11e95d485925c6298e4bcaac2070de1ef87de7d45d1e96cb7816206f5a3c86"
+    },
+    {
+      "bytes": 22448,
+      "mode": 420,
+      "path": "selfhost/direct/windows-aggregate.kelft",
+      "sha256": "sha256:ae618efb730fe80315dd7bb896aebb31d02859932fbd0b6814f92b50b0b3fa94"
+    },
+    {
+      "bytes": 3203,
+      "mode": 420,
+      "path": "selfhost/direct/windows-api.kelft",
+      "sha256": "sha256:56be9657c22d29536a11daa1d5e95688e78b53afa10ad7c0715ba1b6a3981edb"
+    },
+    {
+      "bytes": 22448,
+      "mode": 420,
+      "path": "selfhost/direct/windows-arm-aggregate.kelft",
+      "sha256": "sha256:d787d69d0eac71d55cd0050dcb15d452c551fc78d5d34db8d58b0ea81ee7c512"
+    },
+    {
+      "bytes": 8766,
+      "mode": 420,
+      "path": "selfhost/direct/windows-arm64.kelft",
+      "sha256": "sha256:e3af28b7b3ba2aa45a6d954a8f2f8204433faa19564254f6c5b76fdc8227537c"
+    },
+    {
+      "bytes": 23981,
+      "mode": 420,
+      "path": "selfhost/direct/windows-artifact-runtime.kelft",
+      "sha256": "sha256:7e0f41eccc1ed9129f7ea4e95c99561e03c3f50f26b30757461a90fcd2b78b19"
+    },
+    {
+      "bytes": 380719,
+      "mode": 420,
+      "path": "selfhost/direct/windows-fs-runtime.kelft",
+      "sha256": "sha256:c8231578f0eb7e10598c3bb44267f2aaa4f5d2d5692f8b94f4f929e1e1773230"
+    },
+    {
+      "bytes": 62060,
+      "mode": 420,
+      "path": "selfhost/direct/windows-guest-runtime.kelft",
+      "sha256": "sha256:e31eb3edfa88fe3c8cde8233854ac8a56200f2adbf11a74b744ef52e2c79ff90"
+    },
+    {
+      "bytes": 4233,
+      "mode": 420,
+      "path": "selfhost/direct/windows-link-driver.kelft",
+      "sha256": "sha256:711b52724a4a12dccf17793cea8777b226ece738fc1bf843ab5704d5db4d0dab"
+    },
+    {
+      "bytes": 89078,
+      "mode": 420,
+      "path": "selfhost/direct/windows-path-runtime.kelft",
+      "sha256": "sha256:acc7597f8516ad1cfdbe494c51a8fcd5e4374c0a13013a63381d53a6a28d915a"
+    },
+    {
+      "bytes": 9681,
+      "mode": 420,
+      "path": "selfhost/direct/windows-process-runtime.kelft",
+      "sha256": "sha256:df8a23da540b758736d4444ebaffda6bc011bdbc2c4143514b660189c55befd9"
+    },
+    {
+      "bytes": 10725,
+      "mode": 420,
+      "path": "selfhost/direct/windows-x86_64.kelft",
+      "sha256": "sha256:329c5b40ba10be6504856fc177803c73c1f3c40b494b90f1af765b884602067d"
+    },
+    {
+      "bytes": 19687,
+      "mode": 420,
+      "path": "selfhost/direct/write-runtime.kelft",
+      "sha256": "sha256:fa88ddb14de80df26005ac414074aa5322d7279199647a68e53ca2462ab85546"
+    },
+    {
+      "bytes": 15255,
+      "mode": 420,
+      "path": "selfhost/direct/x86_64.kelft",
+      "sha256": "sha256:d727b57d461c4f3b1df3d55f1190337b853d9f503b9c85b849dc845a7c6a85cb"
+    },
+    {
+      "bytes": 16733,
+      "mode": 420,
+      "path": "selfhost/driver-native.kelft",
+      "sha256": "sha256:18a96105d7b59321c310cead03d09e6fed3b95e802d29aed0af7f9247ee092b4"
+    },
+    {
+      "bytes": 17226,
+      "mode": 420,
+      "path": "selfhost/driver.kelft",
+      "sha256": "sha256:221fe8d416c3cda0a3562436a051078367785cdcee07fd71f59df0a0215f8ed9"
+    },
+    {
+      "bytes": 8767,
+      "mode": 420,
+      "path": "selfhost/emitter.kelft",
+      "sha256": "sha256:20c5f2a79c279eb48315ed41cc132611b522a6f7fb694f2fe213110c2f3ca812"
+    },
+    {
+      "bytes": 5165,
+      "mode": 420,
+      "path": "selfhost/hash.kelft",
+      "sha256": "sha256:bd7caf9a8f4cc04bbf67218d60679c5aa7b3698e329ba54ca305a3e51ba583d9"
+    },
+    {
+      "bytes": 14187,
+      "mode": 420,
+      "path": "selfhost/intent.kelft",
+      "sha256": "sha256:236f4705c0e55059d0f9e1e8eb449061e3a6e0e2899619ee437533e61f0a191a"
+    },
+    {
+      "bytes": 4122,
+      "mode": 420,
+      "path": "selfhost/intent_bindings.kelft",
+      "sha256": "sha256:207e0f9ae65a662bb091d6f171cf7004fca4f8435e53b7feb1dd214ac779b6a4"
+    },
+    {
+      "bytes": 5902,
+      "mode": 420,
+      "path": "selfhost/intent_capabilities.kelft",
+      "sha256": "sha256:ee50d6057862bb333ac61b6dc3a50b5d9b343e2058f333fa08274367f61d2c69"
+    },
+    {
+      "bytes": 14822,
+      "mode": 420,
+      "path": "selfhost/intent_domain.kelft",
+      "sha256": "sha256:736476fdcfc7ed0fcf4feaba94756f53c35cdd53de3b450280c0948ec5984be7"
+    },
+    {
+      "bytes": 16134,
+      "mode": 420,
+      "path": "selfhost/intent_enforce.kelft",
+      "sha256": "sha256:470bfb062452d13a4ce2155fca28f554ad4b0a2a775811417394ec09249952cb"
+    },
+    {
+      "bytes": 4870,
+      "mode": 420,
+      "path": "selfhost/intent_migration.kelft",
+      "sha256": "sha256:d82fa16bd9d706338de1f2ba28a9b0aacccf38ad8b940638bf3a3c52ca9418be"
+    },
+    {
+      "bytes": 6039,
+      "mode": 420,
+      "path": "selfhost/intent_preservation.kelft",
+      "sha256": "sha256:7ee37a501b062a63ed5564b8d0094370d9a3e48550255c1b1af6adbb8dec3b90"
+    },
+    {
+      "bytes": 12887,
+      "mode": 420,
+      "path": "selfhost/intent_public.kelft",
+      "sha256": "sha256:90b9423e486bc47735611aea30e76156e3ff8cc328fdad0a4c87218c36744f4a"
+    },
+    {
+      "bytes": 23868,
+      "mode": 420,
+      "path": "selfhost/intent_source.kelft",
+      "sha256": "sha256:16315ae4a4ecf86c92227fdadcfed9c4fe0f713adf0138aafcc8901a5885fae2"
+    },
+    {
+      "bytes": 4615,
+      "mode": 420,
+      "path": "selfhost/intent_wire.kelft",
+      "sha256": "sha256:f7a5270d98a317c18c269fda6139520f717f89a2dab2f3a8294cfd1d45f699da"
+    },
+    {
+      "bytes": 6730,
+      "mode": 420,
+      "path": "selfhost/intrinsics.kelft",
+      "sha256": "sha256:b5d38ad6ea148bedc607ed6ff8c10111cb91bf2bc4a668f57730d9e176415c3f"
+    },
+    {
+      "bytes": 8770,
+      "mode": 420,
+      "path": "selfhost/json.kelft",
+      "sha256": "sha256:003a9e326a4a8e12c2ffa38c916f7bbd17c1ec98df3af24062d829b670202771"
+    },
+    {
+      "bytes": 5108,
+      "mode": 420,
+      "path": "selfhost/lexer.kelft",
+      "sha256": "sha256:bb99c6d8e43cc3b57252039be7fe4e1a9a4f0e99a3ae42c686b531656ca2f8d2"
+    },
+    {
+      "bytes": 19700,
+      "mode": 420,
+      "path": "selfhost/main.kelft",
+      "sha256": "sha256:710094623141d8ae9c627cc6533040dd23da773589e1576128e13d398fbfe342"
+    },
+    {
+      "bytes": 2694,
+      "mode": 420,
+      "path": "selfhost/modules.kelft",
+      "sha256": "sha256:7182f17c594e42ac61ee571f17d0186ef6f2a146bf4ea468597dadf2e96ec951"
+    },
+    {
+      "bytes": 3365,
+      "mode": 420,
+      "path": "selfhost/native-compiler.kelft",
+      "sha256": "sha256:882d064960986f329669d7176fe32ed5fe742937ebc6d552a4fc70d1b34fdc46"
+    },
+    {
+      "bytes": 2750,
+      "mode": 420,
+      "path": "selfhost/native-darwin-arm-driver.kelft",
+      "sha256": "sha256:436d3ebfbdbff2a241a24b37872b25ffba1f8b32aa1c624b3d98dc3451662a8b"
+    },
+    {
+      "bytes": 859,
+      "mode": 420,
+      "path": "selfhost/native-darwin-arm-installed.kelft",
+      "sha256": "sha256:47491e0f9c1301f799958e024ebfd26ce71d8fc7a5b795d4e54da55ceaa1083f"
+    },
+    {
+      "bytes": 4226,
+      "mode": 420,
+      "path": "selfhost/native-darwin-arm-object.kelft",
+      "sha256": "sha256:ea1fc240989022f7fae9b558698076b64e8cb6ff070e1711421288fb05308ffe"
+    },
+    {
+      "bytes": 2747,
+      "mode": 420,
+      "path": "selfhost/native-darwin-driver.kelft",
+      "sha256": "sha256:f932ed23148291a572e9c3afa20f05888cc719fcb4d1274c15e15fa841312937"
+    },
+    {
+      "bytes": 847,
+      "mode": 420,
+      "path": "selfhost/native-darwin-installed.kelft",
+      "sha256": "sha256:892a7c53a1aeb7289baadc6683bf11ecef73f07fdfa2abc723149c7248115341"
+    },
+    {
+      "bytes": 4219,
+      "mode": 420,
+      "path": "selfhost/native-darwin-object.kelft",
+      "sha256": "sha256:9b8760c76c3300ab0ced738f0f6f3360b77d2e162027f7f1c519ecde9187290d"
+    },
+    {
+      "bytes": 434,
+      "mode": 420,
+      "path": "selfhost/native-driver.kelft",
+      "sha256": "sha256:72eb3711c50062538acca52723159e0af2ae312fbe510013b4a1367b527f4d31"
+    },
+    {
+      "bytes": 173,
+      "mode": 420,
+      "path": "selfhost/native-engine.kelft",
+      "sha256": "sha256:04f5510b6357dbc132eab51dc29c2c6b317e7f871089065b81a4a1194667d41e"
+    },
+    {
+      "bytes": 1421,
+      "mode": 420,
+      "path": "selfhost/native-installed-engine.kelft",
+      "sha256": "sha256:2544a852b79876e9ba33eaa0de7d4d955fe782e5278355ff59797245c3880ced"
+    },
+    {
+      "bytes": 3279,
+      "mode": 420,
+      "path": "selfhost/native-linux-arm-driver.kelft",
+      "sha256": "sha256:f5df2e1164d8db242be2957cec9aaebf3cea2ebbf339415fd7969e017547ee85"
+    },
+    {
+      "bytes": 3530,
+      "mode": 420,
+      "path": "selfhost/native-linux-arm-object.kelft",
+      "sha256": "sha256:7e663bd98203b89f1bf3888c32b120ab5917bf74ac42302529d3e8b2dba5de54"
+    },
+    {
+      "bytes": 3521,
+      "mode": 420,
+      "path": "selfhost/native-main.kelft",
+      "sha256": "sha256:ec3fba17201b51a159e25d759644b815ea9b5b11f805b2dbaa4ef649b60d9f35"
+    },
+    {
+      "bytes": 2716,
+      "mode": 420,
+      "path": "selfhost/native-windows-arm-driver.kelft",
+      "sha256": "sha256:6080c2c8d52f2d1dc5e82ede4bcb5f5327baeecbd60a8a298200a52c47e9ce0d"
+    },
+    {
+      "bytes": 3275,
+      "mode": 420,
+      "path": "selfhost/native-windows-arm-installed.kelft",
+      "sha256": "sha256:2792c9138598fb76135a52e801ece058da923b861758abffad4ae30b1d7fbd55"
+    },
+    {
+      "bytes": 3842,
+      "mode": 420,
+      "path": "selfhost/native-windows-arm-object.kelft",
+      "sha256": "sha256:f1e510f4b131f47c69abe1c5b6053d97509e39b6e291d858a2848ef5a3485e95"
+    },
+    {
+      "bytes": 2713,
+      "mode": 420,
+      "path": "selfhost/native-windows-driver.kelft",
+      "sha256": "sha256:bb35868797aa507679d4757b0b355312f74876d8e3165286bd7107423e824822"
+    },
+    {
+      "bytes": 3351,
+      "mode": 420,
+      "path": "selfhost/native-windows-installed.kelft",
+      "sha256": "sha256:4ea3957f5aa04a17b1a4fc2cf5c5c66f0ef3eb848aeeb705dbedd65e5f2322da"
+    },
+    {
+      "bytes": 3834,
+      "mode": 420,
+      "path": "selfhost/native-windows-object.kelft",
+      "sha256": "sha256:d2bc39953760f10d1bf6d5f9b544a89457f248b5de9450e6e9c443397911e64d"
+    },
+    {
+      "bytes": 19498,
+      "mode": 420,
+      "path": "selfhost/parser.kelft",
+      "sha256": "sha256:ed2341ebb251d90ed3becee1c235e1d6a83083d426d245a9af7802030224c88b"
+    },
+    {
+      "bytes": 19883,
+      "mode": 420,
+      "path": "selfhost/runtime.kelft",
+      "sha256": "sha256:ee7c3011dff580ab49239e6331a920a76b665f31c07c321b7d2839c10ece3a04"
+    },
+    {
+      "bytes": 40859,
+      "mode": 420,
+      "path": "selfhost/semantic.kelft",
+      "sha256": "sha256:63a7256e96617ac546a757ca802508de6844cdf6b7eef733da226c32e95af4bd"
+    },
+    {
+      "bytes": 5687,
+      "mode": 420,
+      "path": "selfhost/syntax.kelft",
+      "sha256": "sha256:9589e5668c9f21cfa3fbe3cc938f49c7078e86a10d8edcd2c22154b1c0bda71b"
+    },
+    {
+      "bytes": 1651,
+      "mode": 420,
+      "path": "selfhost/toolchain/cross.kelft",
+      "sha256": "sha256:01e7dcccf5ad86f4e5d1c73e5524683c438854c28b3c8101d33ef44ccbd1d921"
+    },
+    {
+      "bytes": 10539,
+      "mode": 420,
+      "path": "selfhost/toolchain/host-capabilities.kelft",
+      "sha256": "sha256:d647fb8a7f4c66a2a329336fc2c554fccbdaaec95de59ab86336244e314d9d10"
+    },
+    {
+      "bytes": 5096,
+      "mode": 420,
+      "path": "selfhost/toolchain/inspect.kelft",
+      "sha256": "sha256:cac24083932f0d4312ccecc455b675ef4af91f6d793d75ea36ab91cd9b60b5d5"
+    },
+    {
+      "bytes": 2113,
+      "mode": 420,
+      "path": "selfhost/toolchain/object.kelft",
+      "sha256": "sha256:c774332dd863701e01fc6662c1ccdd08c81e447930aa08b6e439eb008257e81e"
+    },
+    {
+      "bytes": 6127,
+      "mode": 420,
+      "path": "selfhost/toolchain/pins.kelft",
+      "sha256": "sha256:e7d788abc352805097d9acd794e797f37d49654ef081d9bbb8e1e9b9936a3f48"
+    },
+    {
+      "bytes": 5752,
+      "mode": 420,
+      "path": "selfhost/toolchain/rebuild.kelft",
+      "sha256": "sha256:6e5bec4103e35b39b3b6b2ddf5128cb2a89cdbc050d61b7c0ceae061fa2a7635"
+    },
+    {
+      "bytes": 13818,
+      "mode": 420,
+      "path": "selfhost/toolchain/targets.kelft",
+      "sha256": "sha256:ad3abc89dc316396b759ecc5b9b932d03dbcc7dab47acb0249d72230b0c1166e"
+    },
+    {
+      "bytes": 9669,
+      "mode": 420,
+      "path": "selfhost/toolchain/testing-corpus.kelft",
+      "sha256": "sha256:38420083f8d38621f315d0665032e7d99da6f3375199a9176b31c5fd9d147351"
+    },
+    {
+      "bytes": 1565,
+      "mode": 420,
+      "path": "selfhost/toolchain/testing-shards.kelft",
+      "sha256": "sha256:7f57d7f94cbcf804c5392a547c4c676d2f814d25498f075db05237fb7303fd55"
+    },
+    {
+      "bytes": 11675,
+      "mode": 420,
+      "path": "selfhost/toolchain/testing.kelft",
+      "sha256": "sha256:8194e78d145e613e619b9e142006a3e9c44368e24018105058c0ff8674af3c09"
+    },
+    {
+      "bytes": 5999,
+      "mode": 420,
+      "path": "selfhost/toolchain/toml.kelft",
+      "sha256": "sha256:839d3ac91c186d3dfc34f54c397962ef6c178a387727c63595e640ede448d8f4"
+    },
+    {
+      "bytes": 12219,
+      "mode": 420,
+      "path": "selfhost/toolchain/workspace-command.kelft",
+      "sha256": "sha256:2c6e67bbda5a9221b1dab3f45e5395676771e5c2536d8c59d985a1403bae7e4d"
+    },
+    {
+      "bytes": 14769,
+      "mode": 420,
+      "path": "selfhost/toolchain/workspace.kelft",
+      "sha256": "sha256:60fb6e7bd22273d49f68df9aa9431f6a608c44b372dfaa283bc94cf50c7373ab"
+    },
+    {
+      "bytes": 14566,
+      "mode": 420,
+      "path": "selfhost/verification-native.kelft",
+      "sha256": "sha256:7b15d77be760e21387c67eeff55aaa9e950cc49c2806c74da52c8d7948c9ca11"
+    },
+    {
+      "bytes": 15088,
+      "mode": 420,
+      "path": "selfhost/verification.kelft",
+      "sha256": "sha256:9da833f2b213f6c8a7a9d41714eeb001a7a9b898ca2f96d161149f926dec1358"
+    },
+    {
+      "bytes": 10431,
+      "mode": 420,
+      "path": "selfhost/wasm/binary.kelft",
+      "sha256": "sha256:6a5d4de9c6b6a2329e8c61f02625859348216e7ca2d731063e2ee6bca8d95040"
+    },
+    {
+      "bytes": 26781,
+      "mode": 420,
+      "path": "selfhost/wasm/emitter.kelft",
+      "sha256": "sha256:3f877d624e729c60474ba90832e29d52619db103988977e825e791f7ef17e528"
+    },
+    {
+      "bytes": 67729,
+      "mode": 420,
+      "path": "selfhost/wasm/runtime.kelft",
+      "sha256": "sha256:abd3925d07567606d511dab95d5c7e7f98f3ddb8a6ee781759d5e390b3457a70"
+    },
+    {
+      "bytes": 4417,
+      "mode": 420,
+      "path": "stdlib/api-boundary.kelft",
+      "sha256": "sha256:37d3fdcfdec638047770e75301c6e7d704f42cfdea238fc5c64a626e3a4361a1"
+    },
+    {
+      "bytes": 730,
+      "mode": 420,
+      "path": "stdlib/bootstrap/strings.kelft",
+      "sha256": "sha256:9f0556492ce4f36f327495fc21015b144d210ce991f705d5f2c2f8362418f5ec"
+    },
+    {
+      "bytes": 8293,
+      "mode": 420,
+      "path": "stdlib/contracts.kelft",
+      "sha256": "sha256:f88dd4573c3f24ce0ca689cd0d68be6ff85fd3a44ec4d47ce8cbcc9bc676e524"
+    },
+    {
+      "bytes": 3735,
+      "mode": 420,
+      "path": "stdlib/filesystem.kelft",
+      "sha256": "sha256:5ae86816e35456c9f9db7d4fa99971ebf5c5cb959dcb711e7243f50f0774032e"
+    },
+    {
+      "bytes": 4918,
+      "mode": 420,
+      "path": "stdlib/json-safe.kelft",
+      "sha256": "sha256:a2cdb3afc6891bbeaabb625ddfb427959c48ffbbcd2ba27140074246ba7b8da8"
+    },
+    {
+      "bytes": 6477,
+      "mode": 420,
+      "path": "stdlib/process.kelft",
+      "sha256": "sha256:5dc710fe0b1795249be08cf94da041e340238e2fdd6cc2d96953788e2ba933df"
+    },
+    {
+      "bytes": 2258,
+      "mode": 420,
+      "path": "stdlib/testing.kelft",
+      "sha256": "sha256:b2da22147caa40f9adab0dc8de0e6df940d5e939acdf47722190363dd388c3a0"
+    }
+  ],
+  "status": "built"
+}

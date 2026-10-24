@@ -1,0 +1,130 @@
+import "./json.kelft" as j;
+import "./hash.kelft" as hash;
+import "./syntax.kelft" as s;
+import "./core.kelft" as ir;
+fn contains(values: Array<string>, value: string) -> bool { for x in values { if x == value { return true; } } return false; }
+fn strings(v: j::Value) -> bool { if !j::is_array(v) { return false; } for child in j::array(v) { if !j::is_string(child) { return false; } } return true; }
+fn string_map(v: j::Value) -> bool { if !j::is_object(v) { return false; } for (key, child) in j::object(v) { if !j::is_string(child) { return false; } } return true; }
+fn text(v: j::Value, key: string) -> string { return j::string(j::field(v, key)); }
+fn require(inout errors: Array<string>, valid: bool, message: string) -> void { if !valid { array_push::<string>(inout errors, message); } }
+pub fn validate(v: j::Value) -> Array<string> {
+    let mut errors: Array<string> = [];
+    if !j::is_object(v) { return ["IntentIR must be an object"]; }
+    require(inout errors, text(v, "schemaVersion") == "0.1", "unsupported schemaVersion"); require(inout errors, text(v, "id") != "", "id required");
+    let goal: j::Value = j::field(v, "intent"); let mut valid: bool = j::is_object(goal) && j::is_string(j::field(goal, "summary"));
+    let goal_arrays: Array<string> = ["desiredBehavior", "nonGoals", "examples", "freedoms"]; for key in goal_arrays { if !strings(j::field(goal, key)) { valid = false; } }
+    require(inout errors, valid, "invalid intent");
+    let context: j::Value = j::field(v, "context"); require(inout errors, j::is_object(context) && j::is_string(j::field(context, "repositoryHash")) && strings(j::field(context, "documents")) && string_map(j::field(context, "dependencyHashes")), "invalid context");
+    let permissions: j::Value = j::field(v, "permissions"); valid = j::is_object(permissions) && strings(j::field(permissions, "read")) && strings(j::field(permissions, "write"));
+    for (key, child) in j::object(permissions) { if key != "read" && key != "write" { valid = false; } }
+    require(inout errors, valid, "invalid or unsupported permissions");
+    let resolution: j::Value = j::field(v, "resolution"); let state: string = text(resolution, "state");
+    require(inout errors, j::is_object(resolution) && (state == "resolved" || state == "needs-human") && strings(j::field(resolution, "questions")), "invalid resolution");
+    let provenance: j::Value = j::field(v, "provenance"); valid = j::is_object(provenance) && strings(j::field(provenance, "contextHashes"));
+    let provenance_keys: Array<string> = ["actor", "modelId", "requestHash"]; for key in provenance_keys { if !j::is_string(j::field(provenance, key)) { valid = false; } }
+    require(inout errors, valid, "invalid provenance"); require(inout errors, strings(j::field(v, "changes")), "invalid changes");
+    let mut ids: Array<string> = []; let groups: Array<string> = ["constraints", "assumptions", "verificationTargets"];
+    for group in groups {
+        let items: j::Value = j::field(v, group); if !j::is_array(items) { array_push::<string>(inout errors, "invalid " + group); continue; }
+        for item in j::array(items) {
+            let id: string = text(item, "id"); if id == "" || contains(ids, id) { array_push::<string>(inout errors, "missing or duplicate semantic id"); continue; }
+            array_push::<string>(inout ids, id);
+            if group == "constraints" {
+                let predicate: j::Value = j::field(item, "predicate"); let level: string = text(item, "level"); let kind: string = text(predicate, "kind");
+                require(inout errors, (level == "hard" || level == "soft" || level == "preference") && j::is_string(j::field(item, "rationale")) && j::is_object(predicate) && (kind == "typecheck" || kind == "fixture" || kind == "capability" || kind == "external") && j::is_string(j::field(predicate, "target")), "invalid constraint");
+            } else if group == "assumptions" {
+                let status: string = text(item, "status");
+                require(inout errors, j::is_string(j::field(item, "statement")) && (status == "proposed" || status == "confirmed" || status == "rejected" || status == "stale") && string_map(j::field(item, "dependencies")) && strings(j::field(item, "verificationTargets")), "invalid assumption");
+            } else {
+                let verifier: string = text(item, "verifier"); require(inout errors, (verifier == "typecheck" || verifier == "fixture" || verifier == "external") && strings(j::field(item, "requirementIds")) && j::is_bool(j::field(item, "mandatory")) && j::is_string(j::field(item, "fixture")), "invalid verification target");
+            }
+        }
+    }
+    if array_len::<string>(errors) > 0 { return errors; }
+    let mut constraints: Array<string> = []; let mut targets: Array<string> = [];
+    for item in j::array(j::field(v, "constraints")) { array_push::<string>(inout constraints, text(item, "id")); }
+    for item in j::array(j::field(v, "verificationTargets")) { array_push::<string>(inout targets, text(item, "id")); }
+    for item in j::array(j::field(v, "verificationTargets")) { for id in j::array(j::field(item, "requirementIds")) { if !contains(constraints, j::string(id)) { array_push::<string>(inout errors, "unknown requirement " + j::string(id)); } } }
+    for item in j::array(j::field(v, "assumptions")) { for id in j::array(j::field(item, "verificationTargets")) { if !contains(targets, j::string(id)) { array_push::<string>(inout errors, "unknown verification target " + j::string(id)); } } }
+    for constraint in j::array(j::field(v, "constraints")) {
+        if text(constraint, "level") == "hard" {
+            let predicate:j::Value=j::field(constraint,"predicate");let kind:string=text(predicate,"kind");
+            let mut covered: bool = false;
+            if kind=="capability" {let target:string=text(predicate,"target");covered=target=="fs.read"||target=="fs.write"||target=="deny.network"||target=="deny.process"||target=="deny.secrets"||target=="deny.ffi";}
+            else {for target in j::array(j::field(v, "verificationTargets")) { if j::boolean(j::field(target, "mandatory")) && text(target,"verifier")==kind && (kind!="fixture" || text(target,"fixture")==text(predicate,"target")) { for id in j::array(j::field(target, "requirementIds")) { if j::string(id) == text(constraint, "id") { covered = true; } } } }}
+            if !covered { array_push::<string>(inout errors, "unverified hard requirement " + text(constraint, "id")); }
+        }
+    }
+    return errors;
+}
+pub fn parse(source: string) -> j::Value {
+    let value: j::Value = j::parse(source); let errors: Array<string> = validate(value);
+    if array_len::<string>(errors) > 0 { s::error("K0502", s::join(errors, "; "), s::span("<intent>", 0, 0)); } return value;
+}
+pub fn semantic_hash(value: j::Value) -> string { if !j::is_object(value) {return hash::sha256(j::canonical(value));}return hash::sha256(j::canonical(j::remove(j::remove(value, "timestamp"), "presentation"))); }
+pub fn valid_hash(value: string) -> bool {
+    if !s::starts(value,"sha256:") || string_len(value)!=71 {return false;}
+    let mut i:i32=7;while i<71 {let b:i32=s::byte(value,i);if !(b>=48&&b<=57||b>=97&&b<=102) {return false;}i=i+1;}return true;
+}
+fn nodes(value: j::Value) -> Map<string,j::Value> {
+    let mut out: Map<string,j::Value> = map_new::<string,j::Value>(); let groups: Array<string> = ["constraints", "assumptions", "verificationTargets"];
+    for group in groups { for item in j::array(j::field(value, group)) { map_set::<string,j::Value>(inout out, text(item, "id"), item); } } return out;
+}
+pub fn diff(before: j::Value, after: j::Value) -> j::Value {
+    let a: Map<string,j::Value> = nodes(before); let b: Map<string,j::Value> = nodes(after);
+    let mut added: Array<j::Value> = []; let mut removed: Array<j::Value> = []; let mut changed: Array<j::Value> = [];
+    for (id, item) in b { match map_get::<string,j::Value>(a, id) { Option::None => { array_push::<j::Value>(inout added, j::Value::Text(id)); }, Option::Some(previous) => { if j::canonical(item) != j::canonical(previous) { array_push::<j::Value>(inout changed, j::Value::Text(id)); } } } }
+    for (id, item) in a { match map_get::<string,j::Value>(b, id) { Option::None => { array_push::<j::Value>(inout removed, j::Value::Text(id)); }, Option::Some(previous) => {} } }
+    let mut fields:Array<string>=[];let names:Array<string>=["schemaVersion","id","intent","context","permissions","changes","resolution","provenance"];
+    for name in names {if j::canonical(j::field(before,name))!=j::canonical(j::field(after,name)) {array_push::<string>(inout fields,name);}}
+    ir::sort_strings(inout fields);let mut field_values:Array<j::Value>=[];for name in fields {array_push::<j::Value>(inout field_values,j::Value::Text(name));}
+    let mut result: j::Value = j::Value::Object(map_new::<string,j::Value>()); result = j::set(result, "added", j::Value::Array(added)); result = j::set(result, "removed", j::Value::Array(removed));result=j::set(result,"fieldsChanged",j::Value::Array(field_values));return j::set(result, "changed", j::Value::Array(changed));
+}
+pub fn invalidate(value: j::Value, dependencies: j::Value) -> j::Value {
+    let mut assumptions: Array<j::Value> = []; let mut required: Array<string> = [];
+    for original in j::array(j::field(value, "assumptions")) {
+        let mut assumption: j::Value = original; let mut stale: bool = false;
+        if text(original, "status") != "rejected" { for (key, hash) in j::object(j::field(original, "dependencies")) { if j::field(dependencies, key) != hash { stale = true; } } }
+        if stale { assumption = j::set(assumption, "status", j::Value::Text("stale")); for id in j::array(j::field(original, "verificationTargets")) { if !contains(required, j::string(id)) { array_push::<string>(inout required, j::string(id)); } } }
+        array_push::<j::Value>(inout assumptions, assumption);
+    }
+    ir::sort_strings(inout required); let mut targets: Array<j::Value> = []; for id in required { array_push::<j::Value>(inout targets, j::Value::Text(id)); }
+    let mut result: j::Value = j::Value::Object(map_new::<string,j::Value>()); result = j::set(result, "intent", j::set(value, "assumptions", j::Value::Array(assumptions))); return j::set(result, "requiredTargets", j::Value::Array(targets));
+}
+pub fn needs_human(value: j::Value) -> bool {
+    let resolution: j::Value = j::field(value, "resolution"); if text(resolution, "state") != "resolved" || array_len::<j::Value>(j::array(j::field(resolution, "questions"))) > 0 { return true; }
+    for assumption in j::array(j::field(value, "assumptions")) { let status: string = text(assumption, "status"); if status == "proposed" || status == "stale" { return true; } } return false;
+}
+pub fn proposal(value: j::Value, base: j::Value, candidate_hash: string) -> j::Value {
+    return proposal_authorized(value, base, candidate_hash, []);
+}
+pub fn proposal_authorized(value: j::Value, base: j::Value, candidate_hash: string, approved: Array<string>) -> j::Value {
+    if text(value, "schemaVersion") != "0.1" || text(value, "baseHash") != semantic_hash(base) || text(value, "candidateHash") != candidate_hash || !strings(j::field(value, "preserve")) { s::error("K0502", "proposal base or candidate mismatch", s::span("<proposal>", 0, 0)); }
+    let next: j::Value = parse(j::canonical(j::field(value, "next"))); let authority: j::Value = j::field(value, "requestedAuthority");
+    if !j::is_object(authority) || !strings(j::field(authority, "read")) || !strings(j::field(authority, "write")) { s::error("K0502", "invalid requestedAuthority", s::span("<proposal>", 0, 0)); }
+    if j::canonical(authority)!=j::canonical(j::field(next,"permissions")) {s::error("K0502","proposal authority mismatch",s::span("<proposal>",0,0));}
+    let before: Map<string,j::Value> = nodes(base); let after: Map<string,j::Value> = nodes(next);
+    for id in approved { let mut found: bool = false; for constraint in j::array(j::field(base,"constraints")) { if text(constraint,"id")==id {found=true;} } if !found {s::error("K0502","unknown approved constraint",s::span("<proposal>",0,0));} }
+    let mut preserved: Array<string> = []; for id in j::array(j::field(value,"preserve")) { array_push::<string>(inout preserved,j::string(id)); }
+    for constraint in j::array(j::field(base,"constraints")) {
+        let id: string = text(constraint,"id");
+        if text(constraint,"level")=="hard" && !contains(approved,id) {
+            if !contains(preserved,id) {s::error("K0502","hard constraint omitted from preserve: "+id,s::span("<proposal>",0,0));}
+            for target in j::array(j::field(base,"verificationTargets")) {
+                let mut linked: bool = false; for requirement in j::array(j::field(target,"requirementIds")) {if j::string(requirement)==id {linked=true;}}
+                if linked && j::boolean(j::field(target,"mandatory")) {
+                    let mut same: bool = false; for current in j::array(j::field(next,"verificationTargets")) {if text(current,"id")==text(target,"id") && j::canonical(current)==j::canonical(target) {same=true;}}
+                    if !same {s::error("K0502","preserved verification target changed: "+text(target,"id"),s::span("<proposal>",0,0));}
+                }
+            }
+        }
+    }
+    for id in j::array(j::field(value, "preserve")) {
+        let mut declared:bool=false;for constraint in j::array(j::field(base,"constraints")) {if text(constraint,"id")==j::string(id) {declared=true;}}if !declared {s::error("K0502","unknown preserved constraint",s::span("<proposal>",0,0));}
+        let mut old: j::Value = j::Value::Null(); let mut current: j::Value = j::Value::Null();
+        match map_get::<string,j::Value>(before, j::string(id)) { Option::Some(v) => { old = v; }, Option::None => { s::error("K0502", "unknown preserved constraint", s::span("<proposal>", 0, 0)); } }
+        match map_get::<string,j::Value>(after, j::string(id)) { Option::Some(v) => { current = v; }, Option::None => {} }
+        if j::canonical(old) != j::canonical(current) { s::error("K0502", "preserved constraint changed", s::span("<proposal>", 0, 0)); }
+    }
+    return value;
+}

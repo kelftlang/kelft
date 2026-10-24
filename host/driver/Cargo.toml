@@ -1,0 +1,122 @@
+[package]
+name = "kelft-wasi"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+
+[features]
+default = ["wasi"]
+wasi = ["dep:wasmtime", "dep:wasmtime-wasi", "dep:bytes", "dep:tokio", "dep:async-trait"]
+installed-native = ["native-host", "dep:libc", "dep:flate2"]
+native-host = ["dep:libc"]
+windows-host = ["native-host", "dep:windows-sys"]
+macos-host = ["native-host", "dep:libc", "dep:mach2"]
+
+[[bin]]
+name = "kelft-wasi"
+path = "src/main.rs"
+required-features = ["wasi"]
+
+[[bin]]
+name = "kelft-native-host"
+path = "src/installed.rs"
+required-features = ["installed-native"]
+
+[[bin]]
+name = "kelft-macos-image-seal"
+path = "src/macos_image_seal.rs"
+required-features = ["macos-host"]
+
+[[bin]]
+name = "kelft-host-observer"
+path = "src/host_observer.rs"
+required-features = ["windows-host"]
+
+[[bin]]
+name = "kelft-host-probe"
+path = "src/host_probe.rs"
+required-features = ["native-host"]
+
+[[bin]]
+name = "kelft-broker-wasm-engine"
+path = "src/broker_wasm_engine.rs"
+required-features = ["wasi", "native-host"]
+
+[[bin]]
+name = "kelft-macos-boundary-probe"
+path = "src/macos_boundary_probe.rs"
+required-features = ["macos-host"]
+
+[[bin]]
+name = "kelft-macos-supervisor-probe"
+path = "src/macos_supervisor_probe.rs"
+required-features = ["macos-host"]
+
+[[bin]]
+name = "kelft-macos-artifact-host"
+path = "src/macos_artifact_host.rs"
+required-features = ["macos-host"]
+
+[[bin]]
+name = "kelft-macos-engine-probe"
+path = "src/macos_engine_probe.rs"
+required-features = ["macos-host"]
+
+[[bin]]
+name = "kelft-macos-installed-boundary"
+path = "src/macos_installed_boundary.rs"
+required-features = ["macos-host", "installed-native"]
+
+[[bin]]
+name = "kelft-windows-artifact-host"
+path = "src/windows_artifact_host.rs"
+required-features = ["windows-host"]
+
+[[bin]]
+name = "kelft-windows-installed-boundary"
+path = "src/windows_installed_boundary.rs"
+required-features = ["windows-host", "installed-native"]
+
+[[bin]]
+name = "kelft-windows-isolation-probe"
+path = "src/windows_isolation_probe.rs"
+required-features = ["windows-host"]
+
+[[bin]]
+name = "kelft-windows-engine-probe"
+path = "src/windows_engine_probe.rs"
+required-features = ["windows-host"]
+
+[[bin]]
+name = "kelft-windows-linker-probe"
+path = "src/windows_linker_probe.rs"
+required-features = ["windows-host"]
+
+[[bin]]
+name = "kelft-windows-cross-linker-probe"
+path = "src/windows_cross_linker_probe.rs"
+required-features = ["windows-host"]
+
+[dependencies]
+wasmtime = { version = "=49.0.3", default-features = false, features = ["runtime", "std", "cranelift"], optional = true }
+wasmtime-wasi = { version = "=49.0.3", default-features = false, features = ["p1"], optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+hmac = "0.12"
+flate2 = { version = "=1.1.5", default-features = false, features = ["rust_backend"], optional = true }
+getrandom = "0.3"
+bytes = { version = "=1.12.1", optional = true }
+tokio = { version = "=1.53.3", features = ["io-util"], optional = true }
+async-trait = { version = "=0.1.92", optional = true }
+windows-sys = { version = "=0.61.2", optional = true, features = ["Win32_Foundation", "Win32_Globalization", "Win32_Security", "Win32_Security_Authorization", "Win32_Security_Isolation", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_UI_Shell", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_WindowsProgramming"] }
+
+[profile.release]
+strip = true
+
+[target.'cfg(unix)'.dependencies]
+libc = { version = "=0.2.190", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+mach2 = { version = "=0.6.0", optional = true }

@@ -1,0 +1,146 @@
+{
+  "schema": "kelft-installed-native-supervisor/1",
+  "compilerHash": "sha256:5bddb532f45cc7e2526929ab5a84a7952a6dc517eaeb32b1dfba7c706dc6505c",
+  "manifestHash": "sha256:32ad2720ce6801a7a5c581953f3ac903d34a1eccc87d89d506b2f9a4866b22d5",
+  "sourceHash": "sha256:b9660b8e1520adea1b85d1d65967dc81aae4ccf5415a47625953a4243b911f99",
+  "hostBoundary": {
+    "binary": "/usr/bin/bwrap",
+    "inputs": [
+      {
+        "path": "/usr/bin/bwrap",
+        "sha256": "sha256:cd6b143283b464baf078ab09ca19dadc5bcc2423b833c4f9dd7e83f9ba1b640b",
+        "size": 67816,
+        "mode": 493
+      },
+      {
+        "path": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+        "sha256": "sha256:390027e5f45f236bd1838bc54bf464c5ff01d260ab9f8b415ea8276641bce505",
+        "size": 203968,
+        "mode": 493
+      },
+      {
+        "path": "/usr/lib/aarch64-linux-gnu/libc.so.6",
+        "sha256": "sha256:0f1905dc27dbc6715875c70527bc8da846a10084c9c483e9d8ff76dce8d69d0e",
+        "size": 1722920,
+        "mode": 493
+      },
+      {
+        "path": "/usr/lib/aarch64-linux-gnu/libcap.so.2.66",
+        "sha256": "sha256:1b6d3932cf8b60b2f27f80cdd26d9a296b8a9608fc02b4eccb8fb2fdab73fea2",
+        "size": 67704,
+        "mode": 420
+      },
+      {
+        "path": "/usr/lib/aarch64-linux-gnu/libpcre2-8.so.0.11.2",
+        "sha256": "sha256:aa4e91ff910dbb8e40472ed4fcaaeebfef19ad13fe925d9ed8e22e87d45ce13b",
+        "size": 592328,
+        "mode": 420
+      },
+      {
+        "path": "/usr/lib/aarch64-linux-gnu/libselinux.so.1",
+        "sha256": "sha256:bc36fbbc9f066f882948ba3429f272cc75840a096e0a3e3461c3badaed18c5ba",
+        "size": 198800,
+        "mode": 420
+      }
+    ],
+    "aliases": [
+      {
+        "path": "/lib/aarch64-linux-gnu/libc.so.6",
+        "target": "/usr/lib/aarch64-linux-gnu/libc.so.6"
+      },
+      {
+        "path": "/lib/aarch64-linux-gnu/libcap.so.2",
+        "target": "/usr/lib/aarch64-linux-gnu/libcap.so.2.66"
+      },
+      {
+        "path": "/lib/aarch64-linux-gnu/libpcre2-8.so.0",
+        "target": "/usr/lib/aarch64-linux-gnu/libpcre2-8.so.0.11.2"
+      },
+      {
+        "path": "/lib/aarch64-linux-gnu/libselinux.so.1",
+        "target": "/usr/lib/aarch64-linux-gnu/libselinux.so.1"
+      },
+      {
+        "path": "/lib/ld-linux-aarch64.so.1",
+        "target": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1"
+      },
+      {
+        "path": "/usr/bin/bwrap",
+        "target": "/usr/bin/bwrap"
+      }
+    ]
+  },
+  "resourceContracts": [
+    {
+      "schema": "kelft-native-resource-contract/2",
+      "registrySHA256": "sha256:e4517b96673630967b27bd98e07faacdecc90b27861fedee8abebd94d977cebf",
+      "target": "linux-arm64",
+      "role": "compiler",
+      "memory": {
+        "quantity": "virtual-address-bytes",
+        "scope": "process",
+        "ceilingBytes": 1073741824,
+        "mechanism": "RLIMIT_AS",
+        "stackMechanism": "RLIMIT_STACK"
+      },
+      "initialStackBytes": 16777216,
+      "compiler": {
+        "languageHeapBytes": 268435456,
+        "wallMs": 600000
+      }
+    },
+    {
+      "schema": "kelft-native-resource-contract/2",
+      "registrySHA256": "sha256:e4517b96673630967b27bd98e07faacdecc90b27861fedee8abebd94d977cebf",
+      "target": "linux-arm64",
+      "role": "candidate",
+      "memory": {
+        "quantity": "virtual-address-bytes",
+        "scope": "process",
+        "ceilingBytes": 1073741824,
+        "mechanism": "RLIMIT_AS",
+        "stackMechanism": "RLIMIT_STACK"
+      },
+      "initialStackBytes": 16777216,
+      "compiler": {
+        "languageHeapBytes": 268435456,
+        "wallMs": 600000
+      }
+    },
+    {
+      "schema": "kelft-native-resource-contract/2",
+      "registrySHA256": "sha256:e4517b96673630967b27bd98e07faacdecc90b27861fedee8abebd94d977cebf",
+      "target": "linux-arm64",
+      "role": "linker",
+      "memory": {
+        "quantity": "virtual-address-bytes",
+        "scope": "process",
+        "ceilingBytes": 1073741824,
+        "mechanism": "RLIMIT_AS",
+        "stackMechanism": "RLIMIT_STACK"
+      },
+      "initialStackBytes": 16777216,
+      "compiler": {
+        "languageHeapBytes": 268435456,
+        "wallMs": 600000
+      }
+    }
+  ],
+  "compilerProfile": {
+    "sourceOnly": true,
+    "heapBytes": 268435456,
+    "wallSeconds": 600,
+    "stackBytes": 16777216,
+    "addressBytes": 1073741824,
+    "outputBytes": 16777216,
+    "fileBytes": 67108864
+  },
+  "optionalEngineProfilesAvailable": false,
+  "engineProfiles": {},
+  "installedIntentProtocolAvailable": true,
+  "nativeIntentCoordinatorAvailable": true,
+  "optionalCrossProfile": null,
+  "productionClosureVerified": false,
+  "minimumOSCertified": false,
+  "releaseEligible": false
+}

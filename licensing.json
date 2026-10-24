@@ -1,0 +1,75 @@
+{
+  "schema": "kelft.licensing/1",
+  "copyright": "Copyright (c) 2026 Kelft contributors",
+  "defaultFirstPartySoftware": "MIT OR Apache-2.0",
+  "rules": [
+    {
+      "paths": [
+        "README.md",
+        "INSTALL.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "TRADEMARKS.md",
+        "RELEASES.md",
+        "SECURITY.md",
+        "docs/**",
+        "spec/*.md",
+        "host/**/*.md"
+      ],
+      "license": "CC-BY-4.0",
+      "scope": "first-party prose only"
+    },
+    {
+      "paths": [
+        "examples/**",
+        "documentation code blocks"
+      ],
+      "license": "MIT-0",
+      "scope": "first-party copyable examples"
+    }
+  ],
+  "exceptions": [
+    {
+      "paths": ["release-evidence/*-strlen.c"],
+      "license": "LGPL-2.1-or-later",
+      "reason": "Controlled GNU libc source modifications retain their original upstream copyright and LGPL notice. These examples are not the runtime used by the release seeds."
+    },
+    {
+      "paths": [
+        "build/**",
+        ".cache/**",
+        "host/.cache/**",
+        "host/driver/target/**"
+      ],
+      "license": null,
+      "reason": "Generated artifacts and third-party inputs retain their own terms and recorded provenance."
+    },
+    {
+      "paths": [
+        "bootstrap/*/bin/**",
+        "bootstrap/*/rootfs/**",
+        "bootstrap/*/parts/**",
+        "bootstrap/*/notices/**",
+        "bootstrap/sources/**"
+      ],
+      "license": null,
+      "reason": "Bootstrap artifacts, corresponding historical sources, and bundled platform inputs retain their recorded provenance and applicable first-party or third-party terms. Inventories do not authorize SDK redistribution."
+    }
+  ],
+  "precedence": "Existing file notices and third-party terms take precedence; exceptions override directory rules. Documentation code blocks use MIT-0 unless explicitly identified otherwise. Machine-readable intrinsic data and tooling configuration use the software licenses. Brand use follows TRADEMARKS.md and applicable asset provenance.",
+  "dependencyInventories": [
+    "host/driver/Cargo.lock",
+    "host/native/artifact-tools.lock.json",
+    "bootstrap/seeds.json",
+    "bootstrap/sources/dependencies/tool-sources.json",
+    "bootstrap/sources/dependencies/cargo/index.json",
+    "bootstrap/sources/dependencies/linux-x86_64/index.json",
+    "bootstrap/sources/dependencies/linux-arm64/index.json"
+  ],
+  "licenseTexts": [
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "LICENSES/CC-BY-4.0.txt",
+    "LICENSES/MIT-0.txt"
+  ]
+}

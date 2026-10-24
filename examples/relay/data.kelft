@@ -1,0 +1,22 @@
+import "../../selfhost/json.kelft" as j;
+import "../../selfhost/hash.kelft" as hash;
+import "../../selfhost/syntax.kelft" as s;
+pub fn object()->j::Value {return j::Value::Object(map_new::<string,j::Value>());}
+pub fn text(value:j::Value,key:string)->string {return j::string(j::field(value,key));}
+pub fn number(value:j::Value)->i32 {match value {j::Value::Number(raw)=>{match string_to_i32(raw) {Result::Ok(n)=>{return n;},Result::Error(error)=>{}}},_=>{}}return 0;}
+pub fn int(value:i32)->j::Value {return j::Value::Number(i32_to_string(value));}
+pub fn has(value:j::Value,key:string)->bool {match map_get::<string,j::Value>(j::object(value),key) {Option::Some(child)=>{return true;},Option::None=>{return false;}}}
+pub fn null(value:j::Value)->bool {match value {j::Value::Null=>{return true;},_=>{return false;}}}
+pub fn same(a:j::Value,b:j::Value)->bool {return j::canonical(a)==j::canonical(b);}
+pub fn digest(value:string)->string {return hash::sha256(value);}
+pub fn equal_secret(a:string,b:string)->bool {if string_len(a)!=string_len(b) {return false;}let mut difference:i32=0;let mut index:i32=0;while index<string_len(a) {difference=difference|(s::byte(a,index)^s::byte(b,index));index=index+1;}return difference==0;}
+pub fn trim(value:string)->string {let mut start:i32=0;let mut end:i32=string_len(value);while start<end&&(s::byte(value,start)==32||s::byte(value,start)==9) {start=start+1;}while end>start&&(s::byte(value,end-1)==32||s::byte(value,end-1)==9) {end=end-1;}return s::slice(value,start,end);}
+pub fn hex(value:string,count:i32)->bool {if string_len(value)!=count {return false;}let mut index:i32=0;while index<count {let byte:i32=s::byte(value,index);if !(byte>=48&&byte<=57||byte>=97&&byte<=102) {return false;}index=index+1;}return true;}
+pub fn uuid(random:string)->string {return s::slice(random,0,8)+"-"+s::slice(random,8,12)+"-4"+s::slice(random,13,16)+"-8"+s::slice(random,17,20)+"-"+s::slice(random,20,32);}
+pub fn expired(now:j::Value,day:i32,second:i32)->bool {let current:i32=number(j::field(now,"day"));return day<0||second<0||second>=86400||current>day||current==day&&number(j::field(now,"second"))>=second;}
+pub fn later(now:j::Value,seconds:i32)->j::Value {let total:i32=number(j::field(now,"second"))+seconds;let mut out:j::Value=object();out=j::set(out,"day",int(number(j::field(now,"day"))+total/86400));return j::set(out,"second",int(total%86400));}
+pub fn cookie(headers:j::Value,name:string)->string {let mut found:bool=false;let mut result:string="";for raw in string_split(text(headers,"cookie"),";") {let item:string=trim(raw);let index:i32=string_find(item,"=",0);if index<0 {continue;}if s::slice(item,0,index)==name {if found {return "";}found=true;result=s::slice(item,index+1,string_len(item));}}return result;}
+pub fn public_user(profile:j::Value)->j::Value {let mut out:j::Value=object();out=j::set(out,"id",j::field(profile,"id"));return j::set(out,"display_name",j::field(profile,"display_name"));}
+pub fn identity(profile:j::Value)->j::Value {let mut out:j::Value=object();out=j::set(out,"issuer",j::field(profile,"issuer"));return j::set(out,"subject",j::field(profile,"subject"));}
+pub fn principal_key(issuer:string,subject:string)->string {let values:Array<j::Value>=[j::Value::Text(issuer),j::Value::Text(subject)];return digest(j::canonical(j::Value::Array(values)));}
+pub fn email_key(issuer:string,email:string)->string {return principal_key(issuer,email);}

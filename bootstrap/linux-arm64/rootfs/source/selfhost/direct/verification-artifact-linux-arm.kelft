@@ -1,0 +1,16 @@
+// Internal Linux development protocol emission; public targets stay gated.
+import "../core.kelft" as core;
+import "../json.kelft" as j;
+import "../hash.kelft" as h;
+import "../syntax.kelft" as s;
+import "./linux-arm-aggregate.kelft" as native;
+import "./link-driver.kelft" as linker;
+fn fail(message:string)->void {s::error("K0601",message,s::span("<native-protocol>",0,0));}
+fn read(file:string)->Bytes {match read_file(file) {Result::Ok(value)=>{return value;},Result::Error(message)=>{fail(message);}}return [];}
+fn object(program:core::Program,maximum:string)->Bytes {let mut owned:core::Program=program;return native::consume_bytes(inout owned,268435456,maximum);}
+pub fn emit(program:core::Program,maximum:string,prepare:bool,output:string,toolchain:string)->j::Value {
+ if toolchain=="" {fail("explicit native toolchain configuration required");}let cfg:j::Value=linker::configuration(toolchain);if j::string(j::field(cfg,"profile"))!="linux-arm64" {fail("ARM64 Intent requires its native linker profile");}let bytes:Bytes=object(program,maximum);let mut result:j::Value=j::Value::Null();
+ if prepare {let prepared:linker::Prepared=linker::prepare(bytes,cfg);let linked:j::Value=linker::execute(prepared,output,maximum);result=j::set(result,"artifactHash",j::field(linked,"executableHash"));}
+ else {linker::recheck(cfg);let image:Bytes=read(output);if array_len::<u8>(image)<64||image[0]!=127||image[1]!=69||image[2]!=76||image[3]!=70||image[4]!=2||image[5]!=1||image[16]!=2||image[17]!=0||image[18]!=183||image[19]!=0 {fail("native executable changed or malformed");}result=j::set(result,"artifactHash",j::Value::Text(h::sha256_bytes(image)));}
+ result=j::set(result,"objectHash",j::Value::Text(h::sha256_bytes(bytes)));return j::set(result,"toolchainIdentity",j::field(cfg,"identity"));
+}

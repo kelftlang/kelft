@@ -1,0 +1,235 @@
+import "./syntax.kelft" as s;
+import "./lexer.kelft" as lexer;
+import "./parser.kelft" as parser;
+import "./json.kelft" as j;
+import "./hash.kelft" as hash;
+
+struct Reader { source:string, file:string, index:i32 }
+fn at(r:Reader,text:string)->bool {
+    if r.index+string_len(text)>string_len(r.source) {return false;}let mut i:i32=0;
+    while i<string_len(text) {if s::byte(r.source,r.index+i)!=s::byte(text,i) {return false;}i=i+1;}return true;
+}
+fn location(r:Reader,start:i32)->s::Span {return s::span(r.file,start,r.index);}
+fn bad(r:Reader,message:string,start:i32)->void {s::error("K0701",message,location(r,start));}
+fn space(c:i32)->bool {return c==32||c==9||c==10||c==13||c==11||c==12;}
+fn trim(text:string)->string {
+    let mut a:i32=0;let mut b:i32=string_len(text);
+    while a<b&&space(s::byte(text,a)) {a=a+1;}
+    while b>a&&space(s::byte(text,b-1)) {b=b-1;}
+    return s::slice(text,a,b);
+}
+fn white(text:string)->string {
+    let mut out:string="";let mut index:i32=0;let mut pending:bool=false;
+    while index<string_len(text) {
+        let c:i32=s::byte(text,index);
+        if space(c) {pending=true;index=index+1;continue;}
+        if pending&&out!="" {out=out+" ";}pending=false;
+        let mut width:i32=1;if c>=240 {width=4;}else if c>=224 {width=3;}else if c>=192 {width=2;}
+        out=out+s::slice(text,index,index+width);index=index+width;
+    }
+    return out;
+}
+fn contains(values:Array<string>,value:string)->bool {for item in values {if item==value {return true;}}return false;}
+fn identifier(text:string)->bool {
+    if text=="" {return false;}let mut index:i32=0;
+    while index<string_len(text) {
+        let c:i32=s::byte(text,index);if !(c>=65&&c<=90||c>=97&&c<=122||c==95||index>0&&c>=48&&c<=57) {return false;}index=index+1;
+    }return true;
+}
+fn quoted(inout r:Reader)->string {
+    let start:i32=r.index;
+    if at(r,"\"\"\"") {
+        r.index=r.index+3;let begin:i32=r.index;
+        while r.index<string_len(r.source)&&!at(r,"\"\"\"") {r.index=r.index+1;}
+        if r.index==string_len(r.source) {bad(r,"unterminated multiline string",start);}
+        let value:string=string_replace(s::slice(r.source,begin,r.index),"\r\n","\n");r.index=r.index+3;return s::core_quote(value);
+    }
+    r.index=r.index+1;
+    while r.index<string_len(r.source) {
+        if at(r,"\\") {r.index=r.index+2;continue;}
+        if at(r,"\"") {r.index=r.index+1;let raw:string=s::slice(r.source,start,r.index);lexer::lex(raw,r.file);return raw;}
+        r.index=r.index+1;
+    }bad(r,"unterminated string",start);return "";
+}
+fn comment(inout r:Reader)->bool {
+    if at(r,"//") {while r.index<string_len(r.source)&&!at(r,"\n") {r.index=r.index+1;}return true;}
+    if at(r,"/*") {
+        let start:i32=r.index;r.index=r.index+2;
+        while r.index<string_len(r.source)&&!at(r,"*/") {r.index=r.index+1;}
+        if r.index==string_len(r.source) {bad(r,"unterminated comment",start);}r.index=r.index+2;return true;
+    }return false;
+}
+fn string_value(text:string,r:Reader,start:i32)->string {
+    let tokens:Array<s::Token>=lexer::lex(text,r.file);
+    if array_len::<s::Token>(tokens)!=2||tokens[0].kind!="string" {bad(r,"string must occupy the whole clause",start);}
+    return tokens[0].text;
+}
+struct BodyFrame {parent:string,depth:i32,children:Array<s::Node>,kind:string,name:string,signature:string,start:i32}
+fn body_frame(parent:string,depth:i32)->BodyFrame {return BodyFrame {parent:parent,depth:depth,children:[],kind:"",name:"",signature:"",start:0};}
+fn body(inout r:Reader,parent_input:string,depth_input:i32)->Array<s::Node> {
+ let mut current:BodyFrame=body_frame(parent_input,depth_input);let mut pending:Array<BodyFrame>=[];if current.depth>256 {bad(r,"Intent nesting limit exceeded",r.index);}
+ while true {let parent:string=current.parent;let depth:i32=current.depth;
+
+        while r.index<string_len(r.source) {
+            if comment(inout r) {continue;}
+            if space(s::byte(r.source,r.index))||at(r,";") {r.index=r.index+1;continue;}break;
+        }
+        if at(r,"}") {if depth==0 {bad(r,"unexpected closing brace",r.index);}r.index=r.index+1;let nested:Array<s::Node>=current.children;match array_pop::<BodyFrame>(inout pending) {Option::Some(value)=>{current=value;},Option::None=>{return nested;}}let completed:s::Node=s::make(current.kind,current.name,current.signature,nested,location(r,current.start),true);array_push::<s::Node>(inout current.children,completed);continue;}
+        if r.index==string_len(r.source) {if depth!=0 {bad(r,"unterminated Intent block",r.index);}return current.children;}
+        let start:i32=r.index;let mut head:string="";let mut group:i32=0;let mut formal_start:i32=0;
+        while r.index<string_len(r.source) {
+            if group>0&&at(r,"\"\"\"") {bad(r,"formal expressions use Core string syntax",start);}
+            if at(r,"\"") {head=head+quoted(inout r);continue;}
+            let comment_start:i32=r.index;if comment(inout r) {if group>0 {head=head+s::slice(r.source,comment_start,r.index);}else {head=head+" ";}continue;}
+            if group==0&&(at(r,"{")||at(r,"}")||at(r,";")||at(r,"\n")) {break;}
+            if at(r,"(") {if group==0 {formal_start=r.index;}group=group+1;}if at(r,")") {group=group-1;if group<0 {bad(r,"unexpected closing parenthesis",start);}}
+            let c:i32=s::byte(r.source,r.index);let mut width:i32=1;if c>=240 {width=4;}else if c>=224 {width=3;}else if c>=192 {width=2;}
+            head=head+s::slice(r.source,r.index,r.index+width);r.index=r.index+width;
+        }
+        if group!=0 {bad(r,"unterminated formal expression or signature",start);}head=trim(head);
+        if head=="" {bad(r,"expected Intent statement",start);}
+        let mut first:i32=0;while first<string_len(head)&&!space(s::byte(head,first))&&s::byte(head,first)!=58 {first=first+1;}
+        let kind:string=s::slice(head,0,first);let mut rest:string=trim(s::slice(head,first,string_len(head)));
+        if at(r,"{") {
+            if !contains(["app","context","entity","behavior","endpoint","scenario","reference","feature","unknown","build","change","capability","roles","when"],kind)||kind=="app"&&depth!=0 {bad(r,"unsupported Intent block "+kind,start);}
+            let mut name:string=rest;let mut signature:string="";
+            if kind=="behavior" {
+                let mut open:i32=0;while open<string_len(rest)&&s::byte(rest,open)!=40 {open=open+1;}
+                if open<string_len(rest) {name=trim(s::slice(rest,0,open));signature=white(s::slice(rest,open,string_len(rest)));}
+            }
+            if kind=="roles" {if rest!="" {bad(r,"roles has no name",start);}name="roles";}
+            if kind=="capability"&&name=="" {name="capability";}
+            if kind=="when" {if name=="" {bad(r,"event policy requires a condition",start);}name=white(name);}
+            else if kind=="scenario"&&s::starts(name,"\"") {name=string_value(name,r,start);}
+            else if !identifier(name) {bad(r,"expected declaration identifier",start);}
+            r.index=r.index+1;current.kind=kind;current.name=name;current.signature=signature;current.start=start;array_push::<BodyFrame>(inout pending,current);current=body_frame(kind,depth+1);if current.depth>256 {bad(r,"Intent nesting limit exceeded",r.index);}continue;
+        }
+        if depth==0 {bad(r,"expected app declaration",start);}
+        if parent=="entity"&&s::starts(rest,":") {
+            if !identifier(kind) {bad(r,"invalid entity field",start);}array_push::<s::Node>(inout current.children,s::make("field",kind,white(trim(s::slice(rest,1,string_len(rest)))),[],location(r,start),false));continue;
+        }
+        if parent=="roles"&&rest==""&&identifier(kind) {array_push::<s::Node>(inout current.children,s::make("role",kind,"",[],location(r,start),false));continue;}
+        if !contains(["intent","must","ensures","prefer","may","given","and","when","then","eventually","source","applies","decision","because","image","match","allow","deny","ask","blocks","use","implementation","ownership","preserve","evolve","change","require","verify","target","agent","tool","method","path","request","response","status","error","extensible"],kind) {bad(r,"unsupported Intent clause "+kind,start);}
+        let mut label:string="";let mut colon:i32=0;while colon<string_len(rest)&&s::byte(rest,colon)!=58 {colon=colon+1;}
+        if colon<string_len(rest)&&(colon+1==string_len(rest)||s::byte(rest,colon+1)!=58)&&identifier(trim(s::slice(rest,0,colon))) {label=trim(s::slice(rest,0,colon));rest=trim(s::slice(rest,colon+1,string_len(rest)));}
+        if rest=="" {bad(r,"clause requires a value",start);}
+        let mut form:string="prose";let mut value:string=white(rest);let mut expressions:Array<s::Node>=[];
+        if s::starts(rest,"(") {
+            if s::slice(rest,string_len(rest)-1,string_len(rest))!=")" {bad(r,"formal expression must occupy the whole clause",start);}
+            form="expression";value=rest;array_push::<s::Node>(inout expressions,parser::parse_expression_at(rest,r.file,formal_start));
+        }else if s::starts(rest,"\"") {value=string_value(rest,r,start);form="string";}
+        array_push::<s::Node>(inout current.children,s::make(kind,label,form,[s::make("value",value,"",expressions,location(r,start),false)],location(r,start),false));
+ }
+ return [];
+}
+pub fn is_source(source:string)->bool {
+    let mut r:Reader=Reader {source:source,file:"",index:0};
+    while r.index<string_len(source) {
+        if at(r,"//") {while r.index<string_len(source)&&!at(r,"\n") {r.index=r.index+1;}continue;}
+        if at(r,"/*") {r.index=r.index+2;while r.index<string_len(source)&&!at(r,"*/") {r.index=r.index+1;}if r.index==string_len(source) {return false;}r.index=r.index+2;continue;}
+        if space(s::byte(source,r.index)) {r.index=r.index+1;continue;}break;
+    }
+    return at(r,"app")&&r.index+3<string_len(source)&&space(s::byte(source,r.index+3));
+}
+pub fn parse(source:string,file:string)->s::Node {
+    let mut r:Reader=Reader {source:source,file:file,index:0};let children:Array<s::Node>=body(inout r,"",0);
+    if array_len::<s::Node>(children)!=1||children[0].kind!="app" {bad(r,"Intent source requires exactly one app",0);}
+    return s::make("intent_module","","",children,s::span(file,0,string_len(source)),false);
+}
+struct StripFrame {value:j::Value,index:i32,waiting:bool,keys:Array<string>,items:Array<j::Value>,array:bool,values:Array<j::Value>,object:Map<string,j::Value>}
+fn strip_frame(value:j::Value)->StripFrame {let mut keys:Array<string>=[];let mut items:Array<j::Value>=[];let mut array:bool=false;match value {j::Value::Array(children)=>{items=children;array=true;},j::Value::Object(children)=>{for (key,child) in children {if key!="span" {array_push::<string>(inout keys,key);array_push::<j::Value>(inout items,child);}}},_=>{}}return StripFrame {value:value,index:0,waiting:false,keys:keys,items:items,array:array,values:[],object:map_new::<string,j::Value>()};}
+pub fn without_spans(value:j::Value)->j::Value {
+ let mut pending:Array<StripFrame>=[strip_frame(value)];let mut result:j::Value=value;
+ while array_len::<StripFrame>(pending)>0 {let mut f:StripFrame=strip_frame(j::Value::Null());match array_pop::<StripFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}
+  if f.waiting {if f.array {array_push::<j::Value>(inout f.values,result);}else {let key:string=f.keys[f.index-1];map_set::<string,j::Value>(inout f.object,key,result);}f.waiting=false;}
+  if f.index<array_len::<j::Value>(f.items) {let child:j::Value=f.items[f.index];f.index=f.index+1;f.waiting=true;array_push::<StripFrame>(inout pending,f);array_push::<StripFrame>(inout pending,strip_frame(child));}
+  else if f.array {result=j::Value::Array(f.values);}else if j::is_object(f.value) {result=j::Value::Object(f.object);}else {result=f.value;}
+ }return result;
+}
+struct NodeValueFrame {node:s::Node,index:i32,waiting:bool,children:Array<j::Value>}
+fn node_value_frame(n:s::Node)->NodeValueFrame {return NodeValueFrame {node:n,index:0,waiting:false,children:[]};}
+fn node_value(n:s::Node)->j::Value {
+ let mut pending:Array<NodeValueFrame>=[node_value_frame(n)];let mut result:j::Value=j::Value::Null();
+ while array_len::<NodeValueFrame>(pending)>0 {let mut f:NodeValueFrame=node_value_frame(n);match array_pop::<NodeValueFrame>(inout pending) {Option::Some(v)=>{f=v;},Option::None=>{}}
+  if f.waiting {array_push::<j::Value>(inout f.children,result);f.waiting=false;}
+  if f.index<array_len::<s::Node>(f.node.children) {let child:s::Node=f.node.children[f.index];f.index=f.index+1;f.waiting=true;array_push::<NodeValueFrame>(inout pending,f);array_push::<NodeValueFrame>(inout pending,node_value_frame(child));}
+  else {let mut fields:Map<string,j::Value>=map_new::<string,j::Value>();map_set::<string,j::Value>(inout fields,"kind",j::Value::Text(f.node.kind));map_set::<string,j::Value>(inout fields,"text",j::Value::Text(f.node.text));map_set::<string,j::Value>(inout fields,"type",j::Value::Text(f.node.ty));map_set::<string,j::Value>(inout fields,"flag",j::Value::Bool(f.node.flag));map_set::<string,j::Value>(inout fields,"children",j::Value::Array(f.children));map_set::<string,j::Value>(inout fields,"span",j::parse(s::span_json(f.node.span)));result=j::Value::Object(fields);}
+ }return result;
+}
+struct Graph { nodes:Map<string,j::Value>, edges:Map<string,j::Value> }
+struct VisitFrame {node:s::Node,scope:string}
+fn visit(inout graph:Graph,n:s::Node,scope:string)->void {let mut pending:Array<VisitFrame>=[VisitFrame {node:n,scope:scope}];while array_len::<VisitFrame>(pending)>0 {let f:VisitFrame=pending[array_len::<VisitFrame>(pending)-1];array_pop::<VisitFrame>(inout pending);let id:string=visit_one(inout graph,f.node,f.scope);if f.node.flag {let mut i:i32=array_len::<s::Node>(f.node.children)-1;while i>=0 {array_push::<VisitFrame>(inout pending,VisitFrame {node:f.node.children[i],scope:id});i=i-1;}}}}
+fn visit_one(inout graph:Graph,n:s::Node,scope:string)->string {
+    let mut form:string=n.ty;let mut content:string="";let mut expression:j::Value=j::Value::Null();
+    if n.flag {form="declaration";content=n.ty;}else if n.kind=="field" {form="field";content=n.ty;}else if n.kind=="role" {form="prose";content=n.text;}else {content=n.children[0].text;if array_len::<s::Node>(n.children[0].children)>0 {expression=node_value(n.children[0].children[0]);content="";}}
+    if n.flag&&n.kind=="behavior" {content=string_replace(content,"inout ","inout@");content=string_replace(string_replace(string_replace(string_replace(content," ",""),"\t",""),"\r",""),"\n","");content=string_replace(content,"inout@","inout ");}
+    if n.kind=="field" {let parts:Array<string>=string_split(content," where ");content=string_replace(string_replace(parts[0]," ",""),"\t","");let mut i:i32=1;while i<array_len::<string>(parts) {content=content+" where "+parts[i];i=i+1;}}
+    let mut identity:string=n.text;
+    if n.flag&&(n.kind=="scenario"||n.kind=="when") {identity=n.kind+":"+s::slice(hash::sha256(n.text),7,71);}
+    if !n.flag&&n.kind!="field"&&n.kind!="role"&&n.text=="" {
+        let mut material:j::Value=j::parse("{}");material=j::set(material,"form",j::Value::Text(form));
+        if form=="expression" {material=j::set(material,"value",without_spans(expression));}else {material=j::set(material,"value",j::Value::Text(content));}
+        identity=n.kind+":"+s::slice(hash::sha256(j::canonical(material)),7,71);
+    }
+    let mut id:string=identity;if scope!="" {id=scope+"."+identity;}
+    match map_get::<string,j::Value>(graph.nodes,id) {Option::Some(previous)=>{s::error("K0703","duplicate semantic identity "+id,n.span);},Option::None=>{}}
+    let mut result:j::Value=j::parse("{}");result=j::set(result,"id",j::Value::Text(id));result=j::set(result,"kind",j::Value::Text(n.kind));result=j::set(result,"scope",j::Value::Text(scope));result=j::set(result,"name",j::Value::Text(n.text));result=j::set(result,"value",j::Value::Text(content));result=j::set(result,"form",j::Value::Text(form));result=j::set(result,"span",j::parse(s::span_json(n.span)));
+    if form=="expression" {result=j::set(result,"expression",expression);}map_set::<string,j::Value>(inout graph.nodes,id,result);
+    if scope!="" {let mut edge:j::Value=j::parse("{}");edge=j::set(edge,"from",j::Value::Text(scope));edge=j::set(edge,"to",j::Value::Text(id));edge=j::set(edge,"kind",j::Value::Text("contains"));map_set::<string,j::Value>(inout graph.edges,id,edge);}
+    return id;
+}
+pub fn lower(tree:s::Node)->j::Value {
+    let mut graph:Graph=Graph {nodes:map_new::<string,j::Value>(),edges:map_new::<string,j::Value>()};visit(inout graph,tree.children[0],"");
+    let mut nodes:Array<j::Value>=[];let mut edges:Array<j::Value>=[];
+    for (key,value) in graph.nodes {array_push::<j::Value>(inout nodes,value);}for (key,value) in graph.edges {array_push::<j::Value>(inout edges,value);}
+    for n in nodes {
+        let kind:string=j::string(j::field(n,"kind"));let value:string=j::string(j::field(n,"value"));let form:string=j::string(j::field(n,"form"));let span:j::Value=j::field(n,"span");let location:s::Span=s::span(j::string(j::field(span,"file")),s::number(j::canonical(j::field(span,"start"))),s::number(j::canonical(j::field(span,"end"))));
+        if kind=="unknown" {
+            let mut asks:i32=0;let mut stages:i32=0;let mut valid:bool=true;
+            for child in nodes {if j::string(j::field(child,"scope"))==j::string(j::field(n,"id")) {let ck:string=j::string(j::field(child,"kind"));if ck=="ask" {asks=asks+1;if j::string(j::field(child,"form"))!="string"||trim(j::string(j::field(child,"value")))=="" {valid=false;}}if ck=="blocks" {stages=stages+1;if !contains(["synthesis","acceptance","production"],j::string(j::field(child,"value"))) {valid=false;}}}}
+            if asks!=1||stages>1||!valid {s::error("K0706","unknown requires one quoted question and a valid blocking stage",location);}
+        }
+        if kind=="behavior"||kind=="endpoint" {let mut bindings:i32=0;let mut owners:i32=0;for child in nodes {if j::string(j::field(child,"scope"))==j::string(j::field(n,"id")) {if j::string(j::field(child,"kind"))=="implementation" {bindings=bindings+1;}if j::string(j::field(child,"kind"))=="ownership" {owners=owners+1;}}}if bindings>1||owners>1 {s::error("K0706",kind+" has conflicting implementation bindings or ownership",location);}}
+        if contains(["source","image","implementation"],kind)&&form!="string" {s::error("K0706",kind+" requires a quoted path",location);}
+        if kind=="ownership"&&!contains(["human","ai","shared"],value) {s::error("K0706","invalid implementation ownership",location);}
+        let mut event_policy:bool=false;for parent in nodes {if j::string(j::field(parent,"id"))==j::string(j::field(n,"scope"))&&j::string(j::field(parent,"kind"))=="when" {event_policy=true;}}
+        if contains(["preserve","evolve","change"],kind)&&form!="declaration"&&!event_policy {
+            let mut selector:string=value;let mut valid:bool=true;
+            if kind=="evolve" {if string_len(value)<11||s::slice(value,string_len(value)-11,string_len(value))!=" compatible" {valid=false;}else {selector=s::slice(value,0,string_len(value)-11);}}
+            let segments:Array<string>=string_split(selector,".");let mut i:i32=0;for segment in segments {if !(segment=="*"&&i>0&&i==array_len::<string>(segments)-1)&&!identifier(segment) {valid=false;}i=i+1;}
+            if !valid {s::error("K0706","invalid change selector or compatibility policy",location);}
+        }
+    }
+    let mut result:j::Value=j::parse("{\"schemaVersion\":\"0.2\",\"dependencyHashes\":{},\"orchestrationDependencyHashes\":{}}");result=j::set(result,"id",j::Value::Text(tree.children[0].text));result=j::set(result,"nodes",j::Value::Array(nodes));return j::set(result,"edges",j::Value::Array(edges));
+}
+pub fn dependencies(graph:j::Value,entry:string,root:string)->j::Value {
+    let mut hashes:j::Value=j::parse("{}");let mut orchestration:j::Value=j::parse("{}");let base:string=path_dirname(canonical_path(entry));let mut builds:Array<string>=[];
+    for n in j::array(j::field(graph,"nodes")) {if j::string(j::field(n,"kind"))=="build" {array_push::<string>(inout builds,j::string(j::field(n,"id")));}}
+    for n in j::array(j::field(graph,"nodes")) {
+        let kind:string=j::string(j::field(n,"kind"));if kind!="source"&&kind!="image" {continue;}
+        let candidate:string=resolve_path(base,j::string(j::field(n,"value")));let lexical:string=path_relative(canonical_path(root),candidate);
+        if lexical==".."||s::starts(lexical,"../")||s::has(lexical,":") {s::error("K0707","Intent dependency outside project root",s::span(entry,0,0));}
+        let path:string=canonical_path(candidate);let relative:string=path_relative(canonical_path(root),path);
+        if relative==".."||s::starts(relative,"../")||s::has(relative,":") {s::error("K0707","Intent dependency outside project root",s::span(entry,0,0));}
+        let mut build_dependency:bool=false;for scope in builds {if s::starts(j::string(j::field(n,"id")),scope+".") {build_dependency=true;}}
+        match read_file(path) {Result::Ok(bytes)=>{if build_dependency {orchestration=j::set(orchestration,relative,j::Value::Text(hash::sha256_bytes(bytes)));}else {hashes=j::set(hashes,relative,j::Value::Text(hash::sha256_bytes(bytes)));}},Result::Error(message)=>{s::error("K0707","cannot read Intent dependency "+j::string(j::field(n,"value")),s::span(entry,0,0));}}
+    }return j::set(j::set(graph,"dependencyHashes",hashes),"orchestrationDependencyHashes",orchestration);
+}
+pub fn semantic_hash(graph:j::Value)->string {
+    let mut excluded:Array<string>=[];for n in j::array(j::field(graph,"nodes")) {if j::string(j::field(n,"kind"))=="build" {array_push::<string>(inout excluded,j::string(j::field(n,"id")));}}
+    let mut nodes:Array<j::Value>=[];let mut edges:Array<j::Value>=[];
+    for n in j::array(j::field(graph,"nodes")) {let id:string=j::string(j::field(n,"id"));let mut skip:bool=false;for scope in excluded {if id==scope||s::starts(id,scope+".") {skip=true;}}if !skip {array_push::<j::Value>(inout nodes,without_spans(n));}}
+    for edge in j::array(j::field(graph,"edges")) {let id:string=j::string(j::field(edge,"to"));let mut skip:bool=false;for scope in excluded {if id==scope||s::starts(id,scope+".") {skip=true;}}if !skip {array_push::<j::Value>(inout edges,edge);}}
+    return hash::sha256(j::canonical(j::remove(j::set(j::set(graph,"nodes",j::Value::Array(nodes)),"edges",j::Value::Array(edges)),"orchestrationDependencyHashes")));
+}
+pub fn obligations(graph:j::Value)->j::Value {
+    let mut out:Array<j::Value>=[];
+    for n in j::array(j::field(graph,"nodes")) {
+        let mut orchestration:bool=false;for b in j::array(j::field(graph,"nodes")) {let id:string=j::string(j::field(n,"id"));let scope:string=j::string(j::field(b,"id"));if j::string(j::field(b,"kind"))=="build"&&(id==scope||s::starts(id,scope+".")) {orchestration=true;}}if orchestration {continue;}
+        let kind:string=j::string(j::field(n,"kind"));if contains(["must","ensures","unknown","scenario","roles","capability","reference","use","require","allow","deny"],kind)||kind=="when"&&j::string(j::field(n,"form"))=="declaration" {
+            let mut result:j::Value=j::parse("{}");result=j::set(result,"id",j::field(n,"id"));
+            let mut method:string="unverified";let mut detail:string="verification strategy and executed evidence required";if kind=="unknown" {method="blocked";detail="unresolved decision: ";for child in j::array(j::field(graph,"nodes")) {if j::string(j::field(child,"scope"))==j::string(j::field(n,"id"))&&j::string(j::field(child,"kind"))=="ask" {detail=detail+j::string(j::field(child,"value"));}}}
+            result=j::set(result,"method",j::Value::Text(method));result=j::set(result,"detail",j::Value::Text(detail));array_push::<j::Value>(inout out,result);
+        }
+    }return j::Value::Array(out);
+}

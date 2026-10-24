@@ -1,0 +1,11 @@
+struct Pair { x: i32, values: Vec<i32> }
+fn bump(inout p: Pair) -> void { p.x = p.x + 1; p.values[0] = 99; }
+fn main() -> void {
+    let mut p: Pair = Pair { x: 1, values: [2, 3] };
+    let old: Pair = p;
+    bump(inout p);
+    println(i32_to_string(old.x));
+    println(i32_to_string(old.values[0]));
+    println(i32_to_string(p.x));
+    println(i32_to_string(p.values[0]));
+}

@@ -1,0 +1,6 @@
+import "../../selfhost/hash.kelft" as hash;
+fn main()->void {
+    let mut key:Bytes=[];let mut i:i32=0;while i<20 {array_push::<u8>(inout key,11);i=i+1;}
+    println(hash::hmac_sha256(key,string_to_bytes("Hi There")));
+    let raw:Bytes=[0,255,128];println(hash::sha256_bytes(raw));
+}

@@ -1,0 +1,28 @@
+// Checked output mechanisms; public Core cannot choose or create descriptors.
+import "./builder.kelft" as g;
+import "./ir.kelft" as ir;
+fn guard(inout b:g::Builder,condition:i32)->void {
+ let bad:string=g::label(inout b);let good:string=g::label(inout b);g::branch(inout b,condition,bad,good);g::begin(inout b,bad);
+ g::call(inout b,"k_panic_KRT_IO",[],"void",[]);g::end(inout b,ir::End {op:"trap",value:-1,label:"",condition:-1,yes:"",no:""});g::begin(inout b,good);
+}
+pub fn stream_functions()->Array<ir::Function> {
+ let mut functions:Array<ir::Function>=[];
+ {
+  let mut b:g::Builder=g::builder("k_stream_write",["i32","ptr","i32"],0,"void");let fd:i32=g::argument(inout b,0);let data:i32=g::argument(inout b,1);let length:i32=g::argument(inout b,2);let position:i32=g::c(inout b,0);
+  let zero:i32=g::c(inout b,0);let negative:i32=g::binary(inout b,"lt_s",length,zero);let maximum:i32=g::c(inout b,268435400);let excessive:i32=g::binary(inout b,"gt_s",length,maximum);let invalid:i32=g::binary(inout b,"or",negative,excessive);guard(inout b,invalid);
+  let test:string=g::label(inout b);let body:string=g::label(inout b);let check:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);g::begin(inout b,test);
+  let more:i32=g::binary(inout b,"lt_s",position,length);g::branch(inout b,more,body,done);g::begin(inout b,body);
+  let remaining:i32=g::binary(inout b,"sub",length,position);let next:i32=g::pointer(inout b,data,position);let written:i32=g::call(inout b,"k_os_write",[fd,next,remaining],"i32",[]);
+  let interrupted:i32=g::c(inout b,-4);let retry:i32=g::binary(inout b,"eq",written,interrupted);g::branch(inout b,retry,test,check);g::begin(inout b,check);
+  let nil:i32=g::c(inout b,0);let stopped:i32=g::binary(inout b,"le_s",written,nil);let oversized:i32=g::binary(inout b,"gt_s",written,remaining);let failed:i32=g::binary(inout b,"or",stopped,oversized);guard(inout b,failed);
+  let advanced:i32=g::binary(inout b,"add",position,written);g::assign(inout b,position,advanced);g::jump(inout b,test);g::begin(inout b,done);g::ret(inout b,-1);array_push::<ir::Function>(inout functions,g::finish(b));
+ }
+ let names:Array<string>=["k_print","k_println","k_eprint"];let mut index:i32=0;
+ for name in names {
+  let mut b:g::Builder=g::builder(name,["ptr"],0,"void");let source:i32=g::argument(inout b,0);let length:i32=g::load(inout b,source,8,"i32");let header:i32=g::c(inout b,40);let data:i32=g::pointer(inout b,source,header);let mut fd:i32=1;if index==2 {fd=2;}let descriptor:i32=g::c(inout b,fd);
+  g::call(inout b,"k_stream_write",[descriptor,data,length],"void",[]);
+  if index==1 {let lf:i32=g::slot(inout b,"ptr");let mut address:ir::Instruction=ir::instruction("address",lf);address.symbol="k_stream_lf";address.addend=0;g::emit(inout b,address);let size:i32=g::c(inout b,1);g::call(inout b,"k_stream_write",[descriptor,lf,size],"void",[]);}
+  g::ret(inout b,-1);array_push::<ir::Function>(inout functions,g::finish(b));index=index+1;
+ }
+ return functions;
+}

@@ -1,0 +1,37 @@
+import "./syntax.kelft" as s;
+import "./parser.kelft" as parser;
+pub struct Module { id: string, file: string, full: string, source: string, tree: s::Node, imports: Map<string,string> }
+struct Loader { modules: Array<Module>, active: Array<string>, root: string }
+fn visit(inout loader: Loader, path: string) -> i32 {
+    let full: string = canonical_path(path); let file: string = path_relative(loader.root, full);
+    let location: s::Span = s::span(file, 0, 0);
+    if file == ".." || s::starts(file, "../") || s::has(file, ":") { s::error("K0211", "module outside project root", location); }
+    if string_len(full) < 6 || string_find(full,".kelft",string_len(full)-6)!=string_len(full)-6 { s::error("K0211", "source must use .kelft", location); }
+    for active in loader.active { if active == full { s::error("K0212", "cyclic import", location); } }
+    let mut j: i32 = 0; for module in loader.modules { if module.full == full { return j; } j = j + 1; }
+    let mut source: string = "";
+    match read_file(full) {
+        Result::Ok(bytes) => { match utf8_decode(bytes) { Result::Ok(value)=>{source=value;},Result::Error(message)=>{s::error("K0005","source is not valid UTF-8",location);} } },
+        Result::Error(message) => { s::error("K0211", "cannot read module: " + message, location); }
+    }
+    let index: i32 = array_len::<Module>(loader.modules);
+    let tree: s::Node = parser::parse(source, file);
+    let module: Module = Module { id: "m" + i32_to_string(index), file: file, full: full, source: source, tree: tree, imports: map_new::<string,string>() };
+    array_push::<Module>(inout loader.modules, module); array_push::<string>(inout loader.active, full);
+    for declaration in tree.children {
+        if declaration.kind == "import" {
+            match map_get::<string,string>(loader.modules[index].imports, declaration.text) {
+                Option::Some(value) => { s::error("K0201", "duplicate import alias", declaration.span); }, Option::None => {}
+            }
+            if !s::starts(declaration.ty, ".") { s::error("K0211", "imports must be relative", declaration.span); }
+            let child: i32 = visit(inout loader, resolve_path(path_dirname(full), declaration.ty));
+            let child_id: string = loader.modules[child].id;
+            map_set::<string,string>(inout loader.modules[index].imports, declaration.text, child_id);
+        }
+    }
+    array_pop::<string>(inout loader.active); return index;
+}
+pub fn load(entry: string, root: string) -> Array<Module> {
+    let mut loader: Loader = Loader { modules: [], active: [], root: canonical_path(root) };
+    visit(inout loader, resolve_path(current_dir(), entry)); return loader.modules;
+}

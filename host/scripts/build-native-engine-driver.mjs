@@ -1,0 +1,14 @@
+// Compile the optional engine handoff with the measured native compiler, source only.
+import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {spawnSync} from 'node:child_process';
+import {hash,writeJson,treeFiles,safePath} from './ai/common.mjs';
+export const engineMaximum={execute:true,read:['/control','/lib','/lib64','/out','/project','/usr/lib'],write:['/out','/project']};
+export function buildNativeEngineDriver({bundle,directory}){
+ const root=path.join(bundle,'rootfs'),source=path.join(root,'source');assert.ok(fs.existsSync(path.join(source,'selfhost/native-installed-engine.kelft')),'source-only engine entry missing from compiler bundle');
+ const output=path.join(directory,'engine-driver-build');fs.mkdirSync(output);const executionRoot=path.join(output,'rootfs');fs.cpSync(root,executionRoot,{recursive:true});for(const name of ['project','out','proc','dev'])fs.mkdirSync(path.join(executionRoot,name),{recursive:true});const control=path.join(output,'control');fs.mkdirSync(control);
+ for(const name of ['maximum.json','toolchain.json'])fs.copyFileSync(path.join(root,'control',name),path.join(control,name));writeJson(path.join(control,'engine-maximum.json'),engineMaximum);
+ const before=Object.fromEntries(treeFiles(source).map(name=>[name,hash(fs.readFileSync(safePath(source,name)))]));
+ const args=['--unshare-user','--unshare-pid','--unshare-net','--unshare-ipc','--unshare-uts','--die-with-parent','--new-session','--ro-bind',executionRoot,'/','--ro-bind',source,'/project','--ro-bind',control,'/control','--bind',output,'/out','--proc','/proc','--dev','/dev','--chdir','/project','--clearenv','--setenv','KELFT_CAPABILITIES',fs.readFileSync(path.join(root,'control/maximum.json'),'utf8'),'--','/compiler','native-build','/project/selfhost/native-installed-engine.kelft','--project-root','/project','--toolchain','/control/toolchain.json','--capabilities','/control/engine-maximum.json','-o','/out/engine-driver'];
+ const r=spawnSync('/usr/bin/bwrap',args,{encoding:'utf8',timeout:600000,maxBuffer:17000000});fs.writeFileSync(path.join(output,'build.log'),(r.stdout??'')+(r.stderr??''));assert.equal(r.status,0,r.stderr||r.error?.message);const report=JSON.parse(r.stdout),file=path.join(output,'engine-driver');assert.equal(report.executableHash,hash(fs.readFileSync(file)));
+ assert.deepEqual(Object.fromEntries(treeFiles(source).map(name=>[name,hash(fs.readFileSync(safePath(source,name)))])),before);
+ const result={file,maximum:engineMaximum,executableSHA256:hash(fs.readFileSync(file)),compilerSHA256:hash(fs.readFileSync(path.join(root,'compiler'))),sourceHash:hash(before),sourceOnlyNamespace:true,PythonCompilerRuntimeUsed:false,NodeCompilerRuntimeUsed:false,productionClosureVerified:false,releaseEligible:false};writeJson(path.join(output,'report.json'),result);return result;
+}

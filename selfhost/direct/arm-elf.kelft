@@ -1,0 +1,56 @@
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./arm64.kelft" as a;
+import "./elf.kelft" as base;
+
+struct Symbol {name:string,kind:i32,section:i32,offset:i32,size:i32}
+struct Section {name:string,kind:i32,flags:i32,align:i32,bytes:Bytes,link:i32,info:i32,entry:i32}
+fn section(name:string,kind:i32,flags:i32,align:i32,bytes:Bytes,link:i32,info:i32,entry:i32)->Section {return Section {name:name,kind:kind,flags:flags,align:align,bytes:bytes,link:link,info:info,entry:entry};}
+fn advance(inout out:Bytes,n:i32)->void {if n<0 {b::error("invalid unwind order");}if n<=63 {array_push::<u8>(inout out,u8_from_i32(64+n));}else {array_push::<u8>(inout out,4);b::word(inout out,n);}}
+fn at_word(bytes:Bytes,index:i32)->i32 {if index<0||index>array_len::<u8>(bytes)-4 {b::error("invalid ARM64 word offset");}return i32_from_u8(bytes[index])|(i32_from_u8(bytes[index+1])<<8)|(i32_from_u8(bytes[index+2])<<16)|(i32_from_u8(bytes[index+3])<<24);}
+fn frame(f:a::Code)->void {if !f.unwind||f.frame_size<32||f.frame_size>40000||f.frame_size%16!=0||array_len::<u8>(f.bytes)<12||array_len::<u8>(f.bytes)%4!=0||at_word(f.bytes,0)!=-1447068675||at_word(f.bytes,4)!=-1862269955||at_word(f.bytes,8)!=-788528129+(f.frame_size%4096)*1024 {b::error("invalid ARM64 frame/unwind contract");}if f.frame_size>=4096&&at_word(f.bytes,12)!=-784333825+(f.frame_size/4096)*1024 {b::error("invalid ARM64 large frame");}}
+fn unwind(functions:Array<a::Code>)->a::Code {
+ let mut out:Bytes=[];let mut relocs:Array<x::Relocation>=[];if array_len::<a::Code>(functions)>0 {
+ b::word(inout out,0);b::word(inout out,0);b::append(inout out,[1,122,82,0,1,120,30,1,27,12,31,0,8,30]);b::align(inout out,4);let cie_size:i32=array_len::<u8>(out)-4;b::patch(inout out,0,cie_size);
+ for f in functions {let start:i32=array_len::<u8>(out);b::word(inout out,0);b::word(inout out,start+4);array_push::<x::Relocation>(inout relocs,x::Relocation {offset:array_len::<u8>(out),symbol:f.name,kind:"prel32",addend:0});b::word(inout out,0);b::word(inout out,array_len::<u8>(f.bytes));array_push::<u8>(inout out,0);b::append(inout out,[68,14,16,157,2,158,1,68,13,29]);let mut previous:i32=8;
+ for pc in f.returns {if pc<previous||pc%4!=0||pc>array_len::<u8>(f.bytes)-4||at_word(f.bytes,pc)!=-698416192||at_word(f.bytes,pc-4)!=-1463714819||at_word(f.bytes,pc-8)!=-1862270017 {b::error("invalid ARM64 unwind return");}advance(inout out,pc-previous);b::append(inout out,[10,12,31,0,221,222,68,11]);previous=pc+4;}b::align(inout out,4);let fde_size:i32=array_len::<u8>(out)-start-4;b::patch(inout out,start,fde_size);
+ }b::word(inout out,0);}
+ return a::Code {name:"eh_frame",bytes:out,relocations:relocs,frame_size:0,unwind:false,returns:[]};
+}
+fn append_relocations(inout out:Bytes,values:Array<x::Relocation>,ids:Map<string,i32>,text_offsets:Map<string,i32>,section_relative:bool,base:i32)->void {
+ let mut sorted:Array<x::Relocation>=values;let mut i:i32=1;while i<array_len::<x::Relocation>(sorted) {let mut j:i32=i;while j>0&&sorted[j-1].offset>sorted[j].offset {let old:x::Relocation=sorted[j-1];sorted[j-1]=sorted[j];sorted[j]=old;j=j-1;}i=i+1;}
+ for r in sorted {b::wide(inout out,r.offset+base);let mut tag:i32=0;if r.kind=="call26" {tag=283;}else if r.kind=="page21" {tag=275;}else if r.kind=="pageoff12" {tag=277;}else if r.kind=="prel32" {tag=261;}else {b::error("unsupported ARM64 ELF relocation");}b::word(inout out,tag);let mut id:i32=b::get(ids,r.symbol);let mut addend:i32=r.addend;if section_relative {id=1;let offset:i32=b::get(text_offsets,r.symbol);if addend<0||offset>2147483647-addend {b::error("ELF code anchor overflow");}addend=addend+offset;}b::word(inout out,id);b::signed_wide(inout out,addend);}
+}
+fn relocation_bytes(values:Array<x::Relocation>,ids:Map<string,i32>,text_offsets:Map<string,i32>,section_relative:bool)->Bytes {let mut out:Bytes=[];append_relocations(inout out,values,ids,text_offsets,section_relative,0);return out;}
+fn ordered_code(values:Array<a::Code>)->Array<a::Code> {let mut names:Array<string>=[];for value in values {array_push::<string>(inout names,value.name);}let mut out:Array<a::Code>=[];for index in b::name_order(names) {array_push::<a::Code>(inout out,values[index]);}return out;}
+fn ordered_data(values:Array<base::Data>)->Array<base::Data> {let mut names:Array<string>=[];for value in values {array_push::<string>(inout names,value.name);}let mut out:Array<base::Data>=[];for index in b::name_order(names) {array_push::<base::Data>(inout out,values[index]);}return out;}
+fn ordered_symbols(values:Array<Symbol>)->Array<Symbol> {let mut names:Array<string>=[];for value in values {array_push::<string>(inout names,value.name);}let mut out:Array<Symbol>=[];for index in b::name_order(names) {array_push::<Symbol>(inout out,values[index]);}return out;}
+pub fn write(functions:Array<a::Code>,data:Array<base::Data>,imports:Array<string>,metadata:string)->Bytes {let mut owned:Array<a::Code>=functions;return consume(inout owned,data,imports,metadata);}
+pub fn consume(inout functions:Array<a::Code>,data:Array<base::Data>,imports:Array<string>,metadata:string)->Bytes {
+ if array_len::<a::Code>(functions)==0 {b::error("ARM64 ELF object requires code");}for f in functions {frame(f);}let mut code:Array<a::Code>=ordered_code(functions);functions=[];let constants:Array<base::Data>=ordered_data(data);let mut externals:Array<string>=imports;
+ let mut i:i32=1;while i<array_len::<string>(externals) {let mut j:i32=i;while j>0&&externals[j-1]>externals[j] {let old:string=externals[j-1];externals[j-1]=externals[j];externals[j]=old;j=j-1;}i=i+1;}
+ let mut names:Array<string>=[];for f in code {array_push::<string>(inout names,f.name);}for d in constants {array_push::<string>(inout names,d.name);}for name in externals {array_push::<string>(inout names,name);}
+ let mut seen:Map<string,i32>=map_new::<string,i32>();for name in names {if !b::symbol(name) {b::error("invalid ELF symbol");}match map_get::<string,i32>(seen,name) {Option::Some(value)=>{b::error("duplicate ELF symbol");},Option::None=>{}}map_set::<string,i32>(inout seen,name,1);}
+ let mut text_size:i32=0;let mut rodata:Bytes=[];let mut symbols:Array<Symbol>=[];let mut relocation_count:i32=0;let mut text_offsets:Map<string,i32>=map_new::<string,i32>();
+ for f in code {while text_size%16!=0 {text_size=text_size+1;}let offset:i32=text_size;map_set::<string,i32>(inout text_offsets,f.name,offset);array_push::<Symbol>(inout symbols,Symbol {name:f.name,kind:2,section:1,offset:offset,size:array_len::<u8>(f.bytes)});text_size=text_size+array_len::<u8>(f.bytes);let mut n:i32=0;let mut previous_end:i32=-1;let mut ordered:bool=true;for r in f.relocations {if r.offset<0||r.offset%4!=0||r.offset>array_len::<u8>(f.bytes)-4 {b::error("invalid ELF relocation offset");}if r.offset<previous_end {ordered=false;}let mut j:i32=0;while !ordered&&j<n {let previous:x::Relocation=f.relocations[j];if r.offset<previous.offset+4&&previous.offset<r.offset+4 {b::error("overlapping ELF relocations");}j=j+1;}relocation_count=relocation_count+1;previous_end=r.offset+4;n=n+1;}}
+ for d in constants {b::align(inout rodata,8);array_push::<Symbol>(inout symbols,Symbol {name:d.name,kind:1,section:2,offset:array_len::<u8>(rodata),size:array_len::<u8>(d.bytes)});b::append(inout rodata,d.bytes);}
+ for name in externals {array_push::<Symbol>(inout symbols,Symbol {name:name,kind:0,section:0,offset:0,size:0});}
+ symbols=ordered_symbols(symbols);
+ let mut strtab:Bytes=[0];let mut symtab:Bytes=b::zeros(24);b::word(inout symtab,0);b::append(inout symtab,[3,0]);b::half(inout symtab,1);b::wide(inout symtab,0);b::wide(inout symtab,0);let mut ids:Map<string,i32>=map_new::<string,i32>();i=0;
+ for symbol in symbols {map_set::<string,i32>(inout ids,symbol.name,i+2);b::word(inout symtab,array_len::<u8>(strtab));b::append(inout strtab,string_to_bytes(symbol.name));array_push::<u8>(inout strtab,0);array_push::<u8>(inout symtab,u8_from_i32(16|symbol.kind));array_push::<u8>(inout symtab,0);b::half(inout symtab,symbol.section);b::wide(inout symtab,symbol.offset);b::wide(inout symtab,symbol.size);i=i+1;}
+ let eh:a::Code=unwind(code);
+ let mut sections:Array<Section>=[section("",0,0,0,[],0,0,0),section(".text",1,6,16,[],0,0,0),section(".rodata",1,2,8,rodata,0,0,0),section(".kelft.native",1,2,1,string_to_bytes(metadata),0,0,0),section(".eh_frame",1,2,8,eh.bytes,0,0,0),section(".rela.text",4,0,8,[],7,1,24),section(".rela.eh_frame",4,0,8,relocation_bytes(eh.relocations,ids,text_offsets,true),7,4,24),section(".symtab",2,0,8,symtab,8,2,24),section(".strtab",3,0,1,strtab,0,0,0),section(".shstrtab",3,0,1,[],0,0,0),section(".note.GNU-stack",1,0,1,[],0,0,0)];
+ let mut shstrtab:Bytes=[0];let mut name_ids:Array<i32>=[];for sec in sections {let mut id:i32=0;if sec.name!="" {id=array_len::<u8>(shstrtab);b::append(inout shstrtab,string_to_bytes(sec.name));array_push::<u8>(inout shstrtab,0);}array_push::<i32>(inout name_ids,id);}sections[9].bytes=shstrtab;
+ // Emit large sections directly into the final byte array. No flattened
+ // .text copy or duplicated whole-program relocation graph stays live.
+ let mut sizes:Array<i32>=[];for sec in sections {array_push::<i32>(inout sizes,array_len::<u8>(sec.bytes));}sizes[1]=text_size;sizes[5]=relocation_count*24;
+ let mut out:Bytes=b::zeros(64);let mut offsets:Array<i32>=[];i=0;for sec in sections {
+  if sec.kind==0 {array_push::<i32>(inout offsets,0);i=i+1;continue;}
+  b::align(inout out,sec.align);array_push::<i32>(inout offsets,array_len::<u8>(out));
+  if i==1 {let mut at:i32=0;while at<array_len::<a::Code>(code) {let f:a::Code=code[at];b::align(inout out,16);b::append(inout out,f.bytes);code[at]=a::Code {name:f.name,bytes:[],relocations:f.relocations,frame_size:f.frame_size,unwind:false,returns:[]};at=at+1;}}
+  else if i==5 {let mut at:i32=0;while at<array_len::<a::Code>(code) {let f:a::Code=code[at];append_relocations(inout out,f.relocations,ids,text_offsets,false,b::get(text_offsets,f.name));code[at]=a::Code {name:f.name,bytes:[],relocations:[],frame_size:f.frame_size,unwind:false,returns:[]};at=at+1;}code=[];}
+  else {b::append(inout out,sec.bytes);}i=i+1;
+ }b::align(inout out,8);let headers:i32=array_len::<u8>(out);i=0;
+ for sec in sections {b::word(inout out,name_ids[i]);b::word(inout out,sec.kind);b::wide(inout out,sec.flags);b::wide(inout out,0);b::wide(inout out,offsets[i]);b::wide(inout out,sizes[i]);b::word(inout out,sec.link);b::word(inout out,sec.info);b::wide(inout out,sec.align);b::wide(inout out,sec.entry);i=i+1;}
+ let mut header:Bytes=[127,69,76,70,2,1,1,0,0,0,0,0,0,0,0,0];b::half(inout header,1);b::half(inout header,183);b::word(inout header,1);b::wide(inout header,0);b::wide(inout header,0);b::wide(inout header,headers);b::word(inout header,0);b::half(inout header,64);b::half(inout header,0);b::half(inout header,0);b::half(inout header,64);b::half(inout header,array_len::<Section>(sections));b::half(inout header,9);i=0;while i<64 {out[i]=header[i];i=i+1;}return out;
+}

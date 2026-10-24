@@ -1,0 +1,57 @@
+// Development Windows object frontend; linking and execution supervision remain external.
+import "./modules.kelft" as modules;
+import "./semantic.kelft" as semantic;
+import "./core.kelft" as core;
+import "./intent_enforce.kelft" as intent_enforce;
+import "./intent_capabilities.kelft" as intent_capabilities;
+import "./direct/windows-arm-aggregate.kelft" as native;
+import "./direct/coff-arm.kelft" as coff;
+import "./json.kelft" as json;
+import "./syntax.kelft" as syntax;
+
+fn error(message:string)->void {eprint("error[K0403]: "+message+"\n");exit(1);}
+fn read(path:string)->string {
+ match read_text(path) {Result::Ok(value)=>{return value;},Result::Error(message)=>{error(message);}}
+ return "";
+}
+fn main()->void {command(args());}
+pub fn command(arguments:Array<string>)->void {
+ if array_len::<string>(arguments)==0||arguments[0]!="native-object" {error("expected native-object");}
+ if array_len::<string>(arguments)<2 {error("native-object requires an entry");}
+ let entry:string=arguments[1];let mut root:string=current_dir();let mut output:string="";
+ let mut maximum:string="{\"execute\":false,\"read\":[],\"write\":[]}";
+ let mut declarations:string="";let mut bindings:string="";let mut index:i32=2;
+ while index<array_len::<string>(arguments) {
+  let flag:string=arguments[index];
+  if flag!="-o"&&flag!="--project-root"&&flag!="--capabilities"&&flag!="--intent"&&flag!="--bindings" {error("unknown native-object option "+flag);}
+  index=index+1;if index>=array_len::<string>(arguments) {error("missing native-object option value: "+flag);}
+  let value:string=arguments[index];
+  if flag=="-o" {output=value;}else if flag=="--project-root" {root=value;}else if flag=="--capabilities" {maximum=json::canonical(json::parse(read(value)));}else if flag=="--intent" {declarations=value;}else {bindings=value;}
+  index=index+1;
+ }
+ if output=="" {error("native-object requires -o");}
+ // The emitted maximum is independent of the compiler's own host grant.
+ let bytes:Bytes=object(entry,root,declarations,bindings,maximum);
+ match create_dir(path_dirname(output)) {Result::Ok(value)=>{},Result::Error(message)=>{error(message);}}
+ match write_file(output,bytes) {Result::Ok(value)=>{},Result::Error(message)=>{error(message);}}
+}
+
+// Frontend trees and module sources expire before native IR construction.
+pub fn analyze(entry:string,root:string,declarations:string,bindings:string)->core::Program {
+ let mods:Array<modules::Module>=modules::load(entry,root);let mut program:core::Program=semantic::analyze(mods);
+ if declarations!="" {
+  let graph:json::Value=intent_enforce::source_graph(declarations,root,bindings);intent_capabilities::lower(graph);
+  program=intent_enforce::enforce(graph,program,mods,path_relative(canonical_path(root),canonical_path(declarations)));
+ }else if bindings!="" {syntax::error("K0713","implementation bindings require --intent",syntax::span(bindings,0,0));}
+ return program;
+}
+
+// Drop analyzed Core before building the final ELF sections/output buffer.
+fn build(entry:string,root:string,declarations:string,bindings:string,maximum:string)->native::Object {
+ let mut program:core::Program=analyze(entry,root,declarations,bindings);return native::consume_object(inout program,268435456,maximum);
+}
+
+// The encoded functions expire before a linking driver allocates its bundle.
+pub fn object(entry:string,root:string,declarations:string,bindings:string,maximum:string)->Bytes {let mut out:native::Object=build(entry,root,declarations,bindings,maximum);return native::write_object(inout out);}
+
+pub fn guest_object(entry:string,root:string,declarations:string,bindings:string,maximum:string)->Bytes {let mut program:core::Program=analyze(entry,root,declarations,bindings);let mut out:native::Object=native::consume_guest_object(inout program,268435456,maximum);return native::write_object(inout out);}

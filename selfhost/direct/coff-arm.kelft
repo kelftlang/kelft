@@ -1,0 +1,49 @@
+// Deterministic ARM64 COFF with Windows ARM64 unwind records.
+import "./binary.kelft" as b;
+import "./x86_64.kelft" as x;
+import "./windows-arm64.kelft" as w;
+import "./elf.kelft" as elf;
+struct Relocation {offset:i32,symbol:string,kind:i32}
+struct Symbol {name:string,offset:i32,section:i32,kind:i32,storage:i32}
+struct Section {name:string,bytes:Bytes,size:i32,relocations:Array<Relocation>,flags:i32}
+fn word_at(bytes:Bytes,at:i32)->i32 {if at<0||at>array_len::<u8>(bytes)-4 {b::error("invalid COFF ARM64 word");}return i32_from_u8(bytes[at])|(i32_from_u8(bytes[at+1])<<8)|(i32_from_u8(bytes[at+2])<<16)|(i32_from_u8(bytes[at+3])<<24);}
+fn unwind(f:w::Code)->Bytes {
+ let size:i32=f.frame_size;let length:i32=array_len::<u8>(f.bytes);if size<32||size>40000||size%16!=0||length<12||length%4!=0||length/4>262143||word_at(f.bytes,0)!= -1447068675||word_at(f.bytes,4)!= -1862269955 {b::error("invalid Windows ARM64 frame/unwind contract");}let mut previous:i32=-1;for at in f.returns {if at%4!=0||at<=previous||at<20||at>length-4||word_at(f.bytes,at)!= -698416192||word_at(f.bytes,at-4)!= -1463714819||word_at(f.bytes,at-8)!= -1862270017 {b::error("invalid Windows ARM64 epilogue");}previous=at;}
+ let single:bool=array_len::<i32>(f.returns)==1&&f.returns[0]==length-4;let mut count:i32=array_len::<i32>(f.returns);if single {count=0;}if count>65535 {b::error("Windows ARM64 epilogue count overflow");}let mut header:i32=length/4;if single {header=header+2097152;}if count<=31 {header=header+count*4194304+134217728;}let mut out:Bytes=[];b::word(inout out,header);if count>31 {b::word(inout out,count+65536);}if !single {for pc in f.returns {b::word(inout out,(pc-8)/4);}}b::append(inout out,[225,129,228,227]);return out;
+}
+fn check_name(inout names:Map<string,i32>,name:string)->void {if !b::symbol(name) {b::error("invalid COFF symbol");}match map_get::<string,i32>(names,name) {Option::Some(value)=>{b::error("duplicate COFF symbol");},Option::None=>{}}map_set::<string,i32>(inout names,name,1);}
+fn section(name:string,bytes:Bytes,relocs:Array<Relocation>,flags:i32)->Section {return Section {name:name,bytes:bytes,size:array_len::<u8>(bytes),relocations:relocs,flags:flags};}
+pub fn write(functions:Array<w::Code>,data:Array<elf::Data>,imports:Array<string>,metadata:string)->Bytes {let mut owned:Array<w::Code>=functions;return consume(inout owned,data,imports,metadata);}
+// The caller transfers the encoded functions; release each body after serialization.
+pub fn consume(inout functions:Array<w::Code>,data:Array<elf::Data>,imports:Array<string>,metadata:string)->Bytes {
+ if array_len::<w::Code>(functions)==0 {b::error("COFF object requires code");}
+ // Entry objects provide the PE load configuration without a C runtime.
+ let mut constants:Array<elf::Data>=data;let mut entry:bool=false;for f in functions {if f.name=="k_start" {entry=true;}}if entry {let mut config:Bytes=b::zeros(112);b::patch(inout config,0,112);config[79]=8;array_push::<elf::Data>(inout constants,elf::Data {name:"_load_config_used",bytes:config});}
+ let mut names:Map<string,i32>=map_new::<string,i32>();let mut code_names:Array<string>=[];let mut data_names:Array<string>=[];
+ for f in functions {check_name(inout names,f.name);array_push::<string>(inout code_names,f.name);}for d in constants {check_name(inout names,d.name);array_push::<string>(inout data_names,d.name);}for name in imports {check_name(inout names,name);}
+ // Emit .text directly into the final object instead of retaining a second full copy.
+ let mut out:Bytes=b::zeros(220);let text_start:i32=220;let mut rodata:Bytes=[];let mut xdata:Bytes=[];let mut pdata:Bytes=[];let mut text_relocs:Array<Relocation>=[];let mut pdata_relocs:Array<Relocation>=[];
+ let mut symbols:Array<Symbol>=[Symbol {name:".xdata",offset:0,section:3,kind:0,storage:3}];
+ for index in b::name_order(code_names) {let f:w::Code=functions[index];if array_len::<u8>(f.bytes)==0 {b::error("invalid COFF function bytes");}while (array_len::<u8>(out)-text_start)%16!=0 {array_push::<u8>(inout out,0);}let start:i32=array_len::<u8>(out)-text_start;b::append(inout out,f.bytes);array_push::<Symbol>(inout symbols,Symbol {name:f.name,offset:start,section:1,kind:32,storage:2});
+  let mut ordered:Array<x::Relocation>=f.relocations;let mut n:i32=1;while n<array_len::<x::Relocation>(ordered) {let mut j:i32=n;while j>0&&ordered[j-1].offset>ordered[j].offset {let old:x::Relocation=ordered[j-1];ordered[j-1]=ordered[j];ordered[j]=old;j=j-1;}n=n+1;}
+  let mut end:i32=-1;for r in ordered {if r.offset<0||r.offset%4!=0||r.offset>array_len::<u8>(f.bytes)-4||r.offset<end||r.addend!=0 {b::error("invalid Windows ARM64 relocation/addend");}end=r.offset+4;let mut kind:i32=0;if r.kind=="call26" {kind=3;}else if r.kind=="page21" {kind=4;}else if r.kind=="pageoff12" {kind=6;}else {b::error("unsupported Windows ARM64 relocation");}array_push::<Relocation>(inout text_relocs,Relocation {offset:start+r.offset,symbol:r.symbol,kind:kind});}
+  b::align(inout xdata,4);let at:i32=array_len::<u8>(xdata);b::append(inout xdata,unwind(f));let p:i32=array_len::<u8>(pdata);b::word(inout pdata,0);b::word(inout pdata,at);
+  array_push::<Relocation>(inout pdata_relocs,Relocation {offset:p,symbol:f.name,kind:2});array_push::<Relocation>(inout pdata_relocs,Relocation {offset:p+4,symbol:".xdata",kind:2});
+  functions[index]=w::Code {name:f.name,bytes:[],relocations:[],frame_size:f.frame_size,returns:[]};
+ }
+ functions=[];
+ let text_size:i32=array_len::<u8>(out)-text_start;
+ for index in b::name_order(data_names) {let d:elf::Data=constants[index];b::align(inout rodata,8);array_push::<Symbol>(inout symbols,Symbol {name:d.name,offset:array_len::<u8>(rodata),section:2,kind:0,storage:2});b::append(inout rodata,d.bytes);}
+ for name in imports {array_push::<Symbol>(inout symbols,Symbol {name:name,offset:0,section:0,kind:0,storage:2});}
+ let mut symbol_names:Array<string>=[];for s in symbols {array_push::<string>(inout symbol_names,s.name);}let mut ids:Map<string,i32>=map_new::<string,i32>();let mut strings:Bytes=[0,0,0,0];let mut table:Bytes=[];let mut id:i32=0;
+ for index in b::name_order(symbol_names) {let s:Symbol=symbols[index];map_set::<string,i32>(inout ids,s.name,id);id=id+1;if string_len(s.name)<=8 {b::append(inout table,string_to_bytes(s.name));b::append(inout table,b::zeros(8-string_len(s.name)));}else {b::word(inout table,0);b::word(inout table,array_len::<u8>(strings));b::append(inout strings,string_to_bytes(s.name));array_push::<u8>(inout strings,0);}b::word(inout table,s.offset);b::half(inout table,s.section);b::half(inout table,s.kind);b::append(inout table,[u8_from_i32(s.storage),0]);}
+ let string_size:i32=array_len::<u8>(strings);b::patch(inout strings,0,string_size);
+ let mut sections:Array<Section>=[section(".text",[],text_relocs,1615855648),section(".rdata",rodata,[],1077936192),section(".xdata",xdata,[],1076887616),section(".pdata",pdata,pdata_relocs,1076887616),section(".kelft$M",string_to_bytes(metadata),[],1074790464)];
+ sections[0].size=text_size;let mut raw_offsets:Array<i32>=[];let mut reloc_offsets:Array<i32>=[];
+ for s in sections {if s.name==".text" {array_push::<i32>(inout raw_offsets,text_start);}else {b::align(inout out,4);let mut offset:i32=0;if s.size>0 {offset=array_len::<u8>(out);}array_push::<i32>(inout raw_offsets,offset);b::append(inout out,s.bytes);}}
+ for s in sections {let count:i32=array_len::<Relocation>(s.relocations);if count==0 {array_push::<i32>(inout reloc_offsets,0);continue;}b::align(inout out,4);array_push::<i32>(inout reloc_offsets,array_len::<u8>(out));if count>65535 {b::word(inout out,count+1);b::word(inout out,0);b::half(inout out,0);}for r in s.relocations {b::word(inout out,r.offset);b::word(inout out,b::get(ids,r.symbol));b::half(inout out,r.kind);}}
+ b::align(inout out,4);let symbol_offset:i32=array_len::<u8>(out);b::append(inout out,table);b::append(inout out,strings);
+ let mut header:Bytes=[];b::half(inout header,43620);b::half(inout header,5);b::word(inout header,0);b::word(inout header,symbol_offset);b::word(inout header,array_len::<Symbol>(symbols));b::half(inout header,0);b::half(inout header,0);let mut index:i32=0;
+ for s in sections {b::append(inout header,string_to_bytes(s.name));b::append(inout header,b::zeros(8-string_len(s.name)));b::word(inout header,0);b::word(inout header,0);b::word(inout header,s.size);b::word(inout header,raw_offsets[index]);b::word(inout header,reloc_offsets[index]);b::word(inout header,0);let mut count:i32=array_len::<Relocation>(s.relocations);let mut flags:i32=s.flags;if count>65535 {count=65535;flags=flags|16777216;}b::half(inout header,count);b::half(inout header,0);b::word(inout header,flags);index=index+1;}
+ index=0;while index<220 {out[index]=header[index];index=index+1;}return out;
+}

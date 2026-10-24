@@ -1,0 +1,1 @@
+fn main()->void {let b:Bytes=[255];println(bytes_to_string(b));}

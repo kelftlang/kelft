@@ -1,0 +1,29 @@
+// Private batching for an exact, pure byte-append loop; never a public intrinsic.
+import "../core.kelft" as c;
+import "./builder.kelft" as g;
+import "./ir.kelft" as ir;
+pub fn target(n:c::Node)->Option<c::Node> {
+ if n.op!="for"||array_len::<c::Node>(n.args)!=3 {return Option::<c::Node>::None();}
+ let binding:c::Node=n.args[0];let source:c::Node=n.args[1];let body:c::Node=n.args[2];
+ if binding.op!="pattern"||binding.ty!="u8"||binding.name=="_"||binding.name=="true"||binding.name=="false"||array_len::<c::Node>(binding.args)!=0||source.ty!="Array<u8>"||body.op!="block"||array_len::<c::Node>(body.args)!=1 {return Option::<c::Node>::None();}
+ let statement:c::Node=body.args[0];if statement.op!="evaluate"||array_len::<c::Node>(statement.args)!=1 {return Option::<c::Node>::None();}
+ let push:c::Node=statement.args[0];if push.op!="intrinsic"||push.name!="array_push"||push.ty!="void"||array_len::<c::Node>(push.args)!=2 {return Option::<c::Node>::None();}
+ let destination:c::Node=push.args[0];let item:c::Node=push.args[1];
+ if destination.op!="location"||destination.ty!="Array<u8>"||array_len::<c::Node>(destination.args)!=1 {return Option::<c::Node>::None();}
+ let place:c::Node=destination.args[0];if place.op!="local"||array_len::<c::Node>(place.args)!=0||item.op!="local"||item.ty!="u8"||item.name!=binding.name||array_len::<c::Node>(item.args)!=0 {return Option::<c::Node>::None();}
+ return Option::<c::Node>::Some(destination);
+}
+pub fn function()->ir::Function {
+ let mut b:g::Builder=g::builder("k_u8_append",["ptr","ptr"],0,"void");let cell:i32=g::argument(inout b,0);let source:i32=g::argument(inout b,1);let payload:i32=g::load(inout b,source,8,"i32");let shift:i32=g::call(inout b,"k_array_shift",[source],"i32",[]);let size:i32=g::binary(inout b,"shr_u",payload,shift);let index:i32=g::c(inout b,0);
+ let test:string=g::label(inout b);let body:string=g::label(inout b);let bulk:string=g::label(inout b);let fallback:string=g::label(inout b);let done:string=g::label(inout b);g::jump(inout b,test);
+ g::begin(inout b,test);let pending:i32=g::binary(inout b,"lt_s",index,size);g::branch(inout b,pending,body,done);g::begin(inout b,body);
+ let array:i32=g::load(inout b,cell,0,"ptr");let marker:i32=g::load(inout b,array,36,"i32");let length:i32=g::load(inout b,array,8,"i32");let mask:i32=g::c(inout b,-1);let capacity:i32=g::binary(inout b,"xor",marker,mask);
+ let source_marker:i32=g::load(inout b,source,36,"i32");let source_zero:i32=g::c(inout b,0);let source_packed:i32=g::binary(inout b,"lt_s",source_marker,source_zero);let target_zero:i32=g::c(inout b,0);let target_packed:i32=g::binary(inout b,"lt_s",marker,target_zero);let packed:i32=g::binary(inout b,"and",source_packed,target_packed);
+ let references:i32=g::load(inout b,array,0,"i32");let one:i32=g::c(inout b,1);let unique:i32=g::binary(inout b,"eq",references,one);let same:i32=g::equal(inout b,source,array);let different:i32=g::c(inout b,0);let disjoint:i32=g::binary(inout b,"eq",same,different);let zero:i32=g::c(inout b,0);let nonnegative:i32=g::binary(inout b,"ge_s",length,zero);let fits:i32=g::binary(inout b,"lt_s",length,capacity);let maximum:i32=g::c(inout b,268435400);let bounded:i32=g::binary(inout b,"lt_s",length,maximum);
+ let space:i32=g::binary(inout b,"and",fits,bounded);let valid_length:i32=g::binary(inout b,"and",nonnegative,space);let valid_copy:i32=g::binary(inout b,"and",disjoint,valid_length);let valid_owner:i32=g::binary(inout b,"and",unique,valid_copy);let valid:i32=g::binary(inout b,"and",packed,valid_owner);g::branch(inout b,valid,bulk,fallback);
+ g::begin(inout b,bulk);let count:i32=g::binary(inout b,"sub",size,index);let room:i32=g::binary(inout b,"sub",capacity,length);let limit:i32=g::c(inout b,268435400);let ceiling:i32=g::binary(inout b,"sub",limit,length);
+ let clip_room:string=g::label(inout b);let check_ceiling:string=g::label(inout b);let clip_ceiling:string=g::label(inout b);let copy:string=g::label(inout b);let exceeds_room:i32=g::binary(inout b,"gt_s",count,room);g::branch(inout b,exceeds_room,clip_room,check_ceiling);g::begin(inout b,clip_room);g::assign(inout b,count,room);g::jump(inout b,check_ceiling);g::begin(inout b,check_ceiling);let exceeds_ceiling:i32=g::binary(inout b,"gt_s",count,ceiling);g::branch(inout b,exceeds_ceiling,clip_ceiling,copy);g::begin(inout b,clip_ceiling);g::assign(inout b,count,ceiling);g::jump(inout b,copy);g::begin(inout b,copy);
+ let source_header:i32=g::c(inout b,40);let source_offset:i32=g::binary(inout b,"add",source_header,index);let from:i32=g::pointer(inout b,source,source_offset);let target_header:i32=g::c(inout b,40);let target_offset:i32=g::binary(inout b,"add",target_header,length);let to:i32=g::pointer(inout b,array,target_offset);g::call(inout b,"k_copy_fresh",[from,to,count],"void",[]);let new_length:i32=g::binary(inout b,"add",length,count);g::store(inout b,array,8,new_length);let next:i32=g::binary(inout b,"add",index,count);g::assign(inout b,index,next);g::jump(inout b,test);
+ g::begin(inout b,fallback);let item:i32=g::call(inout b,"k_array_at",[source,index],"ptr",[]);g::call(inout b,"k_array_push",[cell,item],"void",[]);let advance:i32=g::c(inout b,1);let following:i32=g::binary(inout b,"add",index,advance);g::assign(inout b,index,following);g::jump(inout b,test);
+ g::begin(inout b,done);g::ret(inout b,-1);return g::finish(b);
+}

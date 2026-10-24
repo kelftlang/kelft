@@ -1,0 +1,2 @@
+import "../../selfhost/hash.kelft" as hash;
+fn main() -> void { println(hash::sha256("")); println(hash::sha256("abc")); println(hash::sha256("é😀")); }

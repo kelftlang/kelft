@@ -1,0 +1,12 @@
+import "../../selfhost/json.kelft" as j;
+import "./data.kelft" as d;
+pub fn node(tag:string,classes:string,id:string,children:Array<j::Value>)->j::Value {let mut value:j::Value=d::object();value=j::set(value,"tag",j::Value::Text(tag));let mut attributes:j::Value=d::object();if classes!="" {attributes=j::set(attributes,"class",j::Value::Text(classes));}if id!="" {attributes=j::set(attributes,"id",j::Value::Text(id));}value=j::set(value,"attributes",attributes);return j::set(value,"children",j::Value::Array(children));}
+pub fn text(value:string)->j::Value {return j::Value::Text(value);}
+pub fn event(value:j::Value,name:string,kind:string,data:j::Value)->j::Value {let mut action:j::Value=d::object();action=j::set(action,"type",j::Value::Text(kind));action=j::set(action,"data",data);return j::set(value,"events",j::set(j::field(value,"events"),name,action));}
+pub fn attr(value:j::Value,name:string,item:j::Value)->j::Value {return j::set(value,"attributes",j::set(j::field(value,"attributes"),name,item));}
+pub fn button(id:string,label:string,action:string,data:j::Value,classes:string)->j::Value {let value:j::Value=attr(node("button","button "+classes,id,[text(label)]),"type",text("button"));return event(value,"click",action,data);}
+pub fn disabled(value:j::Value,disabled:bool)->j::Value {return attr(value,"disabled",j::Value::Bool(disabled));}
+pub fn field(id:string,label:string,value:string,kind:string,key:string)->j::Value {let mut editor:j::Value=node("input","field",id,[]);editor=attr(editor,"type",text(kind));editor=attr(editor,"value",text(value));editor=attr(editor,"autocomplete",text("off"));editor=attr(editor,"aria-label",text(label));editor=event(editor,"input","ui.field",text(key));let label_node:j::Value=attr(node("label","field-label","",[text(label),editor]),"for",text(id));return label_node;}
+pub fn option(value:string,label:string,selected:bool)->j::Value {return attr(attr(node("option","","",[text(label)]),"value",text(value)),"selected",j::Value::Bool(selected));}
+pub fn select(id:string,label:string,value:string,options:Array<j::Value>,action:string,data:j::Value)->j::Value {let mut element:j::Value=node("select","field",id,options);element=attr(element,"value",text(value));element=attr(element,"aria-label",text(label));return event(element,"change",action,data);}
+pub fn paragraph(id:string,value:string,classes:string)->j::Value {return node("p",classes,id,[text(value)]);}

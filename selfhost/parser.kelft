@@ -1,0 +1,213 @@
+import "./syntax.kelft" as s;
+import "./lexer.kelft" as lexer;
+pub struct Parser { tokens: Array<s::Token>, index: i32, depth: i32 }
+fn enter(inout p:Parser)->void {p.depth=p.depth+1;if p.depth>256 {s::error("K0102","parser nesting limit exceeded",peek(p).span);}}
+fn leave(inout p:Parser)->void {p.depth=p.depth-1;}
+fn peek(p: Parser) -> s::Token { return p.tokens[p.index]; }
+fn at(p: Parser, text: string) -> bool { let t: s::Token = peek(p); return t.kind != "string" && t.kind != "int" && t.text == text; }
+fn take(inout p: Parser) -> s::Token { let t: s::Token = peek(p); if t.kind != "eof" { p.index = p.index + 1; } return t; }
+fn eat(inout p: Parser, text: string) -> bool { if !at(p, text) { return false; } take(inout p); return true; }
+fn need(inout p: Parser, text: string) -> s::Token { if !at(p, text) { s::error("K0101", "expected " + text, peek(p).span); } return take(inout p); }
+fn ident(inout p: Parser) -> s::Token {
+    let keywords:Array<string>=["fn","let","mut","struct","enum","match","if","else","while","for","in","return","break","continue","pub","import","as","type","inout","true","false"];
+    let t:s::Token=peek(p);let mut reserved:bool=false;for word in keywords {if t.text==word {reserved=true;}}
+    if t.kind != "id" || reserved { s::error("K0101", "expected identifier", t.span); } return take(inout p);
+}
+fn end(p: Parser, location: s::Span) -> s::Span { let mut index: i32 = p.index - 1; if index < 0 { index = 0; } return s::span(location.file, location.start, p.tokens[index].span.end); }
+fn close_type(inout p: Parser) -> void {
+    if at(p, ">>") || at(p, ">>>") || at(p, ">=") {
+        let t: s::Token = peek(p);
+        p.tokens[p.index] = s::Token { kind: "symbol", text: s::slice(t.text, 1, string_len(t.text)), span: s::span(t.span.file, t.span.start + 1, t.span.end) };
+        return;
+    }
+    need(inout p, ">");
+}
+fn generics(inout p: Parser) -> Array<s::Node> {
+    let mut out: Array<s::Node> = [];
+    if eat(inout p, "<") {
+        let mut more: bool = true;
+        while more { let t: s::Token = ident(inout p); array_push::<s::Node>(inout out, s::make("generic", t.text, "", [], t.span, false)); more = eat(inout p, ","); }
+        close_type(inout p);
+    }
+    return out;
+}
+fn power(op: string) -> i32 {
+    if op == "||" { return 1; } if op == "&&" { return 2; } if op == "|" { return 3; } if op == "^" { return 4; } if op == "&" { return 5; }
+    if op == "==" || op == "!=" { return 6; } if op == "<" || op == "<=" || op == ">" || op == ">=" { return 7; }
+    if op == "<<" || op == ">>" || op == ">>>" { return 8; } if op == "+" || op == "-" { return 9; }
+    if op == "*" || op == "/" || op == "%" { return 10; } return -1;
+}
+// Grammar continuations are values. Only the driver calls a step; steps never
+// call the driver. A suspended parent is advanced before its child is pushed.
+struct Frame {kind:string,step:i32,start:s::Span,minimum:i32,allow_struct:bool,text:string,ty:string,flag:bool,children:Array<s::Node>,left:s::Node,field:s::Token}
+struct Machine {parser:Parser,pending:Array<Frame>,value:s::Node}
+fn frame(kind:string,p:Parser,minimum:i32,allow_struct:bool)->Frame {let location:s::Span=peek(p).span;return Frame {kind:kind,step:0,start:location,minimum:minimum,allow_struct:allow_struct,text:"",ty:"",flag:false,children:[],left:s::make("","","",[],location,false),field:peek(p)};}
+fn push(inout m:Machine,f:Frame)->void {array_push::<Frame>(inout m.pending,f);}
+fn wait(inout m:Machine,f:Frame,kind:string,minimum:i32,allow_struct:bool)->void {push(inout m,f);let child:Frame=frame(kind,m.parser,minimum,allow_struct);push(inout m,child);}
+fn finish(inout m:Machine,f:Frame,kind:string)->void {m.value=s::make(kind,f.text,f.ty,f.children,end(m.parser,f.start),f.flag);}
+fn type_values(nodes:Array<s::Node>,separator:string)->string {let mut values:Array<string>=[];for n in nodes {array_push::<string>(inout values,n.ty);}return s::join(values,separator);}
+fn type_step(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if f.kind=="types" {
+  if f.step==0 {need(inout m.parser,"<");f.step=1;wait(inout m,f,"type",0,true);return;}
+  array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,",") {wait(inout m,f,"type",0,true);return;}close_type(inout m.parser);finish(inout m,f,"types");return;
+ }
+ if f.step==0 {
+  enter(inout m.parser);
+  if eat(inout m.parser,"(") {f.flag=true;f.step=1;if !at(m.parser,")") {wait(inout m,f,"type",0,true);return;}}
+  else {f.text=ident(inout m.parser).text;while eat(inout m.parser,"::") {f.text=f.text+"::"+ident(inout m.parser).text;}if at(m.parser,"<") {f.step=2;wait(inout m,f,"types",0,true);return;}f.ty=f.text;leave(inout m.parser);finish(inout m,f,"type");return;}
+ }else if f.step==2 {f.ty=f.text+"<"+type_values(m.value.children,",")+">";leave(inout m.parser);finish(inout m,f,"type");return;}
+ else {array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,",")&&!at(m.parser,")") {wait(inout m,f,"type",0,true);return;}}
+ need(inout m.parser,")");f.ty="("+type_values(f.children,",")+")";f.children=[];leave(inout m.parser);finish(inout m,f,"type");
+}
+fn pattern_step(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if f.step==0 {
+  enter(inout m.parser);
+  if eat(inout m.parser,"(") {f.text="";f.ty="tuple_pattern";f.flag=true;}
+  else {
+   if at(m.parser,"true")||at(m.parser,"false") {let t:s::Token=take(inout m.parser);leave(inout m.parser);m.value=s::make("pattern",t.text,"",[],t.span,false);return;}
+   f.text=ident(inout m.parser).text;while eat(inout m.parser,"::") {f.text=f.text+"::"+ident(inout m.parser).text;}
+   f.flag=eat(inout m.parser,"(");f.ty="pattern";if f.flag||s::has(f.text,"::") {f.ty="variant_pattern";}
+  }
+  if f.flag&&!at(m.parser,")") {f.step=1;wait(inout m,f,"pattern",0,true);return;}
+ }else {array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,",") {wait(inout m,f,"pattern",0,true);return;}}
+ if f.flag {need(inout m.parser,")");}let kind:string=f.ty;f.ty="";f.flag=false;leave(inout m.parser);finish(inout m,f,kind);
+}
+fn block_step(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if f.step==0 {enter(inout m.parser);f.start=need(inout m.parser,"{").span;f.step=1;}else {array_push::<s::Node>(inout f.children,m.value);}
+ if at(m.parser,"}") {need(inout m.parser,"}");leave(inout m.parser);finish(inout m,f,"block");return;}
+ if peek(m.parser).kind=="eof" {s::error("K0101","unterminated block",f.start);}wait(inout m,f,"statement",0,true);
+}
+fn statement_match(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if at(m.parser,"}") {need(inout m.parser,"}");finish(inout m,f,"match");return;}f.step=11;wait(inout m,f,"pattern",0,true);
+}
+fn statement_step(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if f.step==0 {
+  if at(m.parser,"{") {f.step=1;wait(inout m,f,"block",0,true);return;}
+  if eat(inout m.parser,"let") {f.flag=eat(inout m.parser,"mut");f.text=ident(inout m.parser).text;need(inout m.parser,":");f.step=2;wait(inout m,f,"type",0,true);return;}
+  if eat(inout m.parser,"if") {f.text="if";f.step=4;wait(inout m,f,"expression",0,false);return;}
+  if eat(inout m.parser,"while") {f.text="while";f.step=4;wait(inout m,f,"expression",0,false);return;}
+  if eat(inout m.parser,"for") {f.step=7;wait(inout m,f,"pattern",0,true);return;}
+  if eat(inout m.parser,"match") {f.step=10;wait(inout m,f,"expression",0,false);return;}
+  if eat(inout m.parser,"return") {if !at(m.parser,";") {f.step=13;wait(inout m,f,"expression",0,true);return;}need(inout m.parser,";");finish(inout m,f,"return");return;}
+  if at(m.parser,"break")||at(m.parser,"continue") {let kind:string=take(inout m.parser).text;need(inout m.parser,";");finish(inout m,f,kind);return;}
+  f.step=14;wait(inout m,f,"expression",0,true);return;
+ }
+ if f.step==1 {return;}
+ if f.step==2 {f.ty=m.value.ty;need(inout m.parser,"=");f.step=3;wait(inout m,f,"expression",0,true);return;}
+ if f.step==3 {array_push::<s::Node>(inout f.children,m.value);need(inout m.parser,";");finish(inout m,f,"let");return;}
+ if f.step==4 {array_push::<s::Node>(inout f.children,m.value);f.step=5;wait(inout m,f,"block",0,true);return;}
+ if f.step==5 {array_push::<s::Node>(inout f.children,m.value);if f.text=="if"&&eat(inout m.parser,"else") {f.step=6;let mut kind:string="block";if at(m.parser,"if") {kind="statement";}wait(inout m,f,kind,0,true);return;}let kind:string=f.text;f.text="";finish(inout m,f,kind);return;}
+ if f.step==6 {array_push::<s::Node>(inout f.children,m.value);f.text="";finish(inout m,f,"if");return;}
+ if f.step==7 {array_push::<s::Node>(inout f.children,m.value);need(inout m.parser,"in");f.step=8;wait(inout m,f,"expression",0,false);return;}
+ if f.step==8 {array_push::<s::Node>(inout f.children,m.value);f.step=9;wait(inout m,f,"block",0,true);return;}
+ if f.step==9 {array_push::<s::Node>(inout f.children,m.value);finish(inout m,f,"for");return;}
+ if f.step==10 {array_push::<s::Node>(inout f.children,m.value);need(inout m.parser,"{");statement_match(inout m,f);return;}
+ if f.step==11 {f.left=m.value;need(inout m.parser,"=>");f.step=12;wait(inout m,f,"block",0,true);return;}
+ if f.step==12 {let arm:s::Node=s::make("arm","","",[f.left,m.value],f.left.span,false);array_push::<s::Node>(inout f.children,arm);eat(inout m.parser,",");statement_match(inout m,f);return;}
+ if f.step==13 {array_push::<s::Node>(inout f.children,m.value);need(inout m.parser,";");finish(inout m,f,"return");return;}
+ if f.step==14 {array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,"=") {f.step=15;wait(inout m,f,"expression",0,true);return;}need(inout m.parser,";");finish(inout m,f,"expr");return;}
+ array_push::<s::Node>(inout f.children,m.value);need(inout m.parser,";");finish(inout m,f,"assign");
+}
+fn expression_post(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ while true {
+  if eat(inout m.parser,"(") {f.children=[f.left];if !at(m.parser,")") {f.step=21;wait(inout m,f,"expression",0,true);return;}need(inout m.parser,")");f.left=s::make("call","","",f.children,end(m.parser,f.start),false);f.children=[];continue;}
+  if eat(inout m.parser,"[") {f.step=22;wait(inout m,f,"expression",0,true);return;}
+  if eat(inout m.parser,".") {let field:s::Token=take(inout m.parser);if field.kind!="id"&&field.kind!="int" {s::error("K0101","expected field",field.span);}f.left=s::make("access",field.text,"",[f.left],end(m.parser,f.start),false);continue;}
+  if peek(m.parser).kind!="symbol" {break;}let op:string=peek(m.parser).text;let precedence:i32=power(op);if precedence<f.minimum {break;}take(inout m.parser);f.text=op;f.step=23;wait(inout m,f,"expression",precedence+1,f.allow_struct);return;
+ }
+ leave(inout m.parser);m.value=f.left;
+}
+fn expression_field(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if at(m.parser,"}") {need(inout m.parser,"}");f.left=s::make("construct",f.text,f.ty,f.children,end(m.parser,f.start),false);f.children=[];expression_post(inout m,f);return;}
+ f.field=ident(inout m.parser);need(inout m.parser,":");f.step=12;wait(inout m,f,"expression",0,true);
+}
+fn expression_name(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ while eat(inout m.parser,"::") {if at(m.parser,"<") {if f.ty!="" {s::error("K0101","duplicate generic argument list",peek(m.parser).span);}f.step=11;wait(inout m,f,"types",0,true);return;}f.text=f.text+"::"+ident(inout m.parser).text;}
+ f.left=s::make("name",f.text,f.ty,[],end(m.parser,f.start),false);if f.allow_struct&&at(m.parser,"{") {take(inout m.parser);expression_field(inout m,f);return;}expression_post(inout m,f);
+}
+fn expression_step(inout m:Machine,f_input:Frame)->void {let mut f:Frame=f_input;
+ if f.step==0 {
+  enter(inout m.parser);
+  if at(m.parser,"!")||at(m.parser,"-")||at(m.parser,"~") {f.text=take(inout m.parser).text;f.step=1;wait(inout m,f,"expression",11,f.allow_struct);return;}
+  if eat(inout m.parser,"inout") {f.text="";f.step=1;wait(inout m,f,"expression",11,f.allow_struct);return;}
+  if peek(m.parser).kind=="int"||peek(m.parser).kind=="string" {let t:s::Token=take(inout m.parser);f.left=s::make(t.kind,t.text,"",[],t.span,false);expression_post(inout m,f);return;}
+  if at(m.parser,"true")||at(m.parser,"false") {let t:s::Token=take(inout m.parser);f.left=s::make("bool",t.text,"",[],t.span,false);expression_post(inout m,f);return;}
+  if eat(inout m.parser,"[") {f.step=2;if !at(m.parser,"]") {wait(inout m,f,"expression",0,true);return;}need(inout m.parser,"]");f.left=s::make("array","","",[],end(m.parser,f.start),false);expression_post(inout m,f);return;}
+  if eat(inout m.parser,"(") {if eat(inout m.parser,")") {f.left=s::make("tuple","","",[],end(m.parser,f.start),false);expression_post(inout m,f);return;}f.step=3;wait(inout m,f,"expression",0,true);return;}
+  f.text=ident(inout m.parser).text;expression_name(inout m,f);return;
+ }
+ if f.step==1 {let mut kind:string="unary";if f.text=="" {kind="inout";}f.left=s::make(kind,f.text,"",[m.value],f.start,false);expression_post(inout m,f);return;}
+ if f.step==2 {array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,",")&&!at(m.parser,"]") {wait(inout m,f,"expression",0,true);return;}need(inout m.parser,"]");f.left=s::make("array","","",f.children,end(m.parser,f.start),false);f.children=[];expression_post(inout m,f);return;}
+ if f.step==3 {f.left=m.value;if eat(inout m.parser,",") {f.children=[f.left];f.step=4;if !at(m.parser,")") {wait(inout m,f,"expression",0,true);return;}f.left=s::make("tuple","","",f.children,end(m.parser,f.start),false);f.children=[];}need(inout m.parser,")");expression_post(inout m,f);return;}
+ if f.step==4 {array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,",")&&!at(m.parser,")") {wait(inout m,f,"expression",0,true);return;}f.left=s::make("tuple","","",f.children,end(m.parser,f.start),false);f.children=[];need(inout m.parser,")");expression_post(inout m,f);return;}
+ if f.step==11 {f.ty=type_values(m.value.children,"|");expression_name(inout m,f);return;}
+ if f.step==12 {let field_node:s::Node=s::make("init",f.field.text,"",[m.value],f.field.span,false);array_push::<s::Node>(inout f.children,field_node);if eat(inout m.parser,",") {expression_field(inout m,f);return;}need(inout m.parser,"}");f.left=s::make("construct",f.text,f.ty,f.children,end(m.parser,f.start),false);f.children=[];expression_post(inout m,f);return;}
+ if f.step==21 {array_push::<s::Node>(inout f.children,m.value);if eat(inout m.parser,",")&&!at(m.parser,")") {wait(inout m,f,"expression",0,true);return;}need(inout m.parser,")");f.left=s::make("call","","",f.children,end(m.parser,f.start),false);f.children=[];expression_post(inout m,f);return;}
+ if f.step==22 {need(inout m.parser,"]");f.left=s::make("index","","",[f.left,m.value],end(m.parser,f.start),false);expression_post(inout m,f);return;}
+ f.left=s::make("binary",f.text,"",[f.left,m.value],end(m.parser,f.start),false);expression_post(inout m,f);
+}
+fn run(inout p:Parser,kind:string,minimum:i32,allow_struct:bool)->s::Node {
+ let mut m:Machine=Machine {parser:p,pending:[frame(kind,p,minimum,allow_struct)],value:s::make("","","",[],peek(p).span,false)};
+ while array_len::<Frame>(m.pending)>0 {let f:Frame=m.pending[array_len::<Frame>(m.pending)-1];array_pop::<Frame>(inout m.pending);if f.kind=="type"||f.kind=="types" {type_step(inout m,f);}else if f.kind=="pattern" {pattern_step(inout m,f);}else if f.kind=="block" {block_step(inout m,f);}else if f.kind=="statement" {statement_step(inout m,f);}else {expression_step(inout m,f);}}
+ p=m.parser;return m.value;
+}
+fn parse_type(inout p:Parser)->string {return run(inout p,"type",0,true).ty;}
+fn block(inout p:Parser)->s::Node {return run(inout p,"block",0,true);}
+fn expression(inout p:Parser,minimum:i32,allow_struct:bool)->s::Node {return run(inout p,"expression",minimum,allow_struct);}
+
+pub fn parse(source: string, file: string) -> s::Node {
+    let mut p: Parser = Parser { tokens: lexer::lex(source, file), index: 0, depth: 0 };
+    let start: s::Span = peek(p).span; let mut children: Array<s::Node> = [];
+    while peek(p).kind != "eof" {
+        let location: s::Span = peek(p).span;
+        if eat(inout p, "import") {
+            let path: s::Token = take(inout p); if path.kind != "string" { s::error("K0101", "expected import path", path.span); }
+            need(inout p, "as"); let alias: string = ident(inout p).text; need(inout p, ";");
+            array_push::<s::Node>(inout children, s::make("import", alias, path.text, [], end(p, location), false)); continue;
+        }
+        let exported: bool = eat(inout p, "pub"); let keyword:s::Token=take(inout p);let kind:string=keyword.text;
+        if keyword.kind!="id"||kind != "fn" && kind != "struct" && kind != "enum" && kind != "type" { s::error("K0101", "expected declaration", location); }
+        let name: string = ident(inout p).text; let mut members: Array<s::Node> = generics(inout p); let mut ty: string = "";
+        if kind == "fn" {
+            need(inout p, "(");
+            if !at(p, ")") {
+                let mut more: bool = true;
+                while more {
+                    let ps: s::Span = peek(p).span; let io: bool = eat(inout p, "inout"); let pn: string = ident(inout p).text; need(inout p, ":");
+                    let pt: string = parse_type(inout p);
+                    array_push::<s::Node>(inout members, s::make("param", pn, pt, [], end(p, ps), io)); more = eat(inout p, ",") && !at(p, ")");
+                }
+            }
+            need(inout p, ")"); need(inout p, "->"); ty = parse_type(inout p); array_push::<s::Node>(inout members, block(inout p));
+        } else if kind == "type" { need(inout p, "="); ty = parse_type(inout p); need(inout p, ";"); }
+        else {
+            need(inout p, "{");
+            while !at(p, "}") {
+                let fs: s::Span = peek(p).span; let field: string = ident(inout p).text;
+                if kind == "struct" { need(inout p, ":"); let ft: string = parse_type(inout p); array_push::<s::Node>(inout members, s::make("field", field, ft, [], end(p, fs), false)); }
+                else {
+                    let mut arguments: Array<s::Node> = [];
+                    if eat(inout p, "(") {
+                        if !at(p, ")") { let mut more: bool = true; while more { let ts: s::Span = peek(p).span; let tt: string = parse_type(inout p); array_push::<s::Node>(inout arguments, s::make("type", "", tt, [], ts, false)); more = eat(inout p, ","); } }
+                        need(inout p, ")");
+                    }
+                    array_push::<s::Node>(inout members, s::make("variant", field, "", arguments, end(p, fs), false));
+                }
+                if !eat(inout p, ",") { break; }
+            }
+            need(inout p, "}");
+        }
+        array_push::<s::Node>(inout children, s::make(kind, name, ty, members, end(p, location), exported));
+    }
+    return s::make("module", "", "", children, end(p, start), false);
+}
+pub fn parse_expression(source:string,file:string)->s::Node {
+    let mut p:Parser=Parser {tokens:lexer::lex(source,file),index:0,depth:0};
+    let value:s::Node=expression(inout p,0,true);
+    if peek(p).kind!="eof" {s::error("K0702","invalid formal expression",peek(p).span);}
+    return value;
+}
+pub fn parse_expression_at(source:string,file:string,offset:i32)->s::Node {
+    let mut prefix:Bytes=[];let mut i:i32=0;while i<offset {array_push::<u8>(inout prefix,32);i=i+1;}
+    return parse_expression(bytes_to_string(prefix)+source,file);
+}

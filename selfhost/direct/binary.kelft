@@ -1,0 +1,23 @@
+import "../syntax.kelft" as s;
+
+pub fn error(message:string)->void {s::error("K0403",message,s::span("<native-direct>",0,0));}
+pub fn append(inout out:Bytes,values:Bytes)->void {for value in values {array_push::<u8>(inout out,value);}}
+pub fn word(inout out:Bytes,value:i32)->void {let mut i:i32=0;while i<4 {array_push::<u8>(inout out,u8_from_i32((value>>>(8*i))&255));i=i+1;}}
+pub fn half(inout out:Bytes,value:i32)->void {if value<0||value>65535 {error("native halfword overflow");}array_push::<u8>(inout out,u8_from_i32(value&255));array_push::<u8>(inout out,u8_from_i32(value>>>8));}
+pub fn wide(inout out:Bytes,value:i32)->void {if value<0 {error("native offset overflow");}word(inout out,value);word(inout out,0);}
+pub fn signed_wide(inout out:Bytes,value:i32)->void {word(inout out,value);let mut high:i32=0;if value<0 {high=-1;}word(inout out,high);}
+pub fn patch(inout out:Bytes,offset:i32,value:i32)->void {if offset<0||offset>array_len::<u8>(out)-4 {error("invalid native fixup");}let mut i:i32=0;while i<4 {out[offset+i]=u8_from_i32((value>>>(8*i))&255);i=i+1;}}
+pub fn align(inout out:Bytes,n:i32)->void {if n<1||n>4096||(n&(n-1))!=0 {error("invalid native alignment");}while array_len::<u8>(out)%n!=0 {array_push::<u8>(inout out,0);}}
+pub fn zeros(n:i32)->Bytes {if n<0||n>16777216 {error("native buffer overflow");}let mut out:Bytes=[];let mut i:i32=0;while i<n {array_push::<u8>(inout out,0);i=i+1;}return out;}
+pub fn symbol(name:string)->bool {if string_len(name)==0 {return false;}let alphabet:string="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";let mut i:i32=0;while i<string_len(name) {let c:string=string_slice(name,i,i+1);if string_find(alphabet,c,0)<0&&!(i>0&&string_find("0123456789",c,0)>=0) {return false;}i=i+1;}return true;}
+pub fn get(values:Map<string,i32>,name:string)->i32 {match map_get::<string,i32>(values,name) {Option::Some(value)=>{return value;},Option::None=>{error("unresolved native symbol "+name);}}return 0;}
+pub fn uleb(inout out:Bytes,value:i32)->void {if value<0 {error("negative native uleb");}let mut n:i32=value;while true {let mut byte:i32=n&127;n=n>>>7;if n!=0 {byte=byte|128;}array_push::<u8>(inout out,u8_from_i32(byte));if n==0 {break;}}}
+// Stable name ordering without repeatedly copying a shared array on swaps.
+pub fn name_order(names:Array<string>)->Array<i32> {return merge_names(names,0,array_len::<string>(names));}
+fn merge_names(names:Array<string>,start:i32,end:i32)->Array<i32> {
+ if start==end {return [];}if end-start==1 {return [start];}
+ let middle:i32=start+(end-start)/2;let left:Array<i32>=merge_names(names,start,middle);let right:Array<i32>=merge_names(names,middle,end);
+ let mut out:Array<i32>=[];let mut i:i32=0;let mut j:i32=0;
+ while i<array_len::<i32>(left)&&j<array_len::<i32>(right) {if names[left[i]]<=names[right[j]] {array_push::<i32>(inout out,left[i]);i=i+1;}else {array_push::<i32>(inout out,right[j]);j=j+1;}}
+ while i<array_len::<i32>(left) {array_push::<i32>(inout out,left[i]);i=i+1;}while j<array_len::<i32>(right) {array_push::<i32>(inout out,right[j]);j=j+1;}return out;
+}

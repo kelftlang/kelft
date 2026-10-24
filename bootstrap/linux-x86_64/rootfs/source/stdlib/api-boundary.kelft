@@ -1,0 +1,37 @@
+// Transport boundary; authentication, authorization and transactions belong to handlers.
+import "../selfhost/json.kelft" as j;
+import "../selfhost/syntax.kelft" as s;
+import "./contracts.kelft" as w;
+
+fn has(value:j::Value,key:string)->bool {match map_get::<string,j::Value>(j::object(value),key) {Option::Some(item)=>{return true;},Option::None=>{return false;}}}
+fn query_value(ty:string,value:j::Value)->j::Value {
+    let mut base:string=string_replace(string_split(ty," where ")[0]," ","");if string_len(base)>0&&s::slice(base,string_len(base)-1,string_len(base))=="?" {base=s::slice(base,0,string_len(base)-1);}
+    if base=="i32"||base=="u8" {let raw:string=j::string(value);match string_to_i32(raw) {Result::Ok(n)=>{if i32_to_string(n)==raw {return j::Value::Number(raw);}},Result::Error(error)=>{}}}
+    if base=="bool" {if j::string(value)=="true" {return j::Value::Bool(true);}if j::string(value)=="false" {return j::Value::Bool(false);}}
+    return value;
+}
+pub fn prepare(models:j::Value,manifest:j::Value,route:j::Value,event:j::Value)->Result<j::Value,string> {
+    let id:string=j::string(j::field(route,"id"));let ty:string=j::string(j::field(j::field(route,"request"),"type"));let body:string=j::string(j::field(event,"body"));let query:j::Value=j::field(event,"query");let parameters:j::Value=j::field(route,"parameters");let mut value:j::Value=j::Value::Null();
+    if ty!="void" {value=j::Value::Object(map_new::<string,j::Value>());}
+    if body!="" {if j::string(j::field(event,"method"))=="GET"||string_split(j::string(j::field(j::field(event,"headers"),"content-type")),";")[0]!="application/json" {return Result::<j::Value,string>::Error("INVALID_REQUEST");}match w::parse(body) {Result::Ok(parsed)=>{value=parsed;},Result::Error(error)=>{return Result::<j::Value,string>::Error(error);}}}
+    if ty=="void" {if map_len::<string,j::Value>(j::object(query))>0||map_len::<string,j::Value>(j::object(parameters))>0||!w::request(models,manifest,id,value) {return Result::<j::Value,string>::Error("INVALID_REQUEST");}return Result::<j::Value,string>::Ok(value);}
+    if !j::is_object(value) {return Result::<j::Value,string>::Error("INVALID_REQUEST");}
+    let fields:j::Value=j::field(j::field(models,"entities"),ty);
+    for (key,child) in j::object(query) {if has(value,key)||has(parameters,key) {return Result::<j::Value,string>::Error("AMBIGUOUS_REQUEST");}value=j::set(value,key,query_value(j::string(j::field(fields,key)),child));}
+    for (key,child) in j::object(parameters) {if has(value,key) {return Result::<j::Value,string>::Error("AMBIGUOUS_REQUEST");}value=j::set(value,key,query_value(j::string(j::field(fields,key)),child));}
+    if !w::request(models,manifest,id,value) {return Result::<j::Value,string>::Error("INVALID_REQUEST");}return Result::<j::Value,string>::Ok(value);
+}
+pub fn check_response(models:j::Value,manifest:j::Value,id:string,command:j::Value)->bool {
+    if j::string(j::field(command,"type"))!="http.respond" {return false;}
+    let mut status:i32=0;match string_to_i32(j::canonical(j::field(command,"status"))) {Result::Ok(value)=>{status=value;},Result::Error(error)=>{return false;}}
+    let body:string=j::string(j::field(command,"body"));let headers:j::Value=j::field(command,"headers");let mut value:j::Value=j::Value::Null();
+    if body!="" {if string_split(j::string(j::field(headers,"content-type")),";")[0]!="application/json" {return false;}match w::parse(body) {Result::Ok(parsed)=>{value=parsed;},Result::Error(error)=>{return false;}}}
+    if status==204&&body!="" {return false;}
+    if status>=300&&status<400 {let location:string=j::string(j::field(headers,"location"));if body!=""||!(s::starts(location,"https://")||s::starts(location,"/")&&!s::starts(location,"//"))||s::has(location,"\r")||s::has(location,"\n")||s::has(location,"\\") {return false;}}
+    return w::response(models,manifest,id,status,value);
+}
+pub fn violation()->void {eprint("error[KRT_CONTRACT]: API boundary violation\n");exit(1);}
+pub fn rejected(models:j::Value,manifest:j::Value,id:string)->j::Value {
+    let command:j::Value=j::parse("{\"type\":\"http.respond\",\"status\":400,\"headers\":{\"content-type\":\"application/json\",\"cache-control\":\"no-store\"},\"body\":\"{\\\"code\\\":\\\"INVALID_REQUEST\\\",\\\"message\\\":\\\"Request does not match its contract.\\\"}\"}");
+    if !check_response(models,manifest,id,command) {violation();}return command;
+}

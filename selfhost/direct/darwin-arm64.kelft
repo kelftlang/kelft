@@ -1,0 +1,75 @@
+import "./opcodes.kelft" as opcodes;
+// Private Apple ARM64 encoder and fixed libSystem ABI bridges.
+import "./binary.kelft" as b;
+import "./arm64.kelft" as arm;
+import "./x86_64.kelft" as x;
+import "./ir.kelft" as ir;
+import "./darwin-api.kelft" as api;
+pub struct Code {name:string,bytes:Bytes,relocations:Array<x::Relocation>,frame_size:i32,returns:Array<i32>}
+fn convert(c:arm::Code)->Code {return Code {name:c.name,bytes:c.bytes,relocations:c.relocations,frame_size:c.frame_size,returns:c.returns};}
+fn word(inout out:Bytes,value:i32)->void {b::word(inout out,value);}
+fn load(inout out:Bytes,reg:i32,offset:i32,width:i32)->void {let mut op:i32=-130023424;if width==4 {op=-1203765248;}word(inout out,op+(offset&511)*4096+29*32+reg);}
+fn store(inout out:Bytes,reg:i32,offset:i32)->void {word(inout out,-134217728+(offset&511)*4096+29*32+reg);}
+fn address(inout out:Bytes,reg:i32,offset:i32)->void {word(inout out,-788529152+(-offset)*1024+29*32+reg);}
+fn call(inout out:Bytes,inout relocations:Array<x::Relocation>,name:string)->void {array_push::<x::Relocation>(inout relocations,x::Relocation {offset:array_len::<u8>(out),symbol:name,kind:"call26",addend:0});word(inout out,-1811939328);}
+fn mechanism(name:string,i:x::Machine)->Code {
+ let fixed:ir::Signature=api::get(i.symbol);let mut width:i32=4;if fixed.result=="void" {width=0;}if fixed.result=="ptr" {width=8;}if name!="k_darwin_"+i.symbol||i.a!=array_len::<string>(fixed.params)||i.a>6||i.b!=width {b::error("invalid Apple ARM64 mechanism signature");}
+ let base:arm::Code=arm::encode(name,[x::make("prologue",64,0,""),x::make("return",width,0,"")]);let mut suffix:i32=20;if width==0 {suffix=12;}let prefix:i32=array_len::<u8>(base.bytes)-suffix;if prefix!=28 {b::error("Apple ARM64 bridge frame changed");}let mut out:Bytes=[];let mut n:i32=0;while n<prefix {array_push::<u8>(inout out,base.bytes[n]);n=n+1;}let mut relocations:Array<x::Relocation>=[];load(inout out,11,-16,8);n=0;
+ let variadic:i32=api::variadic_start(i.symbol);while n<array_len::<string>(fixed.params) {let mut op:i32=-1186988032;let mut offset:i32=n*2;if fixed.params[n]=="ptr" {op=-113246208;offset=n;}let mut reg:i32=n;let stack:bool=variadic>=0&&n>=variadic;if stack {reg=9;}word(inout out,op+offset*1024+11*32+reg);if stack {word(inout out,-117440512+(n-variadic)*1024+31*32+reg);}n=n+1;}call(inout out,inout relocations,i.symbol);if width!=0 {let mut op:i32=704644073;if width==8 {op=-1442839575;}word(inout out,op);}let added:i32=array_len::<u8>(out)-prefix;n=prefix;while n<array_len::<u8>(base.bytes) {array_push::<u8>(inout out,base.bytes[n]);n=n+1;}let mut returns:Array<i32>=[];for pc in base.returns {array_push::<i32>(inout returns,pc+added);}return Code {name:name,bytes:out,relocations:relocations,frame_size:64,returns:returns};
+}
+fn startup()->Code {
+ let base:arm::Code=arm::encode("k_start",[x::make("prologue",256,0,""),x::make("trap",0,0,"")]);let mut out:Bytes=[];let mut n:i32=0;while n<array_len::<u8>(base.bytes)-4 {array_push::<u8>(inout out,base.bytes[n]);n=n+1;}let mut relocations:Array<x::Relocation>=[];word(inout out,1384120329);let mut positions:Array<i32>=[-208,-200];n=0;while n<16 {array_push::<i32>(inout positions,-192+n*8);n=n+1;}for at in positions {store(inout out,9,at);}let from:Array<i32>=[-8,-16,-24];let to:Array<i32>=[-128,-120,-112];n=0;while n<3 {load(inout out,9,from[n],8);store(inout out,9,to[n]);n=n+1;}address(inout out,0,-192);address(inout out,1,-208);address(inout out,2,-208);address(inout out,3,-200);call(inout out,inout relocations,"k_darwin_main");load(inout out,0,-200,4);call(inout out,inout relocations,"_exit");word(inout out,-736100352);return Code {name:"k_start",bytes:out,relocations:relocations,frame_size:256,returns:[]};
+}
+pub fn encode(name:string,instructions:Array<x::Machine>)->Code {return encode_registered(name,instructions,opcodes::registry());}
+pub fn encode_registered(name:string,instructions:Array<x::Machine>,opcode_registry:Map<string,i32>)->Code {
+ // BEGIN generated opcode constants
+ let op_add:i32=993596020;
+ let op_address:i32=745154899;
+ let op_and:i32=254395046;
+ let op_arg_address:i32=1471864344;
+ let op_call:i32=-1276017495;
+ let op_context:i32=-1937305476;
+ let op_div_s:i32=-332448462;
+ let op_eq:i32=1142581827;
+ let op_ge_s:i32=1804211731;
+ let op_goto:i32=-173862938;
+ let op_gt_s:i32=-585182360;
+ let op_imm:i32=2129075090;
+ let op_label:i32=-157870083;
+ let op_le_s:i32=699435220;
+ let op_load:i32=-435725847;
+ let op_loc_address:i32=1992971310;
+ let op_lt_s:i32=1404448415;
+ let op_mask_u8:i32=-285466473;
+ let op_mul:i32=-343609983;
+ let op_ne:i32=1479958588;
+ let op_nonzero:i32=1790618910;
+ let op_or:i32=1563699588;
+ let op_out_address:i32=-216729632;
+ let op_prologue:i32=-656573192;
+ let op_ptr_add:i32=1697139769;
+ let op_ptr_eq:i32=376154780;
+ let op_read:i32=-824204347;
+ let op_rem_s:i32=-2091945951;
+ let op_return:i32=-2047985729;
+ let op_save:i32=-855671224;
+ let op_second:i32=-1409755939;
+ let op_shl:i32=-533861450;
+ let op_shr_s:i32=-1849078538;
+ let op_shr_u:i32=-1815523300;
+ let op_slot_address:i32=-1491298942;
+ let op_sub:i32=-598853355;
+ let op_symbol_address:i32=-434141662;
+ let op_trap:i32=1619038978;
+ let op_write:i32=-1104765092;
+ let op_xor:i32=-865346690;
+ // END generated opcode constants
+
+
+
+
+ if array_len::<x::Machine>(instructions)==3&&instructions[1].op=="darwin_api" {if instructions[0].op!="prologue"||instructions[0].a!=64||instructions[2].op!="return"||instructions[2].a!=instructions[1].b {b::error("invalid Apple ARM64 mechanism frame");}return mechanism(name,instructions[1]);}
+ if array_len::<x::Machine>(instructions)==2&&instructions[1].op=="darwin_start" {if name!="k_start"||instructions[0].op!="prologue"||instructions[0].a!=256||instructions[1].a!=0||instructions[1].b!=0||instructions[1].symbol!="k_darwin_main" {b::error("invalid Apple ARM64 startup");}return startup();}
+ let mut lowered:Array<x::Machine>=[];for i in instructions {let operation_id:i32=opcodes::identify(i.op,opcode_registry);let found:bool=(operation_id==op_prologue||operation_id==op_label||operation_id==op_goto||operation_id==op_nonzero||operation_id==op_imm||operation_id==op_mask_u8||operation_id==op_load||operation_id==op_second||operation_id==op_save||operation_id==op_context||operation_id==op_arg_address||operation_id==op_loc_address||operation_id==op_out_address||operation_id==op_slot_address||operation_id==op_read||operation_id==op_write||operation_id==op_ptr_add||operation_id==op_ptr_eq||operation_id==op_add||operation_id==op_sub||operation_id==op_mul||operation_id==op_and||operation_id==op_or||operation_id==op_xor||operation_id==op_shl||operation_id==op_shr_s||operation_id==op_shr_u||operation_id==op_div_s||operation_id==op_rem_s||operation_id==op_eq||operation_id==op_ne||operation_id==op_lt_s||operation_id==op_le_s||operation_id==op_gt_s||operation_id==op_ge_s||operation_id==op_address||operation_id==op_symbol_address||operation_id==op_call||operation_id==op_trap||operation_id==op_return);if !found {b::error("unsupported platform ARM64 operation "+i.op);}let mut instruction:x::Machine=i;if operation_id==op_address {instruction.op="symbol_address";}array_push::<x::Machine>(inout lowered,instruction);}return convert(arm::encode_registered(name,lowered,opcode_registry));
+}
+pub fn encode_program(p:ir::Program)->Array<Code> {if p.platform!="macos"||p.target!="arm64" {b::error("expected private Apple ARM64 IR");}let mut validated:ir::Program=p;validated.platform="linux";validated.target="x86_64";ir::verify(validated);let mut imports:Array<string>=[];for a in p.imports {array_push::<string>(inout imports,a.name);}let opcode_registry:Map<string,i32>=opcodes::registry();let mut out:Array<Code>=[];for f in p.functions {array_push::<Code>(inout out,encode_registered(f.name,ir::lower(f,imports),opcode_registry));}return out;}

@@ -1,0 +1,93 @@
+// Bounded declarative manifest subset, not a general TOML implementation.
+import "../json.kelft" as j;
+import "../syntax.kelft" as s;
+struct Reader { source:string, file:string, at:i32, depth:i32 }
+fn bad(r:Reader,message:string)->void {s::error("K0800",message,s::span(r.file,r.at,r.at));}
+fn byte(r:Reader)->i32 {if r.at>=string_len(r.source) {return -1;}return s::byte(r.source,r.at);}
+fn space(inout r:Reader,lines:bool)->void {
+ while r.at<string_len(r.source) {
+  let b:i32=byte(r);
+  if b==32||b==9||(lines&&(b==10||b==13)) {r.at=r.at+1;}
+  else if b==35&&lines {while r.at<string_len(r.source)&&byte(r)!=10 {r.at=r.at+1;}}
+  else {break;}
+ }
+}
+fn take(inout r:Reader,b:i32)->void {if byte(r)!=b {bad(r,"unexpected manifest token");}r.at=r.at+1;}
+fn key(inout r:Reader)->string {
+ let start:i32=r.at;
+ while r.at<string_len(r.source) {let b:i32=byte(r);if !((b>=65&&b<=90)||(b>=97&&b<=122)||(b>=48&&b<=57)||b==45||b==95) {break;}r.at=r.at+1;}
+ if start==r.at {bad(r,"bare manifest key required");}return s::slice(r.source,start,r.at);
+}
+fn text(inout r:Reader)->j::Value {
+ let quote:i32=byte(r);let start:i32=r.at;r.at=r.at+1;
+ while r.at<string_len(r.source) {
+  let b:i32=byte(r);
+  if b==quote {let end:i32=r.at;r.at=r.at+1;if quote==39 {return j::Value::Text(s::slice(r.source,start+1,end));}return j::parse(s::slice(r.source,start,r.at));}
+  if b<32&&b!=9||b==127 {bad(r,"control character or multiline manifest string");}
+  if b==92&&quote==34 {
+   r.at=r.at+1;let escape:i32=byte(r);
+   if escape!=34&&escape!=92&&escape!=98&&escape!=116&&escape!=110&&escape!=102&&escape!=114&&escape!=117 {bad(r,"unsupported manifest escape");}
+   if escape==117 {let mut n:i32=0;let mut scalar:i32=0;while n<4 {r.at=r.at+1;let digit:i32=byte(r);let mut value:i32=-1;if digit>=48&&digit<=57 {value=digit-48;}else if digit>=65&&digit<=70 {value=digit-55;}else if digit>=97&&digit<=102 {value=digit-87;}if value<0 {bad(r,"invalid Unicode escape");}scalar=scalar*16+value;n=n+1;}if scalar>=55296&&scalar<=57343 {bad(r,"TOML escapes require Unicode scalar values");}}
+  }
+  // Raw tabs are legal TOML but not JSON; require the explicit \t spelling.
+  if b==9&&quote==34 {bad(r,"use an escaped tab in a basic string");}
+  r.at=r.at+1;
+ }
+ bad(r,"unterminated manifest string");return j::Value::Null();
+}
+fn put(r:Reader,value:j::Value,name:string,child:j::Value)->j::Value {
+ match map_get::<string,j::Value>(j::object(value),name) {Option::Some(previous)=>{bad(r,"duplicate manifest key or section: "+name);},Option::None=>{}}
+ return j::set(value,name,child);
+}
+fn value(inout r:Reader)->j::Value {
+ r.depth=r.depth+1;if r.depth>8 {bad(r,"manifest nesting limit");}
+ let result:j::Value=read_value(inout r);r.depth=r.depth-1;return result;
+}
+fn read_value(inout r:Reader)->j::Value {
+ space(inout r,false);let b:i32=byte(r);
+ if b==34||b==39 {return text(inout r);}
+ if b==91 {
+  r.at=r.at+1;space(inout r,true);let mut out:Array<j::Value>=[];
+  while byte(r)!=93 {
+   if array_len::<j::Value>(out)>=128 {bad(r,"manifest array limit");}
+   array_push::<j::Value>(inout out,value(inout r));space(inout r,true);
+   if byte(r)!=44 {break;}r.at=r.at+1;space(inout r,true);
+  }
+  take(inout r,93);return j::Value::Array(out);
+ }
+ if b==123 {
+  r.at=r.at+1;space(inout r,false);let mut out:j::Value=j::parse("{}");
+  while byte(r)!=125 {
+   let name:string=key(inout r);space(inout r,false);take(inout r,61);out=put(r,out,name,value(inout r));space(inout r,false);
+   if byte(r)!=44 {break;}r.at=r.at+1;space(inout r,false);if byte(r)==125 {bad(r,"trailing inline-table comma is unsupported");}
+  }
+  take(inout r,125);return out;
+ }
+ let start:i32=r.at;while byte(r)>=48&&byte(r)<=57 {r.at=r.at+1;}
+ if r.at>start {let raw:string=s::slice(r.source,start,r.at);if string_len(raw)>8||(string_len(raw)>1&&s::starts(raw,"0")) {bad(r,"unsupported manifest integer");}return j::Value::Number(raw);}
+ bad(r,"unsupported manifest value; expected string, array, table or unsigned integer");return j::Value::Null();
+}
+fn end_line(inout r:Reader)->void {
+ space(inout r,false);if byte(r)==35 {while byte(r)!=10&&byte(r)!=-1 {r.at=r.at+1;}}
+ if byte(r)==13 {r.at=r.at+1;if byte(r)!=10 {bad(r,"bare carriage return");}}
+ if byte(r)!=-1&&byte(r)!=10 {bad(r,"unexpected trailing manifest input");}if byte(r)==10 {r.at=r.at+1;}
+}
+pub fn parse(source:string,file:string)->j::Value {
+ let mut r:Reader=Reader {source:source,file:file,at:0,depth:0};if string_len(source)>65536 {bad(r,"manifest exceeds 64 KiB");}
+ while r.at<string_len(source) {let b:i32=byte(r);if (b<32&&b!=9&&b!=10&&b!=13)||b==127 {bad(r,"manifest control character");}if b==13&&(r.at+1>=string_len(source)||s::byte(source,r.at+1)!=10) {bad(r,"bare carriage return");}r.at=r.at+1;}r.at=0;
+ let mut out:j::Value=j::parse("{}");let mut section:string="";let mut current:j::Value=j::parse("{}");let mut bins:Array<j::Value>=[];let mut binary:bool=false;
+ while r.at<string_len(source) {
+  space(inout r,true);if r.at==string_len(source) {break;}
+  if byte(r)==91 {
+   if binary {array_push::<j::Value>(inout bins,current);}else if section!="" {out=put(r,out,section,current);}else {for (name,child) in j::object(current) {out=put(r,out,name,child);}}
+   current=j::parse("{}");r.at=r.at+1;binary=byte(r)==91;if binary {r.at=r.at+1;}
+   section=key(inout r);if byte(r)==46 {r.at=r.at+1;section=section+"."+key(inout r);}
+   take(inout r,93);if binary {take(inout r,93);if section!="target.bin" {bad(r,"only [[target.bin]] is supported");}}
+   if section=="target.bin"&&!binary {bad(r,"use [[target.bin]]");}end_line(inout r);
+  }else {
+   let name:string=key(inout r);space(inout r,false);take(inout r,61);current=put(r,current,name,value(inout r));end_line(inout r);
+  }
+ }
+ if binary {array_push::<j::Value>(inout bins,current);}else if section!="" {out=put(r,out,section,current);}else {for (name,child) in j::object(current) {out=put(r,out,name,child);}}
+ if array_len::<j::Value>(bins)>0 {out=put(r,out,"target.bin",j::Value::Array(bins));}return out;
+}

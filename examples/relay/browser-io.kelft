@@ -1,0 +1,17 @@
+import "../../selfhost/json.kelft" as j;
+import "./data.kelft" as d;
+import "./client-contracts.kelft" as wire;
+pub fn frame(state:j::Value,commands:Array<j::Value>)->j::Value {let mut out:j::Value=j::parse("{\"schemaVersion\":\"0.2\"}");out=j::set(out,"state",state);return j::set(out,"commands",j::Value::Array(commands));}
+pub fn command(kind:string)->j::Value {return j::set(d::object(),"type",j::Value::Text(kind));}
+pub fn pending(inout state:j::Value,inout commands:Array<j::Value>,cmd:j::Value,purpose:string,extra:j::Value)->string {
+    let sequence:i32=d::number(j::field(state,"sequence"))+1;state=j::set(state,"sequence",d::int(sequence));let id:string=purpose+"-"+i32_to_string(sequence);let mut meta:j::Value=extra;meta=j::set(meta,"purpose",j::Value::Text(purpose));meta=j::set(meta,"epoch",j::field(state,"auth_epoch"));meta=j::set(meta,"workspace",j::field(state,"workspace"));meta=j::set(meta,"identity",j::field(state,"identity"));state=j::set(state,"pending",j::set(j::field(state,"pending"),id,meta));array_push::<j::Value>(inout commands,j::set(cmd,"id",j::Value::Text(id)));return id;
+}
+pub fn clock(inout state:j::Value,inout commands:Array<j::Value>,purpose:string)->void {pending(inout state,inout commands,command("clock.read"),purpose,d::object());}
+pub fn http(inout state:j::Value,inout commands:Array<j::Value>,method:string,url:string,endpoint:string,logical:j::Value,body:string,purpose:string,extra:j::Value)->bool {
+    if !wire::validate_request(endpoint,logical) {state=j::set(state,"error",j::Value::Text("The input does not match its contract. Your pending work is retained."));return false;}
+    let mut cmd:j::Value=command("http.request");cmd=j::set(cmd,"url",j::Value::Text(url));cmd=j::set(cmd,"method",j::Value::Text(method));let mut headers:j::Value=d::object();if method!="GET" {headers=j::set(headers,"x-csrf-token",j::field(j::field(state,"session"),"csrf"));}if body!="" {headers=j::set(headers,"content-type",j::Value::Text("application/json"));cmd=j::set(cmd,"body",j::Value::Text(body));}cmd=j::set(cmd,"headers",headers);let meta:j::Value=j::set(extra,"endpoint",j::Value::Text(endpoint));pending(inout state,inout commands,cmd,purpose,meta);return true;
+}
+pub fn timer(inout state:j::Value,inout commands:Array<j::Value>,purpose:string,delay:i32)->void {let key:string=purpose+"_timer";let old:string=d::text(state,key);if old!="" {array_push::<j::Value>(inout commands,j::set(command("timer.cancel"),"id",j::Value::Text(old)));state=j::set(state,"pending",j::remove(j::field(state,"pending"),old));}let cmd:j::Value=j::set(command("timer"),"delayMs",d::int(delay));let id:string=pending(inout state,inout commands,cmd,purpose,d::object());state=j::set(state,key,j::Value::Text(id));}
+pub fn touch(inout state:j::Value)->i32 {let version:i32=d::number(j::field(state,"data_version"))+1;state=j::set(state,"data_version",d::int(version));return version;}
+pub fn identity(state:j::Value)->j::Value {let mut value:j::Value=j::field(state,"identity");value=j::set(value,"workspace",j::field(state,"workspace"));return value;}
+pub fn vault(inout state:j::Value,inout commands:Array<j::Value>,kind:string,purpose:string,extra:j::Value)->void {let mut cmd:j::Value=extra;cmd=j::set(cmd,"type",j::Value::Text(kind));if kind!="vault.list"&&kind!="vault.lock-all" {cmd=j::set(cmd,"identity",identity(state));}pending(inout state,inout commands,cmd,purpose,d::object());}

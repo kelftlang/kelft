@@ -1,0 +1,6 @@
+{
+  "schema": "kelft.compiler-version/1",
+  "version": "0.1.0-alpha.1",
+  "coreVersion": "0.1",
+  "intentVersion": "0.2"
+}

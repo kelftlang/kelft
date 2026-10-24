@@ -1,0 +1,67 @@
+import "./core.kelft" as ir;
+import "./syntax.kelft" as s;
+import "./runtime.kelft" as runtime;
+struct RenderEvent {mode:string,node:ir::Node,text:string,value:string}
+fn event(mode:string,n:ir::Node,value:string)->RenderEvent {return RenderEvent {mode:mode,node:n,text:"",value:value};}
+fn text_event(n:ir::Node,text:string)->RenderEvent {return RenderEvent {mode:"text",node:n,text:text,value:""};}
+fn render(n_input:ir::Node,mode_input:string,value_input:string,inout temp:i32)->string {
+ let mut pending:Array<RenderEvent>=[event(mode_input,n_input,value_input)];let mut chunks:Array<string>=[];
+ while array_len::<RenderEvent>(pending)>0 {let current:RenderEvent=pending[array_len::<RenderEvent>(pending)-1];array_pop::<RenderEvent>(inout pending);if current.mode=="text" {array_push::<string>(inout chunks,current.text);continue;}
+  let n:ir::Node=current.node;let a:Array<ir::Node>=n.args;let mut next:Array<RenderEvent>=[];
+  if current.mode=="location" {
+   let mut keys:Array<ir::Node>=[];let mut cursor:ir::Node=n;while cursor.op=="field"||cursor.op=="index" {array_push::<ir::Node>(inout keys,cursor);cursor=cursor.args[0];}array_push::<RenderEvent>(inout next,text_event(n,"kLocation("+cursor.name+",["));let mut i:i32=array_len::<ir::Node>(keys);while i>0 {i=i-1;let key:ir::Node=keys[i];if i<array_len::<ir::Node>(keys)-1 {array_push::<RenderEvent>(inout next,text_event(n,","));}if key.op=="index" {array_push::<RenderEvent>(inout next,event("expression",key.args[1],""));}else {array_push::<RenderEvent>(inout next,text_event(n,s::json_quote(key.name)));}}array_push::<RenderEvent>(inout next,text_event(n,"])"));
+  }else if current.mode=="bindings"||current.mode=="condition" {
+   let value:string=current.value;let bindings:bool=current.mode=="bindings";
+   if n.op=="pattern" {let mut text:string="true";if bindings {text="";if n.name!="_"&&n.name!="true"&&n.name!="false" {text="const "+n.name+"=kCell("+value+");";}}else if n.name=="true"||n.name=="false" {text=value+"==="+n.name;}array_push::<RenderEvent>(inout next,text_event(n,text));}
+   else {
+    if !bindings {array_push::<RenderEvent>(inout next,text_event(n,"("));if n.op=="variant_pattern" {array_push::<RenderEvent>(inout next,text_event(n,value+".name==="+s::json_quote(n.name)));}else if array_len::<ir::Node>(a)==0 {array_push::<RenderEvent>(inout next,text_event(n,"true"));}}
+    let mut i:i32=0;for child in a {if !bindings&&(i>0||n.op=="variant_pattern") {array_push::<RenderEvent>(inout next,text_event(n,"&&"));}let mut path:string=value+".values["+i32_to_string(i)+"]";if n.op=="tuple_pattern" {path="kField("+value+","+s::json_quote(i32_to_string(i))+")";}array_push::<RenderEvent>(inout next,event(current.mode,child,path));i=i+1;}
+    if !bindings {array_push::<RenderEvent>(inout next,text_event(n,")"));}
+   }
+  }else if current.mode=="expression" {
+   if n.op=="literal" {let mut value:string=n.name;if n.ty=="string" {value=s::json_quote(value);}array_push::<RenderEvent>(inout next,text_event(n,value));}
+   else if n.op=="local" {array_push::<RenderEvent>(inout next,text_event(n,n.name+".get()"));}
+   else if n.op=="location" {array_push::<RenderEvent>(inout next,event("location",a[0],""));}
+   else if n.op=="unary" {next=[text_event(n,"kUnary("+s::json_quote(n.name)+","),event("expression",a[0],""),text_event(n,")")];}
+   else if n.op=="binary" {if n.name=="&&"||n.name=="||" {next=[text_event(n,"("),event("expression",a[0],""),text_event(n,n.name),event("expression",a[1],""),text_event(n,")")];}else {next=[text_event(n,"kBinary("+s::json_quote(n.name)+","),event("expression",a[0],""),text_event(n,","),event("expression",a[1],""),text_event(n,")")];}}
+   else if n.op=="field" {next=[text_event(n,"kField("),event("expression",a[0],""),text_event(n,","+s::json_quote(n.name)+")")];}
+   else if n.op=="index" {next=[text_event(n,"kGet("),event("expression",a[0],""),text_event(n,","),event("expression",a[1],""),text_event(n,")")];}
+   else {
+    let mut prefix:string="";let mut suffix:string=")";if n.op=="array" {prefix="kVector([";suffix="])";}else if n.op=="tuple" {prefix="kTuple([";suffix="])";}else if n.op=="variant" {prefix="kVariant("+s::json_quote(n.name)+",[";suffix="])";}else if n.op=="call" {prefix="kFunctions["+s::json_quote(n.name)+"](";}else if n.op=="intrinsic" {prefix="kIntrinsics["+s::json_quote(n.name)+"](";}else if n.op=="record" {prefix="kRecord([";suffix="])";}else {s::error("K0301","invalid Core expression",n.span);}
+    array_push::<RenderEvent>(inout next,text_event(n,prefix));let mut i:i32=0;for child in a {if i>0 {array_push::<RenderEvent>(inout next,text_event(n,","));}if n.op=="record" {array_push::<RenderEvent>(inout next,text_event(n,"["+s::json_quote(child.name)+","));array_push::<RenderEvent>(inout next,event("expression",child.args[0],""));array_push::<RenderEvent>(inout next,text_event(n,"]"));}else {array_push::<RenderEvent>(inout next,event("expression",child,""));}i=i+1;}array_push::<RenderEvent>(inout next,text_event(n,suffix));
+   }
+  }else {
+   if n.op=="block" {array_push::<RenderEvent>(inout next,text_event(n,"{\n"));let mut i:i32=0;for child in a {if i>0 {array_push::<RenderEvent>(inout next,text_event(n,"\n"));}array_push::<RenderEvent>(inout next,event("statement",child,""));i=i+1;}array_push::<RenderEvent>(inout next,text_event(n,"\n}"));}
+   else if n.op=="bind" {next=[text_event(n,"const "+n.name+"=kCell("),event("expression",a[0],""),text_event(n,");")];}
+   else if n.op=="store" {next=[event("location",a[0],""),text_event(n,".set("),event("expression",a[1],""),text_event(n,");")];}
+   else if n.op=="evaluate" {next=[event("expression",a[0],""),text_event(n,";")];}
+   else if n.op=="return" {if array_len::<ir::Node>(a)==0 {next=[text_event(n,"return;")];}else {next=[text_event(n,"return "),event("expression",a[0],""),text_event(n,";")];}}
+   else if n.op=="if"||n.op=="while" {next=[text_event(n,n.op+"("),event("expression",a[0],""),text_event(n,")"),event("statement",a[1],"")];if array_len::<ir::Node>(a)==3 {array_push::<RenderEvent>(inout next,text_event(n,"else "));array_push::<RenderEvent>(inout next,event("statement",a[2],""));}}
+   else if n.op=="break"||n.op=="continue" {next=[text_event(n,n.op+";")];}
+   else if n.op=="for" {let t:string="t"+i32_to_string(temp);temp=temp+1;next=[text_event(n,"for(const "+t+" of kIter("),event("expression",a[1],""),text_event(n,")){"),event("bindings",a[0],t),event("statement",a[2],""),text_event(n,"}")];}
+   else if n.op=="match" {let t:string="t"+i32_to_string(temp);temp=temp+1;next=[text_event(n,"{const "+t+"="),event("expression",a[0],""),text_event(n,";")];let mut i:i32=1;while i<array_len::<ir::Node>(a) {let arm:ir::Node=a[i];if i>1 {array_push::<RenderEvent>(inout next,text_event(n,"else "));}array_push::<RenderEvent>(inout next,text_event(n,"if("));array_push::<RenderEvent>(inout next,event("condition",arm.args[0],t));array_push::<RenderEvent>(inout next,text_event(n,"){"));array_push::<RenderEvent>(inout next,event("bindings",arm.args[0],t));array_push::<RenderEvent>(inout next,event("statement",arm.args[1],""));array_push::<RenderEvent>(inout next,text_event(n,"}"));i=i+1;}array_push::<RenderEvent>(inout next,text_event(n,"}"));}
+   else {s::error("K0301","invalid Core statement",n.span);}
+  }
+  let mut i:i32=array_len::<RenderEvent>(next);while i>0 {i=i-1;array_push::<RenderEvent>(inout pending,next[i]);}
+ }
+ return s::join(chunks,"");
+}
+fn statement(n:ir::Node,inout temp:i32)->string {return render(n,"statement","",inout temp);}
+
+pub fn emit(program: ir::Program) -> string {
+    ir::validate(program); let mut temp: i32 = 0; let mut functions: Array<string> = [];
+    for f in program.functions {
+        let mut names: Array<string> = []; let mut cells: string = ""; let mut i: i32 = 0;
+        for p in f.args {
+            if p.op == "param" {
+                let name: string = "p" + i32_to_string(i); array_push::<string>(inout names, name);
+                let mut value: string = "kCell(" + name + ")"; if p.flag { value = name; }
+                cells = cells + "const " + p.name + "=" + value + ";"; i = i + 1;
+            }
+        }
+        let body: ir::Node = f.args[array_len::<ir::Node>(f.args) - 1];
+        array_push::<string>(inout functions, "kFunctions[" + s::json_quote(f.name) + "]=function(" + s::join(names, ",") + "){" + cells + statement(body, inout temp) + "};");
+    }
+    return runtime::js_runtime() + "\nconst kFunctions=Object.create(null);\n" + s::join(functions, "\n") + "\nkMain(()=>kFunctions[" + s::json_quote(program.entry) + "]());\n";
+}
+pub fn policy(source: string, canonical_policy: string) -> string { return string_replace(source, "const kMaximumPolicy = null; /* KELFT_POLICY */", "const kMaximumPolicy = " + canonical_policy + ";"); }

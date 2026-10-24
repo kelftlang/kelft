@@ -1,0 +1,17 @@
+// Initial C-free Linux runtime mechanisms for the development scalar Core slice.
+import "./ir.kelft" as ir;
+import "./elf.kelft" as elf;
+import "./x86_64.kelft" as x;
+pub struct Runtime {code:Array<x::Code>,data:Array<elf::Data>,imports:Array<ir::Signature>}
+pub fn build()->Runtime {
+ let mut code:Array<x::Code>=[];let mut data:Array<elf::Data>=[];let mut imports:Array<ir::Signature>=[];
+ let errors:Array<string>=["KRT_RESOURCE","KRT_DIV_ZERO","KRT_DIV_OVERFLOW","KRT_U8_RANGE","KRT_EXIT"];
+ for error in errors {
+  let name:string="k_panic_"+error;let symbol:string=name+"_text";let bytes:Bytes=string_to_bytes("error["+error+"]\n");
+  array_push::<elf::Data>(inout data,elf::Data {name:symbol,bytes:bytes});array_push::<ir::Signature>(inout imports,ir::Signature {name:name,params:[],locations:0,result:"void"});
+  array_push::<x::Code>(inout code,x::encode(name,[x::make("prologue",32,0,""),x::make("linux_write_error",array_len::<u8>(bytes),0,symbol),x::make("imm",1,0,""),x::make("linux_exit_value",0,0,"")]));
+ }
+ array_push::<ir::Signature>(inout imports,ir::Signature {name:"k_scalar_exit",params:["i32"],locations:0,result:"void"});
+ array_push::<x::Code>(inout code,x::encode("k_scalar_exit",[x::make("prologue",32,0,""),x::make("load",-16,0,""),x::make("read",4,0,""),x::make("linux_exit_value",0,0,"")]));
+ return Runtime {code:code,data:data,imports:imports};
+}

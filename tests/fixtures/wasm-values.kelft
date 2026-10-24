@@ -1,0 +1,14 @@
+fn forward(inout value:Array<i32>)->void {array_push::<i32>(inout value,1100);}
+fn relay(inout value:Array<i32>)->void {forward(inout value);}
+fn main()->void {
+    let mut values:Array<i32>=[];let mut i:i32=0;
+    while i<1100 {array_push::<i32>(inout values,i);i=i+1;}
+    let original:Array<i32>=values;values[31]=-1;values[32]=-1;values[1023]=-1;values[1024]=-1;relay(inout values);
+    println(i32_to_string(original[31]));println(i32_to_string(original[32]));println(i32_to_string(original[1023]));println(i32_to_string(original[1024]));println(i32_to_string(original[1099]));
+    println(i32_to_string(array_len::<i32>(values)));
+    let mut text:string="";i=0;while i<2000 {text=text+"a";i=i+1;}
+    let old:string=text;let mut copy:string=text;copy=copy+"b";text=text+"c";
+    println(string_slice(old,1999,2000));println(string_slice(copy,2000,2001));println(string_slice(text,2000,2001));
+    let unicode:string="a😀z";let part:string=string_slice(unicode,1,5);println(part+"!");println(unicode);
+    let mut total:i32=0;i=0;while i<10 {i=i+1;if i==3 {continue;}if i==7 {break;}total=total+i;}println(i32_to_string(total));
+}

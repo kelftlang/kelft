@@ -1,0 +1,53 @@
+import "./syntax.kelft" as s;
+fn rotate(x: i32, n: i32) -> i32 { return (x >>> n) | (x << (32 - n)); }
+fn hex_digit(value:i32)->i32 {if value>=48&&value<=57 {return value-48;}if value>=97&&value<=102 {return value-87;}s::error("K0601","invalid hexadecimal bytes",s::span("<protocol>",0,0));return 0;}
+pub fn hex_bytes(value:string)->Bytes {
+    let mut out:Bytes=[];let mut i:i32=0;
+    if string_len(value)%2!=0 {s::error("K0601","invalid hexadecimal bytes",s::span("<protocol>",0,0));}
+    while i<string_len(value) {let a:i32=hex_digit(i32_from_u8(string_byte(value,i)));let b:i32=hex_digit(i32_from_u8(string_byte(value,i+1)));array_push::<u8>(inout out,u8_from_i32(a*16+b));i=i+2;}return out;
+}
+pub fn bytes_hex(value:Bytes)->string {let digits:string="0123456789abcdef";let mut out:string="";for byte in value {let b:i32=i32_from_u8(byte);out=out+s::slice(digits,b>>>4,(b>>>4)+1)+s::slice(digits,b&15,(b&15)+1);}return out;}
+pub fn hmac_sha256(key:Bytes,message:Bytes)->string {
+    let mut actual:Bytes=key;if array_len::<u8>(actual)>64 {actual=hex_bytes(s::slice(sha256_bytes(actual),7,71));}
+    let mut inner:Bytes=[];let mut outer:Bytes=[];let mut i:i32=0;
+    while i<64 {let mut value:i32=0;if i<array_len::<u8>(actual) {value=i32_from_u8(actual[i]);}array_push::<u8>(inout inner,u8_from_i32(value^54));array_push::<u8>(inout outer,u8_from_i32(value^92));i=i+1;}
+    for byte in message {array_push::<u8>(inout inner,byte);}let digest:Bytes=hex_bytes(s::slice(sha256_bytes(inner),7,71));for byte in digest {array_push::<u8>(inout outer,byte);}return "hmac-sha256:"+s::slice(sha256_bytes(outer),7,71);
+}
+pub fn sha256(text: string) -> string {
+    return sha256_bytes(string_to_bytes(text));
+}
+pub fn sha256_bytes(input: Bytes) -> string {
+    let constants: Array<i32> = [1116352408,1899447441,-1245643825,-373957723,961987163,1508970993,-1841331548,-1424204075,-670586216,310598401,607225278,1426881987,1925078388,-2132889090,-1680079193,-1046744716,-459576895,-272742522,264347078,604807628,770255983,1249150122,1555081692,1996064986,-1740746414,-1473132947,-1341970488,-1084653625,-958395405,-710438585,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,-2117940946,-1838011259,-1564481375,-1474664885,-1035236496,-949202525,-778901479,-694614492,-200395387,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,-2067236844,-1933114872,-1866530822,-1538233109,-1090935817,-965641998];
+    let mut state: Array<i32> = [1779033703,-1150833019,1013904242,-1521486534,1359893119,-1694144372,528734635,1541459225];
+    let count:i32=array_len::<u8>(input);let mut total:i32=(count/64+1)*64;if count%64>=56 {total=total+64;}
+    let mut i:i32=0;let mut shift:i32=0;let mut offset:i32=0;let mut w:Array<i32>=[];while i<64 {array_push::<i32>(inout w,0);i=i+1;}
+    while offset<total {
+        i=0;
+        while i<16 {let p:i32=offset+i*4;let mut word:i32=0;if offset<=count-64 {word=(i32_from_u8(input[p])<<24)|(i32_from_u8(input[p+1])<<16)|(i32_from_u8(input[p+2])<<8)|i32_from_u8(input[p+3]);}else {word=(padded_byte(input,count,total,p)<<24)|(padded_byte(input,count,total,p+1)<<16)|(padded_byte(input,count,total,p+2)<<8)|padded_byte(input,count,total,p+3);}w[i]=word;i=i+1;}
+        while i < 64 {
+            let x: i32 = w[i - 15]; let y: i32 = w[i - 2];
+            let a: i32 = ((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3); let b: i32 = ((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10);
+            let next: i32 = w[i - 16] + a + w[i - 7] + b; w[i]=next; i = i + 1;
+        }
+        let mut a: i32 = state[0]; let mut b: i32 = state[1]; let mut c: i32 = state[2]; let mut d: i32 = state[3];
+        let mut e: i32 = state[4]; let mut f: i32 = state[5]; let mut g: i32 = state[6]; let mut h: i32 = state[7]; i = 0;
+        while i < 64 {
+            let first: i32 = h + (((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7))) + ((e & f) ^ (~e & g)) + constants[i] + w[i];
+            let second: i32 = (((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10))) + ((a & b) ^ (a & c) ^ (b & c));
+            h = g; g = f; f = e; e = d + first; d = c; c = b; b = a; a = first + second; i = i + 1;
+        }
+        state[0]=state[0]+a;state[1]=state[1]+b;state[2]=state[2]+c;state[3]=state[3]+d;state[4]=state[4]+e;state[5]=state[5]+f;state[6]=state[6]+g;state[7]=state[7]+h; offset = offset + 64;
+    }
+    let hex: string = "0123456789abcdef"; let mut output: string = "sha256:";
+    for word in state { shift = 28; while shift >= 0 { let digit: i32 = (word >>> shift) & 15; output = output + s::slice(hex, digit, digit + 1); shift = shift - 4; } }
+    return output;
+}
+
+// SHA-256 padding is synthesized per block; input bytes are never widened into
+// a second, whole-message Array<i32>.
+fn padded_byte(input:Bytes,count:i32,total:i32,at:i32)->i32 {
+    if at<count {return i32_from_u8(input[at]);}if at==count {return 128;}
+    if at<total-8 {return 0;}
+    if at<total-4 {return ((count>>>29)>>>((total-5-at)*8))&255;}
+    return ((count<<3)>>>((total-1-at)*8))&255;
+}

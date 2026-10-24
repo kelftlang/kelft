@@ -1,0 +1,6 @@
+{
+  "schema": "kelft-macos-linker-session/1",
+  "profile": "macos-x86_64",
+  "identity": "sha256:9d10d6443b1cf7ad42f7c3684e2e76d7226c5f0f531d7b43eeac0c33fb62f287",
+  "sdkVersion": "14.0"
+}

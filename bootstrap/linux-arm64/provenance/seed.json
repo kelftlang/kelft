@@ -1,0 +1,22 @@
+{
+  "schema": "kelft.native-seed-provenance/1",
+  "target": "linux-arm64",
+  "compilerSHA256": "sha256:7d470de17e961286d51be6affc34b8f7b8700b4f10868b12489da4841293e712",
+  "coordinatorSHA256": "sha256:ebc783c33bd69ce85e36c8d3b8d487946cc7418dfe881bedf10de4b94b696e30",
+  "boundarySHA256": "sha256:95cb84c99d11a7822b7a6a3775ea7ef70062f295cca55d2531aafe56867f4051",
+  "sourceRevision": "47847e6f1f21b0b5e515704ba3ed201315028bd0",
+  "sourceArchiveSHA256": "sha256:862214638f7bbedc4becbc7bdf2c294cdbc81701d02c4dae926b1ab93a2ac226",
+  "hostSourceHash": "sha256:f3ce6bbd408cfe8bf367b74a92122855c6bafa8b222ab2e15356fc95ae560818",
+  "transformations": [
+    "preserve qualified executable, policy and platform-tool bytes",
+    "omit local output objects and local checkout paths",
+    "replace notices with the reviewed native dependency inventory",
+    "record POSIX modes and reconstruct oversized payloads from authenticated parts"
+  ],
+  "qualified": false,
+  "releaseEligible": false,
+  "workflowArtifactSHA256s": [
+    "sha256:6bced4dcaefd282dbea41b2f9363a56df317cb527e25b30cfdea67fe9e44e132",
+    "sha256:281a1897dca1b864491b24e2868622d58451f0582e4d79b845122d928cca1324"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "kelft.modified-runtime-relink/1",
+  "target": "linux-arm64",
+  "status": "passed",
+  "modifiedRuntimeSource": true,
+  "modifiedHostExecution": true,
+  "originalHostsUnchanged": true,
+  "sourceArchiveSHA256": "sha256:f77bd47cf8170c57365ae7bf86696c118adb3b120d3259c64c502d3dc1e2d926",
+  "sourcePath": "string/strlen.c",
+  "originalSourceSHA256": "sha256:8c587c08dbf09f858ffe707686570d4bf517662154d345b92dfbebf5280b8db0",
+  "modifiedSourceSHA256": "sha256:b9f65f3e31e80e87025c294ee015b1113581e3c880f270a43e4ff121d292069c",
+  "originalRuntimeInputs": [
+    {
+      "name": "crt1.o",
+      "sha256": "sha256:332a510b4afece51376517d3c9b3d5a210e27c38a73cf946bf0daac3dfc4e724"
+    },
+    {
+      "name": "crti.o",
+      "sha256": "sha256:93bb05d2d87f3464fd89a70d26d8ed29f0797e4b97a60786a2724a7e3ffbeba5"
+    },
+    {
+      "name": "crtn.o",
+      "sha256": "sha256:1c741c1f9499461b6f1e531e21fc5f86a216cc5d0c49d18bdcf97d7d922342d5"
+    },
+    {
+      "name": "crtbeginT.o",
+      "sha256": "sha256:772152265b97c58d4d0df6ec4ecbf27265b1ec62bfdcb6edcef7400854cc9927"
+    },
+    {
+      "name": "crtend.o",
+      "sha256": "sha256:3da9c42040eca63e3432014ee4b0a98a24ea1f7c4a33e1b40c2b02cc7a15c208"
+    },
+    {
+      "name": "libc.a",
+      "sha256": "sha256:c3af740b6fb3c926807bb267d366bb848ace6e6b8d48ac366287083b708695ea"
+    },
+    {
+      "name": "libgcc.a",
+      "sha256": "sha256:4bc354241987926aa0489ba1d925e8b10356556323307944f08209f370a28ad6"
+    },
+    {
+      "name": "libgcc_eh.a",
+      "sha256": "sha256:ba85797b21e8eb241afccce977b0b2ca607a9764e3ae15bb966415824a8ee8a4"
+    }
+  ],
+  "modifiedLibcSHA256": "sha256:dfd45503a762df685e6779c9f773a0567ea0c90aeee559505036edc1f6716973",
+  "modifiedObjectSHA256": "sha256:c089d44eb5063dddf9519598671bd49d06e0fbedc43511585a5b6069dc66051d",
+  "modifiedHostSHA256": "sha256:66b076c9142dffd9538a6bae30dbc1a3e58a4469a63e404c53981253859e315a",
+  "modifiedBoundarySHA256": "sha256:dc775efad1372ac81253cb1146d06beea755bcdb3865ae795c79bafa39d26329",
+  "hostBuildScriptSHA256": "sha256:7041b221e5a3fbade916e1b161ca8bc672e8055f28289b14841d52328c4906e6",
+  "method": "Recompile a controlled strlen source replacement in the exact vendor static libc archive; select it with the documented compiler/linker SDK route; relink both source-built hosts and execute doctor and a native program. The original runtime archives and release hosts remain unchanged.",
+  "emptyRuntimePATH": true,
+  "releaseEligible": false,
+  "ci": {
+    "run": 39977684519,
+    "artifact": 12511728088,
+    "artifactSHA256": "sha256:6eb7503ac6b6bd5722ffa97af448143ff1dd95edc94f3cc167190e020d91bdd0"
+  }
+}

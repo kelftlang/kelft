@@ -1,0 +1,56 @@
+// Shared fixtures, scheduling and assertions belong to Kelft, not the host.
+import "../json.kelft" as j;
+import "./testing-shards.kelft" as shards;
+import "../syntax.kelft" as s;
+import "../../stdlib/json-safe.kelft" as safe;
+fn text(value:j::Value,key:string)->string {return j::string(j::field(value,key));}
+fn action(operation:string)->j::Value {return j::set(j::parse("{\"schema\":\"kelft.test-action/1\"}"),"operation",j::Value::Text(operation));}
+fn fail(message:string,code:string,status:i32)->void {
+ let mut error:j::Value=j::parse("{}");error=j::set(error,"code",j::Value::Text(code));error=j::set(error,"message",j::Value::Text(message));
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft.test-report/1\",\"status\":\"failure\",\"target\":null,\"cases\":[],\"totals\":{\"passed\":0,\"failed\":0}}");report=j::set(report,"error",error);
+ let mut out:j::Value=action("complete");out=j::set(out,"exit",j::Value::Number(i32_to_string(status)));out=j::set(out,"json",j::Value::Bool(true));out=j::set(out,"report",report);println(j::canonical(out));exit(0);
+}
+fn need(ok:bool,message:string)->void {if !ok {fail(message,"TEST_CONTRACT",1);}}
+fn normal(path:string)->bool {if path==""||s::has(path,"\\")||s::has(path,":")||s::has(path,"\u{0}") {return false;}for part in string_split(path,"/") {if part==""||part=="."||part==".." {return false;}}return true;}
+fn hex(value:string)->string {let digits:string="0123456789abcdef";let mut out:string="";for byte in string_to_bytes(value) {let n:i32=i32_from_u8(byte);out=out+s::slice(digits,n/16,n/16+1)+s::slice(digits,n%16,n%16+1);}return out;}
+fn negative(group:string)->bool {return group=="negative"||group=="negativeModules";}
+pub fn decide(request:j::Value,opt:j::Value)->j::Value {
+ let raw:j::Value=j::field(j::field(request,"sources"),text(opt,"path"));need(j::is_string(raw),"corpus source must be text");let mut corpus:j::Value=j::Value::Null();match safe::parse(j::string(raw)) {Result::Ok(value)=>{corpus=value;},Result::Error(message)=>{need(false,"invalid conformance JSON");}}need(text(corpus,"schemaVersion")=="0.1","unsupported conformance corpus");
+ let target:string=text(request,"target");let overrides:j::Value=j::field(request,"expectations");need(text(overrides,"schema")=="kelft.native-conformance/1"&&j::is_object(j::field(overrides,"cases")),"native corpus expectations required");
+ let mut cases:Map<string,j::Value>=map_new::<string,j::Value>();let mut seen:Map<string,bool>=map_new::<string,bool>();
+ let groups:Array<string>=["positive","negative","negativeModules","runtime"];for group in groups {
+  let fixtures:j::Value=j::field(corpus,group);need(j::is_array(fixtures),"corpus group must be an array");
+  for fixture in j::array(fixtures) {
+   let file:string=text(fixture,"entry");let id:string=group+"::"+file;let mut duplicate:bool=false;match map_get::<string,bool>(seen,file) {Option::Some(value)=>{duplicate=true;},Option::None=>{}}
+   need(normal(file)&&string_len(file)>=6&&s::slice(file,string_len(file)-6,string_len(file))==".kelft"&&!duplicate,"invalid or duplicate corpus entry");map_set::<string,bool>(inout seen,file,true);
+   if negative(group) {let code:string=text(fixture,"code");let mut valid:bool=string_len(code)==5&&s::starts(code,"K");let mut i:i32=1;while i<string_len(code) {let b:i32=s::byte(code,i);if b<48||b>57 {valid=false;}i=i+1;}need(valid,"invalid corpus diagnostic");}
+   else {let mut valid:bool=false;match j::field(fixture,"exit") {j::Value::Number(n)=>{match string_to_i32(n) {Result::Ok(value)=>{valid=value>=0&&value<=255;},Result::Error(message)=>{}}},_=>{}}need(j::is_string(j::field(fixture,"stdout"))&&j::is_string(j::field(fixture,"stderr"))&&valid,"invalid corpus output expectation");}
+   let mut expected:j::Value=fixture;let mut override:j::Value=j::field(j::field(overrides,"cases"),file);
+   if override!=j::Value::Null() {
+    need(j::is_object(override)&&j::is_string(j::field(override,"reason"))&&text(override,"reason")!="","native expectation reason required");let mut merged:j::Value=fixture;
+    for (key,value) in j::object(override) {need(key=="reason"||(negative(group)&&key=="code")||(!negative(group)&&(key=="stdout"||key=="stderr"||key=="exit")),"invalid native expectation field");merged=j::set(merged,key,value);}
+    if negative(group) {let code:string=text(merged,"code");let mut valid:bool=string_len(code)==5&&s::starts(code,"K");let mut i:i32=1;while i<string_len(code) {let b:i32=s::byte(code,i);if b<48||b>57 {valid=false;}i=i+1;}
+     if s::starts(code,"KRT_")&&string_len(code)>4 {valid=true;i=4;while i<string_len(code) {let b:i32=s::byte(code,i);if !(b>=65&&b<=90)&&!(b>=48&&b<=57)&&b!=95 {valid=false;}i=i+1;}}need(valid,"invalid native diagnostic");
+    }else {let mut valid:bool=false;match j::field(merged,"exit") {j::Value::Number(n)=>{match string_to_i32(n) {Result::Ok(value)=>{valid=value>=0&&value<=255;},Result::Error(message)=>{}}},_=>{}}need(j::is_string(j::field(merged,"stdout"))&&j::is_string(j::field(merged,"stderr"))&&valid,"invalid native output expectation");}
+    if target!="javascript-reference" {expected=merged;}
+   }
+   if target=="javascript-reference" {override=j::Value::Null();}
+   if s::has(id,text(opt,"filter")) {let mut test:j::Value=j::parse("{}");test=j::set(test,"id",j::Value::Text(id));test=j::set(test,"file",j::Value::Text(file));test=j::set(test,"group",j::Value::Text(group));test=j::set(test,"expected",expected);test=j::set(test,"override",override);map_set::<string,j::Value>(inout cases,id,test);}
+  }
+ }
+ for (file,value) in j::object(j::field(overrides,"cases")) {let mut found:bool=false;match map_get::<string,bool>(seen,file) {Option::Some(value)=>{found=true;},Option::None=>{}}need(found,"unknown native expectation entry");}
+ need(map_len::<string,j::Value>(cases)<=4096,"test case limit exceeded");if map_len::<string,j::Value>(cases)==0 {fail("no tests selected","EMPTY_TEST_SELECTION",64);}
+ if text(opt,"shard")!="" {let mut ordered:Array<j::Value>=[];for (id,test) in cases {array_push::<j::Value>(inout ordered,test);}let chosen:Array<j::Value>=shards::select_test_shard(ordered,text(opt,"shard"),false);cases=map_new::<string,j::Value>();for test in chosen {map_set::<string,j::Value>(inout cases,text(test,"id"),test);}if map_len::<string,j::Value>(cases)==0 {fail("no tests selected","EMPTY_TEST_SELECTION",64);}}
+ if j::boolean(j::field(opt,"list")) {let mut ids:Array<j::Value>=[];for (id,test) in cases {array_push::<j::Value>(inout ids,j::Value::Text(id));}let mut report:j::Value=j::parse("{\"schema\":\"kelft.test-report/1\",\"status\":\"listed\"}");report=j::set(report,"target",j::field(request,"target"));report=j::set(report,"cases",j::Value::Array(ids));report=j::set(report,"totals",j::set(j::parse("{}"),"selected",j::Value::Number(i32_to_string(map_len::<string,j::Value>(cases)))));let mut out:j::Value=action("complete");out=j::set(out,"exit",j::Value::Number("0"));out=j::set(out,"json",j::field(opt,"json"));return j::set(out,"report",report);}
+ let builds:j::Value=j::field(request,"builds");let executions:j::Value=j::field(request,"executions");
+ for (id,test) in cases {if j::field(builds,text(test,"file"))==j::Value::Null() {let mut out:j::Value=action("build");out=j::set(out,"file",j::field(test,"file"));return j::set(out,"entry",j::Value::Bool(true));}}
+ for (id,test) in cases {if !negative(text(test,"group"))&&text(j::field(builds,text(test,"file")),"status")=="success"&&j::field(executions,id)==j::Value::Null() {let mut out:j::Value=action("run");out=j::set(out,"id",j::Value::Text(id));out=j::set(out,"file",j::field(test,"file"));return j::set(out,"corpus",j::Value::Bool(true));}}
+ let mut passed:i32=0;let mut failed:i32=0;let mut results:Array<j::Value>=[];
+ for (id,test) in cases {
+  let build:j::Value=j::field(builds,text(test,"file"));let execution:j::Value=j::field(executions,id);let expected:j::Value=j::field(test,"expected");let mut reason:string="build failed";
+  if negative(text(test,"group")) {reason="expected compiler diagnostic "+text(expected,"code");if text(build,"status")=="failed"&&j::field(build,"exit")==j::Value::Number("1")&&j::field(build,"error")==j::Value::Null()&&s::has(text(build,"stderrHex"),hex("error["+text(expected,"code")+"]")) {reason="";}}
+  else if text(build,"status")=="success" {reason="execution failed";if text(execution,"status")=="exited" {reason="exit or output mismatch";if j::field(execution,"exit")==j::field(expected,"exit")&&text(execution,"stdoutHex")==hex(text(expected,"stdout"))&&text(execution,"stderrHex")==hex(text(expected,"stderr")) {reason="";}}}
+  let mut status:string="passed";if reason!="" {status="failed";failed=failed+1;}else {passed=passed+1;}let mut result:j::Value=j::set(test,"status",j::Value::Text(status));result=j::set(result,"reason",j::Value::Text(reason));result=j::set(result,"build",build);result=j::set(result,"execution",execution);array_push::<j::Value>(inout results,result);
+ }
+ let mut report:j::Value=j::parse("{\"schema\":\"kelft.test-report/1\"}");let mut status:string="passed";let mut code:i32=0;if failed>0 {status="failed";code=1;}report=j::set(report,"status",j::Value::Text(status));report=j::set(report,"target",j::field(request,"target"));report=j::set(report,"cases",j::Value::Array(results));let mut totals:j::Value=j::parse("{}");totals=j::set(totals,"passed",j::Value::Number(i32_to_string(passed)));totals=j::set(totals,"failed",j::Value::Number(i32_to_string(failed)));report=j::set(report,"totals",totals);let mut out:j::Value=action("complete");out=j::set(out,"exit",j::Value::Number(i32_to_string(code)));out=j::set(out,"json",j::field(opt,"json"));return j::set(out,"report",report);
+}

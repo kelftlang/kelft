@@ -1,0 +1,15 @@
+import "../../stdlib/testing.kelft" as testing;
+import "../../stdlib/contracts.kelft" as contracts;
+import "../../selfhost/json.kelft" as j;
+import "../../selfhost/intent_preservation.kelft" as preservation;
+import "../../examples/relay/collaboration.kelft" as relay;
+pub fn test_wire_validation(inout context:testing::Context)->void {
+ let models:j::Value=j::parse("{\"entities\":{\"User\":{\"name\":\"Text where length 1..8\"}},\"enums\":{}}");let user:j::Value=j::parse("{\"name\":\"Ada\"}");
+ testing::expect(inout context,contracts::validate(models,"User",user,false),"valid user accepted");testing::expect(inout context,!contracts::validate(models,"User",j::parse("{\"name\":\"\"}"),false),"empty name rejected");testing::expect(inout context,!contracts::validate(models,"User",j::set(user,"extra",j::Value::Bool(true)),false),"unexpected field rejected");testing::expect(inout context,contracts::validate(models,"User",j::set(user,"extra",j::Value::Bool(true)),true),"extensible response allowed");
+ testing::expect(inout context,!contracts::validate(models,"u8",j::Value::Number("256"),false),"u8 bounds");testing::expect(inout context,!contracts::validate(models,"Map<i32,string>",j::parse("[[1,\"a\"],[1,\"b\"]]"),false),"duplicate map keys rejected");
+}
+pub fn test_preservation(inout context:testing::Context)->void {testing::equal_json(inout context,preservation::check([],[],[],[]),j::parse("{\"structural\":\"passed\",\"behavior\":\"unverified\",\"requiredObligations\":[]}"),"preservation does not claim behavior proof");}
+pub fn test_relay_permissions(inout context:testing::Context)->void {
+ testing::expect(inout context,relay::permits(relay::Role::Admin(),relay::Permission::ManageMembers()),"admin manages members");testing::expect(inout context,!relay::permits(relay::Role::Member(),relay::Permission::ManageMembers()),"member cannot manage members");testing::expect(inout context,relay::permits(relay::Role::Member(),relay::Permission::WriteTasks()),"member writes tasks");testing::expect(inout context,relay::local_drafting(true,true,false),"authorized offline drafting");testing::expect(inout context,!relay::local_drafting(true,true,true),"revocation disables offline drafting");
+ let alice:relay::Principal=relay::Principal {issuer:"https://identity.test",subject:"alice"};let members:Array<relay::Membership>=[relay::Membership {principal:alice,workspace:"A",role:relay::Role::Admin()}];testing::expect(inout context,relay::authorized(members,alice,"A",relay::Permission::ReadTasks()),"workspace member");testing::expect(inout context,!relay::authorized(members,alice,"B",relay::Permission::ReadTasks()),"workspace isolation");
+}

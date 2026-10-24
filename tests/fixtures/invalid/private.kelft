@@ -1,0 +1,2 @@
+import "../module-lib.kelft" as lib;
+fn main()->void {println(i32_to_string(lib::private_value()));}

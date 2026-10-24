@@ -1,0 +1,23 @@
+// Portable assertions. The runner requires a completion record as well as exit 0.
+import "../selfhost/json.kelft" as j;
+import "../selfhost/syntax.kelft" as s;
+pub struct Context { id:string, assertions:i32, failures:Array<string> }
+pub fn context(id:string)->Context {return Context {id:id,assertions:0,failures:[]};}
+pub fn expect(inout context:Context,condition:bool,message:string)->void {
+ context.assertions=context.assertions+1;if !condition {array_push::<string>(inout context.failures,message);}
+}
+pub fn equal_i32(inout context:Context,actual:i32,expected:i32,message:string)->void {expect(inout context,actual==expected,message+": expected "+i32_to_string(expected)+", actual "+i32_to_string(actual));}
+pub fn equal_string(inout context:Context,actual:string,expected:string,message:string)->void {expect(inout context,actual==expected,message+": expected "+s::json_quote(expected)+", actual "+s::json_quote(actual));}
+pub fn equal_bytes(inout context:Context,actual:Bytes,expected:Bytes,message:string)->void {
+ let mut a:Array<string>=[];let mut b:Array<string>=[];for value in actual {array_push::<string>(inout a,i32_to_string(i32_from_u8(value)));}for value in expected {array_push::<string>(inout b,i32_to_string(i32_from_u8(value)));}
+ expect(inout context,actual==expected,message+": expected ["+s::join(b,",")+"], actual ["+s::join(a,",")+"]");
+}
+pub fn equal_json(inout context:Context,actual:j::Value,expected:j::Value,message:string)->void {equal_string(inout context,j::canonical(actual),j::canonical(expected),message);}
+pub fn report(context:Context)->string {
+ let mut out:j::Value=j::parse("{\"schema\":\"kelft.test-case/1\"}");out=j::set(out,"id",j::Value::Text(context.id));out=j::set(out,"assertions",j::Value::Number(i32_to_string(context.assertions)));
+ let mut failures:Array<j::Value>=[];for message in context.failures {array_push::<j::Value>(inout failures,j::Value::Text(message));}return j::canonical(j::set(out,"failures",j::Value::Array(failures)));
+}
+pub fn complete(context:Context,path:string)->i32 {
+ match write_text(path,report(context)) {Result::Ok(ok)=>{},Result::Error(message)=>{eprint("cannot write test completion record\n");return 1;}}
+ if array_len::<string>(context.failures)>0 {return 1;}return 0;
+}
