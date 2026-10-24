@@ -5,7 +5,7 @@ on:
     inputs:
       operation:
         type: choice
-        options: [verify, prepare, publish]
+        options: [verify, refresh-seeds, prepare, publish]
         default: verify
       target:
         type: choice
@@ -31,6 +31,7 @@ jobs:
       candidate: ${{ steps.context.outputs.candidate }}
       matrix: ${{ steps.context.outputs.matrix }}
       public_commit: ${{ steps.context.outputs.public_commit }}
+      targets: ${{ steps.context.outputs.targets }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -51,12 +52,13 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends unzip
-      - run: node --test tests/release.test.mjs tests/release-pipeline.test.mjs tests/source-archive.test.mjs
+      - run: node --test tests/release.test.mjs tests/release-pipeline.test.mjs tests/release-alpha2.test.mjs tests/seed-refresh.test.mjs tests/source-archive.test.mjs
       - if: inputs.operation == 'prepare'
         run: node scripts/release.mjs review --target publication
 
   native:
     needs: preflight
+    if: inputs.operation == 'verify' || inputs.operation == 'prepare'
     permissions:
       contents: read
       actions: read
@@ -83,15 +85,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends bubblewrap unzip
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Recover earlier attempts without replacing their evidence
+        # Signature verification authenticates public kit producer commits.
         if: github.run_attempt > 1
         continue-on-error: true
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          pattern: ${{ matrix.target }}-attempt-*
+          pattern: kit-${{ matrix.target }}-*-attempt-*
           path: build/release/reuse
           github-token: ${{ github.token }}
           run-id: ${{ github.run_id }}
-      - name: Offline generations and extracted-package qualification
+      - name: Retained compiler evidence and extracted-package qualification
+        id: qualification
         env:
           CANDIDATE: ${{ needs.preflight.outputs.public_commit }}
           NATIVE_TARGET: ${{ matrix.target }}
@@ -101,7 +105,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ matrix.target }}-attempt-${{ github.run_attempt }}
+          name: ${{ steps.qualification.outputs.kit_key && format('kit-{0}-{1}', matrix.target, steps.qualification.outputs.kit_key) || matrix.target }}-attempt-${{ github.run_attempt }}
           path: |
             build/release/native/qualification.json
             build/release/native/inputs.json
@@ -116,16 +120,18 @@ jobs:
             build/release/native/S2/compiler.o
             build/release/native/S2/compiler.obj
             build/release/native/S2/runtime-modes.json
+            build/release/native/S2/release.json
             build/release/native/S3/rootfs/compiler*
             build/release/native/S3/rootfs/policies/
             build/release/native/S3/compiler.o
             build/release/native/S3/compiler.obj
             build/release/native/S3/runtime-modes.json
+            build/release/native/S3/release.json
           retention-days: 30
 
   assemble:
     needs: [preflight, native]
-    if: inputs.target == 'all'
+    if: inputs.target == 'all' && inputs.operation != 'refresh-seeds'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -142,6 +148,7 @@ jobs:
           pattern: '*-attempt-*'
           path: build/release-inputs
       - env:
+          GH_TOKEN: ${{ github.token }}
           CANDIDATE: ${{ needs.preflight.outputs.public_commit }}
         run: node -e "const c=require('node:child_process'),r=c.spawnSync(process.execPath,['scripts/release.mjs','assemble','--input','build/release-inputs','--out','build/release-assets',...(process.env.CANDIDATE?['--candidate',process.env.CANDIDATE]:[])],{stdio:'inherit'});process.exit(r.status??1);"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -177,6 +184,97 @@ jobs:
           name: signed-assets
           path: release-assets/
           retention-days: 30
+
+  refresh-seeds:
+    needs: preflight
+    if: inputs.operation == 'refresh-seeds' && github.repository == 'kelftlang/kelft' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ needs.preflight.outputs.candidate }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          architecture: ${{ endsWith(matrix.target, 'arm64') && 'arm64' || 'x64' }}
+          package-manager-cache: false
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends bubblewrap unzip
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Prepare pinned coordinator development tools
+        if: matrix.needs_build
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          case "$TARGET" in
+            windows-x86_64) triple=x86_64-pc-windows-msvc ;;
+            windows-arm64) triple=aarch64-pc-windows-msvc ;;
+            linux-x86_64) triple=x86_64-unknown-linux-gnu ;;
+            linux-arm64) triple=aarch64-unknown-linux-gnu ;;
+            macos-x86_64) triple=x86_64-apple-darwin ;;
+            macos-arm64) triple=aarch64-apple-darwin ;;
+            *) exit 1 ;;
+          esac
+          rustup toolchain install "1.99.0-$triple" --profile minimal
+          echo "KELFT_NATIVE_RUST_TOOLCHAIN=1.99.0-$triple" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$GITHUB_WORKSPACE/.cache/seed-cargo/$TARGET" >> "$GITHUB_ENV"
+          export CARGO_HOME="$GITHUB_WORKSPACE/.cache/seed-cargo/$TARGET"
+          rustup run "1.99.0-$triple" cargo fetch --locked --manifest-path host/driver/Cargo.toml --target "$triple"
+      - name: Refresh changed components and run focused checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: node scripts/seed-refresh.mjs --target "$TARGET" --out build/seed-refresh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: seed-refresh-${{ matrix.target }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/seed-refresh/refresh.json
+            build/seed-refresh/updates/
+            build/seed-refresh/logs/
+          retention-days: 30
+
+  seed-pr:
+    needs: [preflight, refresh-seeds]
+    if: inputs.operation == 'refresh-seeds' && github.repository == 'kelftlang/kelft' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ needs.preflight.outputs.candidate }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: seed-refresh-*-attempt-*
+          path: build/seed-inputs
+      - name: Authenticate artifacts and open a seed-only PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGETS: ${{ needs.preflight.outputs.targets }}
+        run: node scripts/seed-pull-request.mjs --input build/seed-inputs --targets "$TARGETS"
 
   draft:
     needs: [preflight, attest]

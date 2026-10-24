@@ -210,6 +210,7 @@ fn runtime_files(root: &Path) -> Result<Vec<Value>, Error> {
         }
     }
     for name in [
+        "release.json",
         "manifest.json",
         "supervisor.json",
         "rebuild.json",
@@ -899,6 +900,13 @@ pub fn dispatch(args: &[String]) -> Result<i32, Error> {
     let package = work.join("package");
     fs::create_dir(&package)?;
     let installed = crate::installed_targets::root()?;
+    let source_release = crate::installed_cli::read_release(&source)?;
+    let installed_release = crate::installed_cli::read_release(&installed)?;
+    request["sourceRelease"] = json!(source_release);
+    request["installedRelease"] = json!(installed_release);
+    request["embeddedRelease"] = crate::installed_cli::embedded_release();
+    let action = policy(&request)?;
+    if action["operation"] == "complete" {return present_failure(&action,args);}
     let inputs = runtime_files(&installed)?;
     copy_files(&installed, &package, &inputs)?;
     let seed_metadata = package.join("seed.json");
@@ -910,6 +918,14 @@ pub fn dispatch(args: &[String]) -> Result<i32, Error> {
         .filter(|row| row["path"] != "runtime-modes.json" && row["path"] != "seed.json")
         .map(|row| json!({"path":row["path"],"mode":row["mode"]}))
         .collect();
+    // Legacy bootstrap policies do not return release metadata. Their validated
+    // source/installation observations use the same precedence until S2 builds
+    // the current policy. This metadata never grants execution authority.
+    let release = action.get("release").filter(|value|value.is_object()).cloned()
+        .or_else(||source_release.clone()).or_else(||installed_release.clone())
+        .unwrap_or_else(crate::installed_cli::embedded_release);
+    fs::write(package.join("release.json"),serde_json::to_vec(&release)?)?;
+    if !modes.iter().any(|row|row["path"]=="release.json"){modes.push(json!({"path":"release.json","mode":0o644}));}
     let suffix = Target::current()?.executable_suffix();
     let compiler_name = format!("rootfs/compiler{suffix}");
     for item in &mut modes {
@@ -970,7 +986,7 @@ pub fn dispatch(args: &[String]) -> Result<i32, Error> {
     if receipt["executableHash"] != compiler_hash {
         return Err("compiler rebuild receipt differs".into());
     }
-    if sources(&source)? != rows || runtime_files(&installed)? != inputs {
+    if sources(&source)? != rows || runtime_files(&installed)? != inputs || crate::installed_cli::read_release(&source)? != source_release {
         return Err("rebuild inputs changed".into());
     }
     let object_bytes = read(&object, 256 << 20)?;
@@ -1061,7 +1077,9 @@ pub fn dispatch(args: &[String]) -> Result<i32, Error> {
             json!({"sha256":protocol::hash(&bytes),"bytes":bytes.len()}),
         );
     }
-    if policy_records.len() != 2 || sources(&source)? != rows {
+    if policy_records.len() != 2 || sources(&source)? != rows
+        || runtime_files(&installed)? != inputs
+        || crate::installed_cli::read_release(&source)? != source_release {
         return Err("rebuild policy inputs changed or are incomplete".into());
     }
     let report = json!({"schema":"kelft.native-rebuild/1","status":"built","host":Target::current()?.id(),"protocol":"0.1","origin":"local-rebuild","sourceRoot":source,"sources":rows,"sourceInventorySHA256":protocol::hash(&serde_json::to_vec(&rows)?),"seedCompilerSHA256":crate::compiler_sha256()?,"compiler":{"sha256":compiler_hash,"bytes":bytes.len()},"object":{"sha256":protocol::hash(&object_bytes),"bytes":object_bytes.len()},"policies":policy_records,"hostsRebuilt":false,"releaseEligible":false});
@@ -1340,6 +1358,30 @@ mod tests {
         )
         .unwrap();
         assert!(runtime_files(&source).is_err());
+    }
+    #[test]
+    fn release_metadata_is_part_of_runtime_snapshots() {
+        let parent = test_parent();
+        let root = parent.join(format!(".kelft release λ {}", nonce().unwrap()));
+        fs::create_dir(&root).unwrap();
+        let _cleanup = Scratch { parent, path: root.clone() };
+        let source = root.join("source");
+        let destination = root.join("destination");
+        for dir in [&source, &destination] {
+            fs::create_dir(dir).unwrap();
+            fs::create_dir(dir.join("bin")).unwrap();
+            fs::create_dir(dir.join("rootfs")).unwrap();
+        }
+        let metadata = br#"{"schema":"kelft.compiler-version/1","version":"0.1.0-alpha.2","coreVersion":"0.1","intentVersion":"0.2"}"#;
+        fs::write(source.join("release.json"), metadata).unwrap();
+        let rows = runtime_files(&source).unwrap();
+        assert!(rows.iter().any(|row| row["path"] == "release.json"));
+        copy_files(&source, &destination, &rows).unwrap();
+        assert_eq!(runtime_files(&destination).unwrap(), rows);
+        assert_eq!(crate::installed_cli::read_release(&destination).unwrap().unwrap()["version"], "0.1.0-alpha.2");
+        fs::write(source.join("release.json"), b"{}").unwrap();
+        assert_ne!(runtime_files(&source).unwrap(), rows);
+        assert_eq!(fs::read(destination.join("release.json")).unwrap(), metadata);
     }
     #[test]
     fn split_payloads_authenticate_parts_and_reject_escape() {

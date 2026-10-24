@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.1.0-alpha.2
 
+- Workflow-managed version tags, verified source commits, and reusable native build artifacts.
+- Installed release metadata for version reporting and evaluated alpha release eligibility.
 - Native bootstrap launchers and a rebuild command producing a usable local compiler.
 - Editable source builds without Node, Rust/C development tools, or manual hash arguments.
 
-Initial compiler alpha, version **0.1.0-alpha.1**:
+Initial compiler alpha, version **0.1.0-alpha.2**:
 
 - Self-hosted Kelft compiler with source checking, diagnostics, and native object emission.
 - Core language support for typed values, modules, aggregates, generics, and ownership-aware mutation.

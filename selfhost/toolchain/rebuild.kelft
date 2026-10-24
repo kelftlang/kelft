@@ -1,3 +1,4 @@
+import "./release-version.kelft" as release_version;
 // Native rebuild plans use bounded source observations supplied by the host.
 import "../json.kelft" as j;
 import "../syntax.kelft" as s;
@@ -47,7 +48,7 @@ pub fn decide(request:j::Value)->j::Value {
    need(digest(field(item,"sha256")),"invalid rebuild source digest");let size:j::Value=j::field(item,"bytes");need(j::is_number(size),"invalid rebuild source size");let length:i32=size_value(size);need(length>=0&&length<=8388608,"source file exceeds bound");total=total+length;need(total<=67108864,"source inventory exceeds 64 MiB");if name==compiler {present=true;}
   }need(present,"compiler entry is missing");
  }
- let mut out:j::Value=j::parse("{\"schema\":\"kelft.rebuild-action/1\",\"operation\":\"rebuild\",\"protocol\":\"0.1\",\"policies\":[{\"name\":\"rebuild\",\"entry\":\"selfhost/toolchain/rebuild.kelft\"},{\"name\":\"testing\",\"entry\":\"selfhost/toolchain/testing.kelft\"}]}");out=j::set(out,"source",j::Value::Text(source));out=j::set(out,"out",j::Value::Text(output));out=j::set(out,"entry",j::Value::Text(compiler));out=j::set(out,"host",j::Value::Text(host));return j::set(out,"json",j::Value::Bool(json));
+ let mut out:j::Value=j::parse("{\"schema\":\"kelft.rebuild-action/1\",\"operation\":\"rebuild\",\"protocol\":\"0.1\",\"policies\":[{\"name\":\"rebuild\",\"entry\":\"selfhost/toolchain/rebuild.kelft\"},{\"name\":\"testing\",\"entry\":\"selfhost/toolchain/testing.kelft\"}]}");let release_fields:Array<string>=["sourceRelease","installedRelease","embeddedRelease"];for name in release_fields {let value:j::Value=j::field(request,name);if value!=j::Value::Null() {match release_version::validate(value) {Result::Ok(metadata)=>{out=j::set(out,"release",metadata);},Result::Error(message)=>{need(false,message);}}break;}}out=j::set(out,"source",j::Value::Text(source));out=j::set(out,"out",j::Value::Text(output));out=j::set(out,"entry",j::Value::Text(compiler));out=j::set(out,"host",j::Value::Text(host));return j::set(out,"json",j::Value::Bool(json));
 }
 fn main()->void {
  let arguments:Array<string>=args();need(array_len::<string>(arguments)==1,"rebuild request path required");match read_file(arguments[0]) {Result::Ok(bytes)=>{need(array_len::<u8>(bytes)<=16777216,"rebuild request exceeds 16 MiB");match utf8_decode(bytes) {Result::Ok(raw)=>{println(j::canonical(decide(j::parse(raw))));},Result::Error(message)=>{need(false,"rebuild request is not UTF-8");}}},Result::Error(message)=>{need(false,"cannot read rebuild request");}}

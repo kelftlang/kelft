@@ -4,7 +4,7 @@ Obtain available packages from [GitHub Releases](https://github.com/kelftlang/ke
 The instructions below describe the alpha package format; available targets and
 qualified OS baselines are identified by each published release.
 
-Select `kelft-v0.1.0-alpha.1-OS-ARCH`: `OS` is `linux`, `windows`, or `macos`;
+Select `kelft-v0.1.0-alpha.2-OS-ARCH`: `OS` is `linux`, `windows`, or `macos`;
 `ARCH` is `x86_64` or `arm64`. Windows uses ZIP; other hosts use tar.gz.
 Verify the package's GitHub artifact attestation against this repository and
 its exact release-producing workflow, then compare its SHA-256 with the

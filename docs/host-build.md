@@ -5,6 +5,13 @@ seed. The Rust coordinator and platform boundaries can also be rebuilt from
 their corresponding sources. This advanced workflow requires development tools
 and does not confer release qualification on its output.
 
+The `release-metadata/1` coordinator feature separates installed version
+metadata from host executable identity. The public `refresh-seeds` workflow
+updates changed coordinators and policies, checks metadata and staging, and
+opens a PR for review. It retains existing compiler qualification and unchanged
+boundaries and platform inputs. Compatible hosts can be reused for later
+version-only changes. See the [release workflow](release-workflow.md).
+
 ## Sources and tools
 
 Each seed identifies its corresponding compiler and host source archive.
