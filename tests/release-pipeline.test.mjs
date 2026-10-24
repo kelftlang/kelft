@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import os from 'node:os';
-import {sha256,json} from '../scripts/common.mjs';import {TARGETS,fileIdentity,validateQualification,assembleManifest,validateReleaseContext} from '../scripts/release-contracts.mjs';import {checkDraft,publishDraft,prepareDraft} from '../scripts/release-github.mjs';
+import {sha256,json} from '../scripts/common.mjs';import {TARGETS,fileIdentity,validateQualification,assembleManifest,validateReleaseContext} from '../scripts/release-contracts.mjs';import {checkDraft,publishDraft,prepareDraft,releaseTransport,verifyAttestation} from '../scripts/release-github.mjs';
 import {validateReuseInputs,reusableCoverage,retainedInputs} from '../scripts/release-reuse.mjs';
 import {candidateTimeoutContract,prepareSeedLauncher} from '../scripts/release.mjs';
 import {authenticateRemoteArtifact} from '../scripts/release-artifact.mjs';
@@ -58,3 +58,38 @@ test('draft publication authenticates downloaded bytes and signatures before its
  let lists=0;const raced=async(method,url,body)=>{if(url.endsWith('/assets?per_page=100'))return ++lists===1?structuredClone(assets):assets.map(row=>({...row,id:row.id+10}));return api(method,url,body);};await assert.rejects(publishDraft({context,api:raced,manifest,manifestIdentity,releaseID:1,download,verify}),/changed/);assert.equal(calls.some(row=>row.method==='PATCH'),false);
 });
 test('draft preparation rejects local tampering before creating a release',async t=>{const root=fs.mkdtempSync(path.join(os.tmpdir(),'kelft-prepare-test-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));for(const name of ['compiler.zip','release-manifest.json','attestations.json'])fs.writeFileSync(path.join(root,name),name);const manifest={version:context.version,tag:context.tag,prerelease:true,snapshot:{publicCommit:context.candidate},assets:[{file:'compiler.zip',sha256:sha256('wrong'),bytes:12}]};const calls=[],api=async(method,url)=>{calls.push(method);return url.includes('/environments/')?{protection_rules:[{type:'required_reviewers',reviewers:[{id:1}]}]}:[];};await assert.rejects(prepareDraft({context,api,manifest,directory:root,verify:async()=>{},upload:async()=>{},download:async()=>{}}),/changed/);assert.equal(calls.includes('POST'),false);await assert.rejects(prepareDraft({context,api:async()=>({protection_rules:[]}),manifest,directory:root}),/required reviewers/);});
+
+test('downloaded JSON and JSONL bundles reach the verifier unchanged with supported suffixes',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'kelft-downloaded-bundles-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ for(const extension of ['.json','.jsonl']){
+  const directory=path.join(root,extension.slice(1));fs.mkdirSync(directory);
+  const data=Buffer.from('{"bundle":"signed bytes"}\n'),payload=Buffer.from('compiler image'),calls=[];
+  const transport=releaseTransport('test-token',directory,{fetcher:async(url,options)=>{assert.equal(options.headers.Authorization,'Bearer test-token');assert.equal(options.headers.Accept,'application/octet-stream');assert.equal(options.method,undefined);calls.push(url);return new Response(url.endsWith('/11')?data:payload);}});
+  const bundle=await transport.download({id:11,name:'attestations'+extension,size:data.length}),file=await transport.download({id:12,name:'compiler.tar.gz',size:payload.length});
+  const run=(gh,args,options)=>{assert.equal(gh,'pinned-gh');assert.equal(path.extname(args[args.indexOf('--bundle')+1]),extension);assert.deepEqual(fs.readFileSync(bundle),data);assert.deepEqual(fs.readFileSync(args[2]),payload);assert.equal(args[args.indexOf('--repo')+1],'kelftlang/kelft');assert.equal(args[args.indexOf('--signer-workflow')+1],'kelftlang/kelft/.github/workflows/release.yml');for(const flag of ['--source-digest','--signer-digest'])assert.equal(args[args.indexOf(flag)+1],context.candidate);assert.equal(args[args.indexOf('--source-ref')+1],'refs/heads/main');assert.ok(args.includes('--deny-self-hosted-runners'));assert.deepEqual(options,{encoding:'utf8',timeout:120000,maxBuffer:4<<20,windowsHide:true});return {status:0,stdout:'[{"verified":true}]'};};
+  assert.deepEqual(verifyAttestation(file,bundle,context.candidate,{gh:'pinned-gh',run}),[{verified:true}]);assert.equal(calls.length,2);
+  const duplicate=await transport.download({id:11,name:'attestations'+extension,size:data.length});assert.notEqual(duplicate,bundle);assert.deepEqual(fs.readFileSync(duplicate),data);
+ }
+});
+
+test('asset downloads confine remote names, use exclusive files and enforce exact bounded sizes',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'kelft-download-bounds-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));let body=Buffer.from('abc'),requests=0;
+ const transport=releaseTransport('test-token',root,{fetcher:async(url,options)=>{requests++;assert.ok(url.startsWith('https://api.github.com/repos/kelftlang/kelft/'));assert.equal(options.headers.Authorization,'Bearer test-token');return new Response(body);}});
+ for(const [i,name]of ['../../escape.json','..\\..\\escape.jsonl','/absolute.json','C:\\escape.json','evil.exe','file.json/../evil.sh','file.JSON'].entries()){
+  const file=await transport.download({id:i+1,name,size:3});assert.equal(path.dirname(file),root);assert.match(path.basename(file),/^download-\d+-\d+(?:\.jsonl?)?$/);assert.deepEqual(fs.readFileSync(file),body);
+ }
+ const before=requests;for(const asset of [{id:0,size:3},{id:1,size:0},{id:1,size:2*1024**3+1},{id:1.5,size:3},{id:1,size:NaN}])await assert.rejects(transport.download(asset),/Invalid asset/);assert.equal(requests,before);
+ await assert.rejects(transport.download({id:30,name:'short.json',size:4}),/truncated/);body=Buffer.from('oversized');await assert.rejects(transport.download({id:31,name:'large.json',size:3}),/exceeds recorded bound/);
+ const collision=path.join(root,'download-99-0.json');fs.writeFileSync(collision,'keep existing bytes');const fresh=releaseTransport('test-token',root,{fetcher:async()=>new Response('abc')});await assert.rejects(fresh.download({id:99,name:'bundle.json',size:3}),/EEXIST/);assert.equal(fs.readFileSync(collision,'utf8'),'keep existing bytes');
+ const denied=releaseTransport('test-token',root,{fetcher:async()=>new Response('',{status:403})});await assert.rejects(denied.download({id:50,size:3}),/download failed/);
+});
+
+test('verifier failures identify artifacts and bounded process diagnostics without tokens',t=>{
+ const prior={GH_TOKEN:process.env.GH_TOKEN,GITHUB_TOKEN:process.env.GITHUB_TOKEN};t.after(()=>{for(const [key,value]of Object.entries(prior))if(value===undefined)delete process.env[key];else process.env[key]=value;});process.env.GH_TOKEN='secret-one';process.env.GITHUB_TOKEN='secret-two';
+ const verify=result=>verifyAttestation('compiler.tar.gz','bundle.json',context.candidate,{run:()=>result});
+ for(const result of [{status:1,stderr:'unsupported bundle: secret-one secret-two Bearer hidden-token ghp_123456789 github_pat_123456789'},{status:null,signal:'SIGTERM',stderr:'timed out'},{status:null,error:Object.assign(Error('secret-one executable unavailable'),{code:'ENOENT'}),stderr:''}]){
+  assert.throws(()=>verify(result),error=>{assert.match(error.message,/compiler.tar.gz/);assert.match(error.message,result.signal?/signal SIGTERM/:result.error?/launch error ENOENT/:/exit 1/);for(const secret of ['secret-one','secret-two','hidden-token','ghp_123456789','github_pat_123456789'])assert.ok(!error.message.includes(secret));return true;});
+ }
+ assert.throws(()=>verify({status:2,stderr:'use a .json or .jsonl bundle\n'+'x'.repeat(10000)+'secret-one'}),error=>{assert.match(error.message,/use a .json or .jsonl bundle/);assert.ok(error.message.length<=4096);assert.ok(!error.message.includes('secret-one'));return true;});
+ assert.throws(()=>verifyAttestation('compiler.zip','bundle.json',context.candidate,{run:()=>{throw Error('could not launch secret-two');}}),/compiler.zip; launch error: could not launch \[REDACTED\]/);
+});

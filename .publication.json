@@ -1,7 +1,7 @@
 {
   "schema": "kelft.public-export/1",
   "kind": "compiler",
-  "sourceRevision": "78efd88bce665291bb74ac3cc0a0e259c3acedd0",
+  "sourceRevision": "799993bcce9cb52d58b783dcd5561b41c4f2ff36",
   "sourceDirty": true,
   "publication": "prepared-not-published",
   "files": [
@@ -6227,8 +6227,8 @@
     },
     {
       "path": "scripts/release-github.mjs",
-      "sha256": "sha256:07ac2e9be7f7b5a101009587c9f029eb57ef936b6637fd049622249544af0ef3",
-      "bytes": 7961
+      "sha256": "sha256:94a366d3fc622bacdd1ca934a44b55674c010179d96481c60de5329321f7befa",
+      "bytes": 9075
     },
     {
       "path": "scripts/release-reuse.mjs",
@@ -7472,8 +7472,8 @@
     },
     {
       "path": "tests/release-pipeline.test.mjs",
-      "sha256": "sha256:d770ce40279fa1cb331021fe811b154c1cafdb21440d84745d1646e84118617a",
-      "bytes": 13744
+      "sha256": "sha256:994a1e2dcde11b753ba881baf6427a5ee555f75c9c2605e37872c0d2e19d297c",
+      "bytes": 19381
     },
     {
       "path": "tests/release.test.mjs",
