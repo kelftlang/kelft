@@ -5,7 +5,7 @@ on:
     inputs:
       operation:
         type: choice
-        options: [verify, refresh-seeds, prepare, publish]
+        options: [verify, refresh-seeds, prepare, resume-draft, publish]
         default: verify
       target:
         type: choice
@@ -13,6 +13,9 @@ on:
         default: all
       candidate_sha:
         description: Exact source commit; defaults to the workflow commit for verify/prepare
+        type: string
+      source_run_id:
+        description: Original prepare run containing signed-assets; required for resume-draft
         type: string
       release_id:
         description: Existing draft ID, required only for publish
@@ -24,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   preflight:
-    if: inputs.operation != 'publish'
+    if: inputs.operation != 'publish' && inputs.operation != 'resume-draft'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -52,7 +55,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends unzip
-      - run: node --test tests/release.test.mjs tests/release-pipeline.test.mjs tests/release-alpha2.test.mjs tests/seed-refresh.test.mjs tests/source-archive.test.mjs
+      - run: node --test tests/release.test.mjs tests/release-pipeline.test.mjs tests/release-alpha2.test.mjs tests/release-recovery.test.mjs tests/seed-refresh.test.mjs tests/source-archive.test.mjs
       - if: inputs.operation == 'prepare'
         run: node scripts/release.mjs review --target publication
 
@@ -322,3 +325,37 @@ jobs:
           DRAFT_ID: ${{ inputs.release_id }}
           CANDIDATE: ${{ inputs.candidate_sha }}
         run: node -e "const c=require('node:child_process'),r=c.spawnSync(process.execPath,['scripts/release-actions.mjs','publish','--release-id',process.env.DRAFT_ID,'--candidate',process.env.CANDIDATE],{stdio:'inherit'});process.exit(r.status??1);"
+
+  resume-draft:
+    if: inputs.operation == 'resume-draft' && github.repository == 'kelftlang/kelft' && github.ref == 'refs/heads/main'
+    environment: compiler-release-draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - run: sudo apt-get install -y --no-install-recommends unzip
+      - run: node scripts/release-actions.mjs install-gh
+      - name: Authenticate original assets and resume draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.source_run_id }}
+          CANDIDATE: ${{ inputs.candidate_sha }}
+          TARGET: ${{ inputs.target }}
+        run: node scripts/release-recovery.mjs --source-run-id "$SOURCE_RUN" --candidate "$CANDIDATE" --target "$TARGET"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: draft-recovery-evidence
+          path: |
+            build/draft-recovery/recovery.json
+            build/draft-recovery/result.json
+          retention-days: 30

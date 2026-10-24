@@ -1,3 +1,4 @@
+import {request,boundedText} from './release-http.mjs';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {spawnSync} from 'node:child_process';
 import {requireThat} from './common.mjs';
 export const repository='kelftlang/kelft';
@@ -19,9 +20,8 @@ export function verifyGitHubKey(verification,keys,{run=spawnSync}={}){
   finally{requireThat(path.dirname(home)===parent&&path.basename(home).startsWith('kelft-release-gpg-')&&!fs.lstatSync(home).isSymbolicLink(),'Unsafe signature-check cleanup');fs.rmSync(home,{recursive:true,force:true});}
 }
 export async function verifyPublicSource(api,candidate,{fetcher=fetch,run=spawnSync}={}){
-  requireThat(/^[a-f0-9]{40}$/.test(candidate??''),'Exact public candidate required');const verification=githubSignature(await api('GET','/repos/'+repository+'/commits/'+candidate),candidate),response=await fetcher('https://github.com/web-flow.gpg',{signal:AbortSignal.timeout(30000)});requireThat(response.ok,'Cannot retrieve GitHub signing keys');
-  const reader=response.body.getReader(),chunks=[];let size=0;try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;requireThat(size<=1<<20,'GitHub signing key response exceeds bound');chunks.push(Buffer.from(value));}}finally{await reader.cancel();}
-  return {status:'passed',candidate,fingerprint:verifyGitHubKey(verification,Buffer.concat(chunks).toString('utf8'),{run})};
+  requireThat(/^[a-f0-9]{40}$/.test(candidate??''),'Exact public candidate required');const verification=githubSignature(await api('GET','/repos/'+repository+'/commits/'+candidate),candidate),keys=await request('https://github.com/web-flow.gpg',{},response=>boundedText(response,1<<20),{fetcher,operation:'GitHub signing keys'});
+  return {status:'passed',candidate,fingerprint:verifyGitHubKey(verification,keys,{run})};
 }
 export async function versionTag(api,tag,candidate,{required=false}={}){
   const ref=await api('GET','/repos/'+repository+'/git/ref/tags/'+encodeURIComponent(tag),undefined,{missing:true});if(!ref){requireThat(!required,'Required version tag missing');return null;}
@@ -29,7 +29,7 @@ export async function versionTag(api,tag,candidate,{required=false}={}){
   requireThat(object?.type==='commit'&&object.sha===candidate,'Version tag identifies a different commit; it will not be moved');return ref;
 }
 export async function ensureVersionTag(api,tag,candidate){
-  if(!await versionTag(api,tag,candidate)){try{await api('POST','/repos/'+repository+'/git/refs',{ref:'refs/tags/'+tag,sha:candidate});}catch(error){if(![409,422].includes(error.status))throw error;}}
+  if(!await versionTag(api,tag,candidate)){try{await api('POST','/repos/'+repository+'/git/refs',{ref:'refs/tags/'+tag,sha:candidate});}catch(error){if(!error.ambiguous&&![409,422].includes(error.status))throw error;}}
   return versionTag(api,tag,candidate,{required:true});
 }
 export async function releaseContext(api,candidate,version,{publish=false,env=process.env,fetcher=fetch,run=spawnSync}={}){
